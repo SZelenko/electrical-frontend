@@ -9,6 +9,8 @@ import {
   type ElementBox,
 } from '@/domain/geometry'
 import type { PanelElement, TerminalBlock } from '@/domain/panelContent'
+import ToggleZone from './shapes/ToggleZone.vue'
+import { toggleZone } from './shapes/toggleZones'
 
 /**
  * Contact dots and their hit areas of one element, ATS or terminal block. Drawn in a layer above the
@@ -18,7 +20,12 @@ const props = defineProps<{
   box: ElementBox | BlockBox
   element?: PanelElement
   block?: TerminalBlock
+  readOnly?: boolean
 }>()
+
+const zone = computed(() =>
+  props.element ? toggleZone(props.element, props.box as ElementBox) : null,
+)
 
 interface Spot {
   key: string
@@ -94,6 +101,16 @@ const spots = computed<Spot[]>(() => {
 
 <template>
   <g>
+    <ToggleZone
+      v-if="zone && element"
+      :id="element.id"
+      :x="zone.x"
+      :y="zone.y"
+      :width="zone.width"
+      :height="zone.height"
+      :label="zone.label"
+      :read-only="readOnly ?? false"
+    />
     <template v-for="spot in spots" :key="spot.key">
       <circle :cx="spot.x" :cy="spot.y" r="18" class="terminal" pointer-events="none" />
       <circle

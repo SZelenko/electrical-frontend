@@ -51,12 +51,12 @@ describe('checkPlacement', () => {
     ['rejects NaN', null, Number.NaN, 1, 'invalidSize'],
     ['an item cannot grow over another even when ignoring itself', id(20), 0, 5, 'overlap'],
   ])('%s', (_n, ignore, offset, width, expected) => {
-    expect(checkPlacement(r12, ignore, offset, width)).toBe(expected)
+    expect(checkPlacement(r12, 12, ignore, offset, width)).toBe(expected)
   })
 
   it('reports invalidSize before negativeOffset before outOfRail', () => {
-    expect(checkPlacement(r12, null, -5, 0)).toBe('invalidSize')
-    expect(checkPlacement(r12, null, -1, 20)).toBe('negativeOffset')
+    expect(checkPlacement(r12, 12, null, -5, 0)).toBe('invalidSize')
+    expect(checkPlacement(r12, 12, null, -1, 20)).toBe('negativeOffset')
   })
 })
 
@@ -83,40 +83,40 @@ describe('nearestFreeOffset / firstFreeOffset', () => {
     ['wanted negative clamps to the first free spot', -7, 1, 2],
     ['two modules wide: only 2 and 10 fit', 7, 2, 10],
   ])('%s', (_n, wanted, width, expected) => {
-    expect(nearestFreeOffset(r12, null, wanted, width)).toBe(expected)
+    expect(nearestFreeOffset(r12, 12, null, wanted, width)).toBe(expected)
   })
 
   it('returns null when nothing of that width fits', () => {
-    expect(nearestFreeOffset(r12, null, 0, 3)).toBeNull()
-    expect(nearestFreeOffset(r12, null, 0, 13)).toBeNull()
+    expect(nearestFreeOffset(r12, 12, null, 0, 3)).toBeNull()
+    expect(nearestFreeOffset(r12, 12, null, 0, 13)).toBeNull()
   })
 
   it('ignores the moving item itself', () => {
-    expect(nearestFreeOffset(r12, id(21), 8, 3)).toBe(5)
+    expect(nearestFreeOffset(r12, 12, id(21), 8, 3)).toBe(5)
   })
 
   it('first free offset from the left', () => {
-    expect(firstFreeOffset(r12, 1)).toBe(2)
-    expect(firstFreeOffset(r12, 2)).toBe(2)
-    expect(firstFreeOffset(r12, 3)).toBeNull()
-    expect(firstFreeOffset(rail(1, 12), 12)).toBe(0)
-    expect(firstFreeOffset(rail(1, 12), 13)).toBeNull()
+    expect(firstFreeOffset(r12, 12, 1)).toBe(2)
+    expect(firstFreeOffset(r12, 12, 2)).toBe(2)
+    expect(firstFreeOffset(r12, 12, 3)).toBeNull()
+    expect(firstFreeOffset(rail(1, 12), 12, 12)).toBe(0)
+    expect(firstFreeOffset(rail(1, 12), 12, 13)).toBeNull()
   })
 })
 
 describe('railAtY (rail band = element height around the centre line)', () => {
-  const layout = computeLayout(buildWorld()) // centres 2500 and 3500
+  const layout = computeLayout(buildWorld()) // centres 2100 and 3100 (railsTop 600)
   it.each([
-    [2500, 0],
-    [2050, 0], // inclusive top edge
-    [2950, 0], // inclusive bottom edge
-    [3500, 1],
-    [3050, 1],
-    [3950, 1],
-    [2049, null],
-    [2951, null], // gap between the rails
-    [3049, null],
-    [3951, null],
+    [2100, 0],
+    [1650, 0], // inclusive top edge
+    [2550, 0], // inclusive bottom edge
+    [3100, 1],
+    [2650, 1],
+    [3550, 1],
+    [1649, null],
+    [2551, null], // gap between the rails
+    [2649, null],
+    [3551, null],
     [0, null],
   ])('y=%i -> %s', (y, expected) => expect(railAtY(layout, y)).toBe(expected))
 
@@ -141,11 +141,11 @@ describe('checkElementWidth', () => {
     ['8 poles on 2 modules', 2, 8, null],
     ['9 poles on 2 modules', 2, 9, 'tooNarrowForPoles'],
   ])('%s', (_n, width, poles, expected) => {
-    expect(checkElementWidth(r12, e1, width, poles)).toBe(expected)
+    expect(checkElementWidth(r12, 12, e1, width, poles)).toBe(expected)
   })
 })
 
-describe('checkRowPlacement (terminal row: 60 modules, no overlap)', () => {
+describe('checkRowPlacement (terminal row: capacity in modules, no overlap)', () => {
   const row = [rowBlock(40, 8, 3), rowBlock(41, 20, 2)] // [8,10) and [20,21)
   it.each([
     ['a free slot', null, 0, 2, null],
@@ -158,7 +158,7 @@ describe('checkRowPlacement (terminal row: 60 modules, no overlap)', () => {
     ['a negative offset', null, -1, 1, 'negativeOffset'],
     ['width 0', null, 0, 0, 'invalidSize'],
   ])('%s', (_n, ignore, offset, width, expected) => {
-    expect(checkRowPlacement(row, ignore, offset, width)).toBe(expected)
+    expect(checkRowPlacement(row, 60, ignore, offset, width)).toBe(expected)
   })
 })
 
@@ -172,9 +172,11 @@ describe('checkRailWidth', () => {
     ['61', 61, 'invalidSize'],
     ['fractional', 10.5, 'invalidSize'],
     ['negative', -3, 'invalidSize'],
-  ])('%s', (_n, width, expected) => expect(checkRailWidth(r12, width)).toBe(expected))
+  ])('%s', (_n, width, expected) =>
+    expect(checkRailWidth(content({ rails: [r12] }), width, 1)).toBe(expected),
+  )
 
   it('an empty rail can shrink to 1 module', () => {
-    expect(checkRailWidth(rail(1, 12), 1)).toBeNull()
+    expect(checkRailWidth(content({ rails: [rail(1, 12)] }), 1, 1)).toBeNull()
   })
 })

@@ -335,6 +335,45 @@ export interface components {
       /** @description mm from the top edge, 0 <= y <= 99999.9, one decimal */
       y: number
     }
+    BusbarDto: {
+      id: string
+      /** @enum {string} */
+      type: 'L' | 'LN'
+      /**
+       * @description null = grey
+       * @enum {string|null}
+       */
+      colour: 'black' | 'brown' | 'red' | 'blue' | 'green-yellow' | null
+      firstElementId: string
+      /** @description number of covered devices, 2 to 60 */
+      count: number
+    }
+    'BusbarDto.jsonld_noid': {
+      id: string
+      /** @enum {string} */
+      type: 'L' | 'LN'
+      /**
+       * @description null = grey
+       * @enum {string|null}
+       */
+      colour: 'black' | 'brown' | 'red' | 'blue' | 'green-yellow' | null
+      firstElementId: string
+      /** @description number of covered devices, 2 to 60 */
+      count: number
+    }
+    BusbarDto_noid: {
+      id: string
+      /** @enum {string} */
+      type: 'L' | 'LN'
+      /**
+       * @description null = grey
+       * @enum {string|null}
+       */
+      colour: 'black' | 'brown' | 'red' | 'blue' | 'green-yellow' | null
+      firstElementId: string
+      /** @description number of covered devices, 2 to 60 */
+      count: number
+    }
     CableWireDto: {
       id: string
       /** @enum {string} */
@@ -456,7 +495,7 @@ export interface components {
     }
     EndpointDto: {
       /** @enum {string} */
-      kind: 'pole' | 'terminal' | 'cableWire'
+      kind: 'pole' | 'terminal' | 'cableWire' | 'busbar'
       elementId?: string | null
       poleIndex?: number | null
       /** @enum {string|null} */
@@ -466,10 +505,12 @@ export interface components {
       cableWireId?: string | null
       /** @enum {string|null} */
       contactSide?: 'top' | 'bottom' | 'left' | 'right' | null
+      busbarId?: string | null
+      feedIndex?: number | null
     }
     'EndpointDto.jsonld_noid': {
       /** @enum {string} */
-      kind: 'pole' | 'terminal' | 'cableWire'
+      kind: 'pole' | 'terminal' | 'cableWire' | 'busbar'
       elementId?: string | null
       poleIndex?: number | null
       /** @enum {string|null} */
@@ -479,10 +520,12 @@ export interface components {
       cableWireId?: string | null
       /** @enum {string|null} */
       contactSide?: 'top' | 'bottom' | 'left' | 'right' | null
+      busbarId?: string | null
+      feedIndex?: number | null
     }
     EndpointDto_noid: {
       /** @enum {string} */
-      kind: 'pole' | 'terminal' | 'cableWire'
+      kind: 'pole' | 'terminal' | 'cableWire' | 'busbar'
       elementId?: string | null
       poleIndex?: number | null
       /** @enum {string|null} */
@@ -492,6 +535,8 @@ export interface components {
       cableWireId?: string | null
       /** @enum {string|null} */
       contactSide?: 'top' | 'bottom' | 'left' | 'right' | null
+      busbarId?: string | null
+      feedIndex?: number | null
     }
     /** @description A representation of common errors. */
     Error: {
@@ -580,6 +625,8 @@ export interface components {
     }
     InputCableDto: {
       id: string
+      /** @description free mark, at most 16 characters, may be empty */
+      label: string
       /** @description V, 0 < v <= 99999.9, one decimal */
       voltage: number
       /** @description Hz, 0 <= f <= 999.99, two decimals */
@@ -591,6 +638,8 @@ export interface components {
     }
     'InputCableDto.jsonld_noid': {
       id: string
+      /** @description free mark, at most 16 characters, may be empty */
+      label: string
       /** @description V, 0 < v <= 99999.9, one decimal */
       voltage: number
       /** @description Hz, 0 <= f <= 999.99, two decimals */
@@ -602,6 +651,8 @@ export interface components {
     }
     InputCableDto_noid: {
       id: string
+      /** @description free mark, at most 16 characters, may be empty */
+      label: string
       /** @description V, 0 < v <= 99999.9, one decimal */
       voltage: number
       /** @description Hz, 0 <= f <= 999.99, two decimals */
@@ -627,6 +678,8 @@ export interface components {
     }
     OutputCableDto: {
       id: string
+      /** @description free mark, at most 16 characters, may be empty */
+      label: string
       /** @description at most 255 characters */
       description: string
       /** @description 1 to 4 wires */
@@ -634,6 +687,8 @@ export interface components {
     }
     'OutputCableDto.jsonld_noid': {
       id: string
+      /** @description free mark, at most 16 characters, may be empty */
+      label: string
       /** @description at most 255 characters */
       description: string
       /** @description 1 to 4 wires */
@@ -641,6 +696,8 @@ export interface components {
     }
     OutputCableDto_noid: {
       id: string
+      /** @description free mark, at most 16 characters, may be empty */
+      label: string
       /** @description at most 255 characters */
       description: string
       /** @description 1 to 4 wires */
@@ -745,25 +802,31 @@ export interface components {
       shortCircuits: components['schemas']['ShortCircuitGroup.jsonld_noid'][]
     }
     PanelContent: {
+      /** @description width of every rail, 1 to 60 */
+      railWidthModules: number
       inputCables: components['schemas']['InputCableDto'][]
       outputCables: components['schemas']['OutputCableDto'][]
-      /** @description blocks of the terminal row (between the input cables and the first rail), at most 60 */
+      /** @description blocks of the terminal row (beside the input cables, offsets relative to the row start), at most 60 */
       terminalRow: components['schemas']['TerminalBlockDto'][]
       rails: components['schemas']['RailDto'][]
       wires: components['schemas']['WireDto'][]
     }
     'PanelContent.jsonld_noid': {
+      /** @description width of every rail, 1 to 60 */
+      railWidthModules: number
       inputCables: components['schemas']['InputCableDto.jsonld_noid'][]
       outputCables: components['schemas']['OutputCableDto.jsonld_noid'][]
-      /** @description blocks of the terminal row (between the input cables and the first rail), at most 60 */
+      /** @description blocks of the terminal row (beside the input cables, offsets relative to the row start), at most 60 */
       terminalRow: components['schemas']['TerminalBlockDto.jsonld_noid'][]
       rails: components['schemas']['RailDto.jsonld_noid'][]
       wires: components['schemas']['WireDto.jsonld_noid'][]
     }
     PanelContent_noid: {
+      /** @description width of every rail, 1 to 60 */
+      railWidthModules: number
       inputCables: components['schemas']['InputCableDto_noid'][]
       outputCables: components['schemas']['OutputCableDto_noid'][]
-      /** @description blocks of the terminal row (between the input cables and the first rail), at most 60 */
+      /** @description blocks of the terminal row (beside the input cables, offsets relative to the row start), at most 60 */
       terminalRow: components['schemas']['TerminalBlockDto_noid'][]
       rails: components['schemas']['RailDto_noid'][]
       wires: components['schemas']['WireDto_noid'][]
@@ -779,30 +842,30 @@ export interface components {
     }
     RailDto: {
       id: string
-      /** @description 1 to 60 */
-      widthModules: number
       /** @description distance from the previous rail (first rail: from the top edge), 0 <= s <= 99999.9, one decimal */
       spacingMm: number
       elements: components['schemas']['ElementDto'][]
       terminalBlocks: components['schemas']['TerminalBlockDto'][]
+      /** @description at most 30, ordered by the offset of the anchor element in responses */
+      busbars: components['schemas']['BusbarDto'][]
     }
     'RailDto.jsonld_noid': {
       id: string
-      /** @description 1 to 60 */
-      widthModules: number
       /** @description distance from the previous rail (first rail: from the top edge), 0 <= s <= 99999.9, one decimal */
       spacingMm: number
       elements: components['schemas']['ElementDto.jsonld_noid'][]
       terminalBlocks: components['schemas']['TerminalBlockDto.jsonld_noid'][]
+      /** @description at most 30, ordered by the offset of the anchor element in responses */
+      busbars: components['schemas']['BusbarDto.jsonld_noid'][]
     }
     RailDto_noid: {
       id: string
-      /** @description 1 to 60 */
-      widthModules: number
       /** @description distance from the previous rail (first rail: from the top edge), 0 <= s <= 99999.9, one decimal */
       spacingMm: number
       elements: components['schemas']['ElementDto_noid'][]
       terminalBlocks: components['schemas']['TerminalBlockDto_noid'][]
+      /** @description at most 30, ordered by the offset of the anchor element in responses */
+      busbars: components['schemas']['BusbarDto_noid'][]
     }
     Register: {
       /** Format: email */

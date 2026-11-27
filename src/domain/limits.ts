@@ -1,5 +1,5 @@
 /** Limits mirroring the backend PanelContentValidator and entity constants (the backend is the source of truth). */
-import type { DeviceStyle, WireColour, WireCrossSection } from './panelContent'
+import type { BusbarType, DeviceStyle, WireColour, WireCrossSection } from './panelContent'
 
 export const MAX_INPUT_CABLES = 20
 export const MAX_OUTPUT_CABLES = 100
@@ -9,11 +9,13 @@ export const MAX_BENDS_PER_WIRE = 50
 export const MAX_TOTAL_BENDS = 20000
 export const MIN_CABLE_WIRES = 1
 export const MAX_CABLE_WIRES = 4
+/** Panel-wide rail width bounds (modules). */
 export const MAX_RAIL_WIDTH = 60
+export const MIN_RAIL_WIDTH = 1
+export const DEFAULT_RAIL_WIDTH_MODULES = 60
 export const MAX_POLES_PER_MODULE = 4
 /** Row blocks: contacts per module of width (width = ceil(contacts / 2)). */
 export const MAX_TERMINALS_PER_MODULE = 2
-export const ROW_WIDTH_MODULES = 60
 export const MAX_ROW_BLOCKS = 60
 export const MAX_ROW_BLOCK_TERMINALS = 60
 export const MAX_RAIL_BLOCK_TERMINALS = 12
@@ -23,6 +25,17 @@ export const ATS_OUTPUTS = 2
 export const MAX_LABEL_LENGTH = 16
 export const MAX_MARKING_LENGTH = 6
 export const MAX_DESCRIPTION_LENGTH = 255
+export const MAX_CABLE_LABEL_LENGTH = 16
+
+/** Busbars: per rail, devices covered (anchor included). */
+export const MAX_BUSBARS_PER_RAIL = 30
+export const MIN_BUSBAR_COUNT = 2
+export const MAX_BUSBAR_COUNT = 60
+export const BUSBAR_TYPES: readonly BusbarType[] = ['L', 'LN']
+/** Feeds of a busbar: L has one (L), LN two (L, N). */
+export function busbarFeedCount(type: BusbarType): number {
+  return type === 'LN' ? 2 : 1
+}
 
 export const MAX_VOLTAGE = 99999.9
 export const MAX_FREQUENCY = 999.99

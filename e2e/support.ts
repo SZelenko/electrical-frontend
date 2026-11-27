@@ -53,20 +53,39 @@ export const rowBlock = (n: number, offsetModules: number, terminalCount = 2) =>
   ...block(n, offsetModules, Math.ceil(terminalCount / 2), terminalCount),
 })
 
+export interface E2eBusbar {
+  id: string
+  type: 'L' | 'LN'
+  colour: string | null
+  firstElementId: string
+  count: number
+}
+
+export const busbar = (
+  n: number,
+  type: 'L' | 'LN',
+  firstElementId: string,
+  count: number,
+): E2eBusbar => ({ id: id(n), type, colour: null, firstElementId, count })
+
+/** The rail width is a panel value (`railWidthModules`, default 20 in these specs). */
 export const rail = (
   n: number,
   elements: E2eElement[] = [],
   terminalBlocks: ReturnType<typeof block>[] = [],
   spacingMm = 150,
-) => ({ id: id(n), widthModules: 20, spacingMm, elements, terminalBlocks })
+  busbars: E2eBusbar[] = [],
+) => ({ id: id(n), spacingMm, elements, terminalBlocks, busbars })
 
 type Json = Record<string, unknown>
 
 export function panelContent(over: Json = {}): Json {
   return {
+    railWidthModules: 20,
     inputCables: [
       {
         id: id(1),
+        label: '',
         voltage: 230,
         frequency: 50,
         crossSection: 4,
@@ -84,6 +103,12 @@ export function panelContent(over: Json = {}): Json {
   }
 }
 
+export const feedEnd = (busbarId: string, feedIndex: number) => ({
+  kind: 'busbar',
+  busbarId,
+  feedIndex,
+  contactSide: null,
+})
 export const poleEnd = (elementId: string, poleIndex: number, side: 'input' | 'output') => ({
   kind: 'pole',
   elementId,

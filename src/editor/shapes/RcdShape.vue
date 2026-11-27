@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import type { ElementBox } from '@/domain/geometry'
 import type { DeviceElement } from '@/domain/panelContent'
 import DeviceFrame from './DeviceFrame.vue'
-import ToggleZone from './ToggleZone.vue'
 
 /** Residual-current device: a lever (up = on) and a round test button "T". */
 const props = defineProps<{
@@ -20,9 +19,6 @@ const SLOT_H = 240
 const LEVER_H = 120
 const leverY = computed(() => (props.element.on ? slotY.value : slotY.value + SLOT_H - LEVER_H))
 const buttonY = computed(() => props.box.y + 620)
-const label = computed(
-  () => `Перемкнути ПЗВ (зараз: ${props.element.on ? 'увімкнено' : 'вимкнено'})`,
-)
 </script>
 
 <template>
@@ -59,14 +55,24 @@ const label = computed(
     <text :x="cx" :y="buttonY + 13" class="glyph t" text-anchor="middle" pointer-events="none"
       >T</text
     >
-    <ToggleZone
-      :id="element.id"
-      :x="cx - slotW / 2 - 10"
-      :y="slotY - 10"
-      :width="slotW + 20"
-      :height="SLOT_H + 20"
-      :label="label"
-    />
+    <text
+      :x="cx - slotW / 2 - 20"
+      :y="slotY + 34"
+      class="io"
+      :class="{ active: element.on }"
+      text-anchor="middle"
+      pointer-events="none"
+      >I</text
+    >
+    <text
+      :x="cx - slotW / 2 - 20"
+      :y="slotY + SLOT_H - 8"
+      class="io"
+      :class="{ active: !element.on }"
+      text-anchor="middle"
+      pointer-events="none"
+      >O</text
+    >
   </DeviceFrame>
 </template>
 
@@ -94,6 +100,15 @@ const label = computed(
   user-select: none;
 }
 .glyph.t {
+  fill: #1f2733;
+}
+.io {
+  font-size: 30px;
+  font-weight: 700;
+  fill: #aeb4bd;
+  user-select: none;
+}
+.io.active {
   fill: #1f2733;
 }
 </style>

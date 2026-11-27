@@ -113,6 +113,12 @@ function normalizeEndpoint(raw: PayloadEndpoint | undefined): Endpoint {
       }
     case 'cableWire':
       return { kind: 'cableWire', cableWireId: req(e.cableWireId, 'endpoint cableWireId') }
+    case 'busbar':
+      return {
+        kind: 'busbar',
+        busbarId: req(e.busbarId, 'endpoint busbarId'),
+        feedIndex: req(e.feedIndex, 'endpoint feedIndex'),
+      }
     default:
       throw new InvalidPayloadError('endpoint kind')
   }
@@ -183,18 +189,26 @@ function normalizeBlock(raw: PayloadBlock): TerminalBlock {
 function normalizeRail(raw: Schemas['RailDto']): Rail {
   return {
     id: req(raw.id, 'rail id'),
-    widthModules: req(raw.widthModules, 'rail widthModules'),
     spacingMm: req(raw.spacingMm, 'rail spacingMm'),
     elements: list(raw.elements, 'rail elements').map(normalizeElement),
     terminalBlocks: list(raw.terminalBlocks, 'rail terminalBlocks').map(normalizeBlock),
+    busbars: list(raw.busbars, 'rail busbars').map((b) => ({
+      id: req(b.id, 'busbar id'),
+      type: req(b.type, 'busbar type'),
+      colour: nullable(b.colour, 'busbar colour'),
+      firstElementId: req(b.firstElementId, 'busbar firstElementId'),
+      count: req(b.count, 'busbar count'),
+    })),
   }
 }
 
 /** Payload (mm, one decimal) to the editor model (bends in integer tenths of a millimetre). */
 export function normalizeContent(content: Schemas['PanelContent']): PanelContent {
   return {
+    railWidthModules: req(content.railWidthModules, 'railWidthModules'),
     inputCables: list(content.inputCables, 'inputCables').map((c) => ({
       id: req(c.id, 'input cable id'),
+      label: req(c.label, 'input cable label'),
       voltage: req(c.voltage, 'input cable voltage'),
       frequency: req(c.frequency, 'input cable frequency'),
       crossSection: req(c.crossSection, 'input cable crossSection'),
@@ -202,6 +216,7 @@ export function normalizeContent(content: Schemas['PanelContent']): PanelContent
     })),
     outputCables: list(content.outputCables, 'outputCables').map((c) => ({
       id: req(c.id, 'output cable id'),
+      label: req(c.label, 'output cable label'),
       description: req(c.description, 'output cable description'),
       wires: normalizeCableWires(c.wires),
     })),
@@ -252,6 +267,8 @@ function endpointPayload(e: Endpoint): PayloadEndpoint {
       }
     case 'cableWire':
       return { kind: 'cableWire', cableWireId: e.cableWireId, contactSide: null }
+    case 'busbar':
+      return { kind: 'busbar', busbarId: e.busbarId, feedIndex: e.feedIndex, contactSide: null }
   }
 }
 
@@ -279,6 +296,7 @@ function elementPayload(e: PanelElement): PayloadElement {
 /** Editor model to the PUT payload; bends are always sent (mm, one decimal). */
 export function contentToPayload(content: PanelContent): Schemas['PanelContent'] {
   const payload: Schemas['PanelContent'] = {
+    railWidthModules: content.railWidthModules,
     inputCables: content.inputCables.map((c) => ({ ...c, wires: c.wires.map((w) => ({ ...w })) })),
     outputCables: content.outputCables.map((c) => ({
       ...c,
@@ -287,10 +305,16 @@ export function contentToPayload(content: PanelContent): Schemas['PanelContent']
     terminalRow: content.terminalRow.map((b) => ({ ...b })),
     rails: content.rails.map((r) => ({
       id: r.id,
-      widthModules: r.widthModules,
       spacingMm: r.spacingMm,
       elements: r.elements.map(elementPayload),
       terminalBlocks: r.terminalBlocks.map((b) => ({ ...b })),
+      busbars: r.busbars.map((b) => ({
+        id: b.id,
+        type: b.type,
+        colour: b.colour,
+        firstElementId: b.firstElementId,
+        count: b.count,
+      })),
     })),
     wires: content.wires.map((w) => ({
       id: w.id,

@@ -150,7 +150,14 @@ describe('rename', () => {
             version: 2,
             updatedAt: '2026-03-03T00:00:00+00:00',
             // The rename response must never replace the content held locally.
-            content: { inputCables: [], outputCables: [], terminalRow: [], rails: [], wires: [] },
+            content: {
+              railWidthModules: 24,
+              inputCables: [],
+              outputCables: [],
+              terminalRow: [],
+              rails: [],
+              wires: [],
+            },
           }),
         ),
     })

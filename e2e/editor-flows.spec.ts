@@ -20,7 +20,7 @@ const saved = 'Усі зміни збережено'
 async function open(page: Page, s: ReturnType<typeof server>) {
   await mockApi(page, s)
   await page.goto('/panels/p1')
-  await expect(page.getByRole('heading', { name: s.name })).toBeVisible()
+  await expect(page.getByRole('heading', { name: s.name, level: 1 })).toBeVisible()
 }
 
 const centre = async (locator: Locator) => {
@@ -107,7 +107,7 @@ test.describe('structural edits with attached wires', () => {
   }) => {
     await open(page, server(withWire()))
     await expect(page.getByTestId('wire')).toHaveCount(2)
-    await page.getByTestId('element').click()
+    await page.getByTestId('element').click({ position: { x: 6, y: 6 } })
     const poles = page
       .getByRole('region', { name: 'Властивості апарата' })
       .getByLabel('Кількість полюсів')
@@ -124,7 +124,7 @@ test.describe('structural edits with attached wires', () => {
     page,
   }) => {
     await open(page, server(withWire()))
-    await page.getByTestId('element').click()
+    await page.getByTestId('element').click({ position: { x: 6, y: 6 } })
     await page.getByRole('button', { name: 'Видалити вибране' }).click()
     await expect(page.getByText('Видалено 2 проводи')).toBeVisible()
     await expect(page.getByTestId('wire')).toHaveCount(0)
@@ -137,7 +137,7 @@ test.describe('structural edits with attached wires', () => {
     page,
   }) => {
     await open(page, server(withWire()))
-    await page.getByTestId('element').click()
+    await page.getByTestId('element').click({ position: { x: 6, y: 6 } })
     await page.getByRole('button', { name: 'Видалити вибране' }).click()
     await expect(page.getByTestId('element')).toHaveCount(0)
     await page.keyboard.press('Control+z')
@@ -149,7 +149,7 @@ test.describe('structural edits with attached wires', () => {
     await page.keyboard.press('Control+z')
     await expect(page.getByTestId('element')).toHaveCount(1)
     // focus in a field: the shortcut is left to the field
-    await page.getByTestId('element').click()
+    await page.getByTestId('element').click({ position: { x: 6, y: 6 } })
     await page.getByLabel('Назва').first().focus()
     await page.keyboard.press('Control+Shift+z')
     await expect(page.getByTestId('element')).toHaveCount(1)

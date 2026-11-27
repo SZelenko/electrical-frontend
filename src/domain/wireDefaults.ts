@@ -3,8 +3,8 @@ import { endpointKey, type Endpoint, type PanelContent, type WireColour } from '
 
 /**
  * A cable-wire contact gives its wire's colour; a contact of a coloured terminal block gives the
- * block's colour; otherwise a pole or terminal gives the colour of the first wire (in draw order)
- * already attached to it; otherwise `fallback`.
+ * block's colour; a busbar feed gives brown (L) or blue (N); otherwise a pole or terminal gives the
+ * colour of the first wire (in draw order) already attached to it; otherwise `fallback`.
  */
 export function defaultWireColour(
   content: PanelContent,
@@ -22,6 +22,10 @@ export function defaultWireColour(
     const blocks = [...content.terminalRow, ...content.rails.flatMap((r) => r.terminalBlocks)]
     const colour = blocks.find((b) => b.id === start.terminalBlockId)?.colour
     if (colour) return colour
+  }
+  if (start.kind === 'busbar') {
+    // feed L is brown, feed N blue
+    return start.feedIndex === 0 ? 'brown' : 'blue'
   }
   const key = endpointKey(start)
   const attached = content.wires.find(

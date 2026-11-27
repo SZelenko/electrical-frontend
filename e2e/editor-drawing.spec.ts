@@ -6,6 +6,7 @@ async function open(page: Page) {
     inputCables: [
       {
         id: id(1),
+        label: '',
         voltage: 230,
         frequency: 50,
         crossSection: 4,
@@ -20,7 +21,7 @@ async function open(page: Page) {
   const s = server(content)
   await mockApi(page, s)
   await page.goto('/panels/p1')
-  await expect(page.getByRole('heading', { name: 'Щит' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Щит', level: 1 })).toBeVisible()
   return s
 }
 

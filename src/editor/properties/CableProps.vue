@@ -9,7 +9,12 @@ import {
   updateInputCable,
   updateOutputCable,
 } from '@/domain/commands'
-import { MAX_CABLE_WIRES, MAX_DESCRIPTION_LENGTH, WIRE_COLOURS } from '@/domain/limits'
+import {
+  MAX_CABLE_LABEL_LENGTH,
+  MAX_CABLE_WIRES,
+  MAX_DESCRIPTION_LENGTH,
+  WIRE_COLOURS,
+} from '@/domain/limits'
 import { colourName, type WireColour } from '@/domain/panelContent'
 import { newId } from '../newId'
 import CommitField from './CommitField.vue'
@@ -44,6 +49,21 @@ function removeCable() {
     "
   >
     <h3>{{ kind === 'inputCable' ? 'Вхідний кабель' : 'Вихідний кабель' }} {{ index + 1 }}</h3>
+    <CommitField
+      label="Позначення (малюється біля кабелю)"
+      :maxlength="MAX_CABLE_LABEL_LENGTH"
+      :model-value="cable.label"
+      :disabled="store.readOnly"
+      @commit="
+        (v) =>
+          ctx.run(
+            kind === 'inputCable'
+              ? updateInputCable(id, { label: v })
+              : updateOutputCable(id, { label: v }),
+            'Змінити позначення кабелю',
+          )
+      "
+    />
     <template v-if="input">
       <CommitField
         label="Напруга, В"

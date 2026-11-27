@@ -4,7 +4,8 @@
  * wire deletion (panel-domain) and repair routes whose endpoints moved (E3); elements and terminal
  * blocks stay sorted by offset (E6). Ids are supplied by the caller (crypto.randomUUID()).
  */
-import { computeLayout, endpointPoint, type Pt } from './geometry'
+import { busbarCover, busbarCovering, coveredDevices, maxBusbarCount, railItems } from './busbars'
+import { computeLayout, endpointPoint, rowCapacity, rowStartModules, type Pt } from './geometry'
 import { buildIndex } from './contentIndex'
 import {
   CABLE_CROSS_SECTION_RULE,
@@ -29,7 +30,9 @@ import {
   MAX_LABEL_LENGTH,
   MAX_MARKING_LENGTH,
   MAX_OUTPUT_CABLES,
-  MAX_RAIL_WIDTH,
+  MAX_BUSBARS_PER_RAIL,
+  MAX_CABLE_LABEL_LENGTH,
+  MIN_BUSBAR_COUNT,
   MAX_RAILS,
   MAX_TOTAL_BENDS,
   MAX_COORD_U,
@@ -46,6 +49,7 @@ import {
   checkPlacement,
   checkRailWidth,
   checkRowPlacement,
+  rowFits,
   type PlacementError,
 } from './placement'
 import {
@@ -59,6 +63,8 @@ import {
   endpointKey,
   type AtsState,
   type AtsElement,
+  type Busbar,
+  type BusbarType,
   type CableWire,
   type DeviceElement,
   type DeviceStyle,
@@ -84,6 +90,8 @@ export type Rejection =
   | 'lastCableWire'
   | 'sameTerminal'
   | 'readOnly'
+  | 'busbarNoRoom'
+  | 'busbarRange'
 
 export type CommandOutcome =
   | { ok: true; content: PanelContent; removedWires: number }
@@ -151,15 +159,25 @@ function isSortedByOffset(items: readonly { offsetModules: number }[]): boolean 
 function sortedRail(rail: Rail): Rail {
   const elementsOk = isSortedByOffset(rail.elements)
   const blocksOk = isSortedByOffset(rail.terminalBlocks)
-  if (elementsOk && blocksOk) return rail
+  const elements = elementsOk
+    ? rail.elements
+    : [...rail.elements].sort((a, b) => a.offsetModules - b.offsetModules)
+  // busbars follow the offset of their anchor
+  const anchorOffset = (b: Busbar) =>
+    elements.find((e) => e.id === b.firstElementId)?.offsetModules ?? Number.MAX_SAFE_INTEGER
+  const busbarsOk = rail.busbars.every(
+    (b, i) => i === 0 || anchorOffset(rail.busbars[i - 1] as Busbar) <= anchorOffset(b),
+  )
+  if (elementsOk && blocksOk && busbarsOk) return rail
   return {
     ...rail,
-    elements: elementsOk
-      ? rail.elements
-      : [...rail.elements].sort((a, b) => a.offsetModules - b.offsetModules),
+    elements,
     terminalBlocks: blocksOk
       ? rail.terminalBlocks
       : [...rail.terminalBlocks].sort((a, b) => a.offsetModules - b.offsetModules),
+    busbars: busbarsOk
+      ? rail.busbars
+      : [...rail.busbars].sort((a, b) => anchorOffset(a) - anchorOffset(b)),
   }
 }
 
@@ -183,6 +201,7 @@ function allIds(content: PanelContent): Set<string> {
     ids.add(r.id)
     r.elements.forEach((e) => ids.add(e.id))
     r.terminalBlocks.forEach((b) => ids.add(b.id))
+    r.busbars.forEach((b) => ids.add(b.id))
   }
   content.wires.forEach((w) => ids.add(w.id))
   return ids
@@ -226,10 +245,19 @@ function settle(before: PanelContent, after: PanelContent, removedWires: number)
   return { content: repairRoutes(before, after), removedWires }
 }
 
+/** Endpoints on any of the given elements, terminal blocks or busbars. */
 function elementHasEndpoints(ids: ReadonlySet<string>) {
   return (e: Endpoint) =>
     (e.kind === 'pole' && ids.has(e.elementId)) ||
-    (e.kind === 'terminal' && ids.has(e.terminalBlockId))
+    (e.kind === 'terminal' && ids.has(e.terminalBlockId)) ||
+    (e.kind === 'busbar' && ids.has(e.busbarId))
+}
+
+/** The terminal row must still hold its blocks (the input cables set where it starts). */
+function requireRowFits(content: PanelContent): void {
+  if (!rowFits(content.terminalRow, rowCapacity(content))) {
+    reject('rowOverflow')
+  }
 }
 
 function cableWireEndpoints(ids: ReadonlySet<string>) {
@@ -250,6 +278,7 @@ export function totalBends(content: PanelContent): number {
 export function defaultInputCable(id: string, wireId: string): InputCable {
   return {
     id,
+    label: '',
     voltage: DEFAULT_VOLTAGE,
     frequency: DEFAULT_FREQUENCY,
     crossSection: DEFAULT_CABLE_CROSS_SECTION,
@@ -258,20 +287,23 @@ export function defaultInputCable(id: string, wireId: string): InputCable {
 }
 
 export function defaultOutputCable(id: string, wireId: string): OutputCable {
-  return { id, description: '', wires: [{ id: wireId, colour: 'brown' }] }
+  return { id, label: '', description: '', wires: [{ id: wireId, colour: 'brown' }] }
 }
 
 // ---- rails ----
 
-export function addRail(rail: { id: string; widthModules?: number; spacingMm?: number }): Command {
+export function addRail(rail: { id: string; spacingMm?: number }): Command {
   return define((content) => {
     if (content.rails.length >= MAX_RAILS) reject('limit', 'rails')
-    const widthModules = rail.widthModules ?? MAX_RAIL_WIDTH
-    if (!Number.isInteger(widthModules) || widthModules < 1 || widthModules > MAX_RAIL_WIDTH)
-      reject('invalid', 'width')
     const spacingMm = requireDecimal(rail.spacingMm ?? DEFAULT_RAIL_SPACING_MM, SPACING_RULE)
     requireFreeIds(content, rail.id)
-    const created: Rail = { id: rail.id, widthModules, spacingMm, elements: [], terminalBlocks: [] }
+    const created: Rail = {
+      id: rail.id,
+      spacingMm,
+      elements: [],
+      terminalBlocks: [],
+      busbars: [],
+    }
     const after = { ...content, rails: [...content.rails, created] }
     requireDrawingInRange(after)
     return settle(content, after, 0)
@@ -285,6 +317,7 @@ export function removeRail(railId: string): Command {
     const ids = new Set([
       ...rail.elements.map((e) => e.id),
       ...rail.terminalBlocks.map((b) => b.id),
+      ...rail.busbars.map((b) => b.id),
     ])
     const without = { ...content, rails: content.rails.filter((_, i) => i !== index) }
     const cascade = dropWires(without, elementHasEndpoints(ids))
@@ -292,24 +325,26 @@ export function removeRail(railId: string): Command {
   })
 }
 
-export function updateRail(
-  railId: string,
-  patch: { widthModules?: number; spacingMm?: number },
-): Command {
+export function updateRail(railId: string, patch: { spacingMm?: number }): Command {
   return define((content) => {
     const index = railIndexOf(content, railId)
     const rail = content.rails[index] as Rail
-    const widthModules = patch.widthModules ?? rail.widthModules
     let spacingMm = patch.spacingMm ?? rail.spacingMm
     if (spacingMm !== rail.spacingMm) spacingMm = requireDecimal(spacingMm, SPACING_RULE)
-    if (widthModules === rail.widthModules && spacingMm === rail.spacingMm) return content
-    if (widthModules !== rail.widthModules) {
-      const error = checkRailWidth(rail, widthModules)
-      if (error) reject(error)
-    }
-    const after = replaceRail(content, index, { ...rail, widthModules, spacingMm })
+    if (spacingMm === rail.spacingMm) return content
+    const after = replaceRail(content, index, { ...rail, spacingMm })
     requireDrawingInRange(after)
     return settle(content, after, 0)
+  })
+}
+
+/** Sets the width of every rail (1..60 modules); rejected when an item or a row block would no longer fit. */
+export function setRailWidth(widthModules: number): Command {
+  return define((content) => {
+    if (widthModules === content.railWidthModules) return content
+    const error = checkRailWidth(content, widthModules, rowStartModules(content))
+    if (error) reject(error)
+    return settle(content, { ...content, railWidthModules: widthModules }, 0)
   })
 }
 
@@ -364,7 +399,13 @@ export function addElement(railId: string, element: PanelElement): Command {
     ) {
       reject('tooNarrowForPoles')
     }
-    const error = checkPlacement(rail, null, element.offsetModules, element.widthModules)
+    const error = checkPlacement(
+      rail,
+      content.railWidthModules,
+      null,
+      element.offsetModules,
+      element.widthModules,
+    )
     if (error) reject(error)
     const next = sortedRail({ ...rail, elements: [...rail.elements, element] })
     return settle(content, replaceRail(content, railIndex, next), 0)
@@ -457,7 +498,13 @@ export function updateElement(id: string, patch: ElementPatch): Command {
     if (next.marking !== element.marking) requireText(next.marking, MAX_MARKING_LENGTH)
     const polesChanged = element.kind === 'device' && poleCount !== element.poles.length
     if (next.widthModules !== element.widthModules || polesChanged) {
-      const error = checkElementWidth(rail, element, next.widthModules, poleCount)
+      const error = checkElementWidth(
+        rail,
+        content.railWidthModules,
+        element,
+        next.widthModules,
+        poleCount,
+      )
       if (error) reject(error)
     }
     if (
@@ -472,7 +519,19 @@ export function updateElement(id: string, patch: ElementPatch): Command {
     ) {
       return content
     }
-    const elements = rail.elements.map((e, i) => (i === index ? next : e))
+    let elements = rail.elements.map((e, i) => (i === index ? next : e))
+    if (next.sidesSwapped !== element.sidesSwapped) {
+      // the covered devices of a busbar swap together
+      const covering = busbarCovering(rail, id)
+      if (covering) {
+        const ids = new Set(coveredDevices(covering.cover).map((d) => d.id))
+        elements = elements.map((e) =>
+          ids.has(e.id) && e.sidesSwapped !== next.sidesSwapped
+            ? { ...e, sidesSwapped: next.sidesSwapped }
+            : e,
+        )
+      }
+    }
     const after = replaceRail(content, railIndex, { ...rail, elements })
     const cascade =
       element.kind === 'device' && poleCount < element.poles.length
@@ -501,11 +560,40 @@ export function setPoleTransit(elementId: string, poleIndex: number, transit: bo
 export function removeElement(id: string): Command {
   return define((content) => {
     const { railIndex, rail, index } = elementLocation(content, id)
+    // A busbar covering the device shrinks by one; the anchor passes to the next covered item; a
+    // busbar left with fewer than two devices goes away with the wires on its feeds.
+    const items = railItems(rail)
+    const droppedBusbars = new Set<string>()
+    const busbars: Busbar[] = []
+    for (const busbar of rail.busbars) {
+      const cover = busbarCover(rail, busbar, items)
+      const contains = cover?.items.some((i) => i.id === id && i.element !== null) ?? false
+      if (!cover || (!contains && busbar.firstElementId !== id)) {
+        busbars.push(busbar)
+        continue
+      }
+      const count = busbar.count - 1
+      const anchorNext =
+        busbar.firstElementId === id
+          ? cover.items.find((i) => i.id !== id && i.element?.kind === 'device')
+          : undefined
+      if (count >= MIN_BUSBAR_COUNT && (busbar.firstElementId !== id || anchorNext)) {
+        busbars.push({ ...busbar, count, firstElementId: anchorNext?.id ?? busbar.firstElementId })
+      } else {
+        droppedBusbars.add(busbar.id)
+      }
+    }
     const after = replaceRail(content, railIndex, {
       ...rail,
       elements: rail.elements.filter((_, i) => i !== index),
+      busbars,
     })
-    const cascade = dropWires(after, (e) => e.kind === 'pole' && e.elementId === id)
+    const cascade = dropWires(
+      after,
+      (e) =>
+        (e.kind === 'pole' && e.elementId === id) ||
+        (e.kind === 'busbar' && droppedBusbars.has(e.busbarId)),
+    )
     return settle(content, cascade.content, cascade.removedWires)
   })
 }
@@ -532,7 +620,13 @@ export function addBlock(railId: string, block: TerminalBlock): Command {
     const rail = content.rails[railIndex] as Rail
     requireFreeIds(content, block.id)
     checkBlockBasics(block, false)
-    const placement = checkPlacement(rail, null, block.offsetModules, block.widthModules)
+    const placement = checkPlacement(
+      rail,
+      content.railWidthModules,
+      null,
+      block.offsetModules,
+      block.widthModules,
+    )
     if (placement) reject(placement)
     const next = sortedRail({ ...rail, terminalBlocks: [...rail.terminalBlocks, block] })
     return settle(content, replaceRail(content, railIndex, next), 0)
@@ -547,6 +641,7 @@ export function addRowBlock(block: TerminalBlock): Command {
     checkBlockBasics(block, true)
     const placement = checkRowPlacement(
       content.terminalRow,
+      rowCapacity(content),
       null,
       block.offsetModules,
       block.widthModules,
@@ -584,7 +679,13 @@ export function updateBlock(id: string, patch: BlockPatch): Command {
     const updated: TerminalBlock = { ...block, terminalCount, colour, label, widthModules }
     checkBlockBasics(updated, row)
     if (row && widthModules !== block.widthModules) {
-      const error = checkRowPlacement(content.terminalRow, id, block.offsetModules, widthModules)
+      const error = checkRowPlacement(
+        content.terminalRow,
+        rowCapacity(content),
+        id,
+        block.offsetModules,
+        widthModules,
+      )
       if (error) reject(error)
     }
     const after =
@@ -639,20 +740,41 @@ export function moveItem(itemId: string, targetRailId: string, offsetModules: nu
     const item = element ? element.element : (block as NonNullable<typeof block>).block
     const target = content.rails[targetIndex] as Rail
     if (found.rail.id === targetRailId && item.offsetModules === offsetModules) return content
-    const error = checkPlacement(target, itemId, offsetModules, item.widthModules)
+    const error = checkPlacement(
+      target,
+      content.railWidthModules,
+      itemId,
+      offsetModules,
+      item.widthModules,
+    )
     if (error) reject(error)
     const moved = { ...item, offsetModules }
+    const sourceId = found.rail.id
+    // a busbar anchored at the moved element travels to the other rail with it
+    const anchored =
+      element && sourceId !== targetRailId
+        ? found.rail.busbars.find((b) => b.firstElementId === itemId)
+        : undefined
+    if (anchored && target.busbars.length >= MAX_BUSBARS_PER_RAIL) reject('limit', 'busbars')
     const rails = content.rails.map((rail) => {
-      if (rail.id !== (found.rail as Rail).id && rail.id !== targetRailId) return rail
+      if (rail.id !== sourceId && rail.id !== targetRailId) return rail
       let next = rail
-      if (rail.id === (found.rail as Rail).id) {
+      if (rail.id === sourceId) {
         next = element
-          ? { ...next, elements: next.elements.filter((e) => e.id !== itemId) }
+          ? {
+              ...next,
+              elements: next.elements.filter((e) => e.id !== itemId),
+              busbars: anchored ? next.busbars.filter((b) => b !== anchored) : next.busbars,
+            }
           : { ...next, terminalBlocks: next.terminalBlocks.filter((b) => b.id !== itemId) }
       }
       if (rail.id === targetRailId) {
         next = element
-          ? { ...next, elements: [...next.elements, moved as PanelElement] }
+          ? {
+              ...next,
+              elements: [...next.elements, moved as PanelElement],
+              busbars: anchored ? [...next.busbars, anchored] : next.busbars,
+            }
           : { ...next, terminalBlocks: [...next.terminalBlocks, moved as TerminalBlock] }
       }
       return sortedRail(next)
@@ -668,7 +790,13 @@ export function moveRowBlock(blockId: string, offsetModules: number): Command {
     const block = content.terminalRow[index]
     if (!block) reject('notFound', blockId)
     if (block.offsetModules === offsetModules) return content
-    const error = checkRowPlacement(content.terminalRow, blockId, offsetModules, block.widthModules)
+    const error = checkRowPlacement(
+      content.terminalRow,
+      rowCapacity(content),
+      blockId,
+      offsetModules,
+      block.widthModules,
+    )
     if (error) reject(error)
     const terminalRow = sortedRow(
       content.terminalRow.map((b, i) => (i === index ? { ...block, offsetModules } : b)),
@@ -727,19 +855,23 @@ export function addInputCable(cable: InputCable): Command {
       crossSection: requireDecimal(cable.crossSection, CABLE_CROSS_SECTION_RULE),
     }
     checkCableWires(cable.wires)
-    return settle(content, { ...content, inputCables: [...content.inputCables, rounded] }, 0)
+    requireText(cable.label, MAX_CABLE_LABEL_LENGTH)
+    const after = { ...content, inputCables: [...content.inputCables, rounded] }
+    requireRowFits(after)
+    return settle(content, after, 0)
   })
 }
 
 export function updateInputCable(
   id: string,
-  patch: { voltage?: number; frequency?: number; crossSection?: number },
+  patch: { label?: string; voltage?: number; frequency?: number; crossSection?: number },
 ): Command {
   return define((content) => {
     const index = content.inputCables.findIndex((c) => c.id === id)
     const cable = content.inputCables[index]
     if (!cable) reject('notFound', id)
     const next = { ...cable, ...definedOnly(patch) }
+    if (next.label !== cable.label) requireText(next.label, MAX_CABLE_LABEL_LENGTH)
     if (next.voltage !== cable.voltage) next.voltage = requireDecimal(next.voltage, VOLTAGE_RULE)
     if (next.frequency !== cable.frequency) {
       next.frequency = requireDecimal(next.frequency, FREQUENCY_RULE)
@@ -748,6 +880,7 @@ export function updateInputCable(
       next.crossSection = requireDecimal(next.crossSection, CABLE_CROSS_SECTION_RULE)
     }
     if (
+      next.label === cable.label &&
       next.voltage === cable.voltage &&
       next.frequency === cable.frequency &&
       next.crossSection === cable.crossSection
@@ -779,22 +912,29 @@ export function addOutputCable(cable: OutputCable): Command {
     if (content.outputCables.length >= MAX_OUTPUT_CABLES) reject('limit', 'output cables')
     requireFreeIds(content, cable.id, ...cable.wires.map((w) => w.id))
     requireText(cable.description, MAX_DESCRIPTION_LENGTH)
+    requireText(cable.label, MAX_CABLE_LABEL_LENGTH)
     checkCableWires(cable.wires)
     return settle(content, { ...content, outputCables: [...content.outputCables, cable] }, 0)
   })
 }
 
-export function updateOutputCable(id: string, patch: { description: string }): Command {
+export function updateOutputCable(
+  id: string,
+  patch: { description?: string; label?: string },
+): Command {
   return define((content) => {
     const index = content.outputCables.findIndex((c) => c.id === id)
     const cable = content.outputCables[index]
     if (!cable) reject('notFound', id)
-    if (patch.description === cable.description) return content
-    requireText(patch.description, MAX_DESCRIPTION_LENGTH)
+    const description = patch.description ?? cable.description
+    const label = patch.label ?? cable.label
+    if (description === cable.description && label === cable.label) return content
+    if (description !== cable.description) requireText(description, MAX_DESCRIPTION_LENGTH)
+    if (label !== cable.label) requireText(label, MAX_CABLE_LABEL_LENGTH)
     return {
       ...content,
       outputCables: content.outputCables.map((c, i) =>
-        i === index ? { ...cable, description: patch.description } : c,
+        i === index ? { ...cable, description, label } : c,
       ),
     }
   })
@@ -854,7 +994,10 @@ export function addCableWire(cableId: string, wire: CableWire): Command {
     requireFreeIds(content, wire.id)
     if (!WIRE_COLOURS.includes(wire.colour)) reject('invalid', 'colour')
     const found = cableOfWire(content, (probe.wires[0] as CableWire).id)
-    return settle(content, withCable(content, found, [...probe.wires, wire]), 0)
+    const after = withCable(content, found, [...probe.wires, wire])
+    // a wider input cable pushes the terminal row to the right
+    if (found.kind === 'input') requireRowFits(after)
+    return settle(content, after, 0)
   })
 }
 
@@ -883,6 +1026,87 @@ export function updateCableWire(wireId: string, patch: { colour: WireColour }): 
       found,
       found.cable.wires.map((w) => (w.id === wireId ? { ...w, colour: patch.colour } : w)),
     )
+  })
+}
+
+// ---- busbars ----
+
+function busbarLocation(content: PanelContent, id: string) {
+  for (const [railIndex, rail] of content.rails.entries()) {
+    const index = rail.busbars.findIndex((b) => b.id === id)
+    if (index !== -1) return { railIndex, rail, index, busbar: rail.busbars[index] as Busbar }
+  }
+  return reject('notFound', id)
+}
+
+/**
+ * Adds a busbar anchored at a device; it covers as many adjacent free devices to the right as
+ * possible (at least two, anchor included), otherwise `busbarNoRoom`.
+ */
+export function addBusbar(spec: { id: string; type: BusbarType; firstElementId: string }): Command {
+  return define((content) => {
+    const { railIndex, rail, element } = elementLocation(content, spec.firstElementId)
+    if (element.kind !== 'device') reject('busbarNoRoom', 'ats')
+    if (rail.busbars.length >= MAX_BUSBARS_PER_RAIL) reject('limit', 'busbars')
+    requireFreeIds(content, spec.id)
+    if (spec.type !== 'L' && spec.type !== 'LN') reject('invalid', 'type')
+    const count = maxBusbarCount(rail, element.id)
+    if (count < MIN_BUSBAR_COUNT) reject('busbarNoRoom')
+    const busbar: Busbar = {
+      id: spec.id,
+      type: spec.type,
+      colour: null,
+      firstElementId: element.id,
+      count,
+    }
+    const next = sortedRail({ ...rail, busbars: [...rail.busbars, busbar] })
+    return settle(content, replaceRail(content, railIndex, next), 0)
+  })
+}
+
+/**
+ * Changes the type and/or the covered count of a busbar. LN to L deletes the wires on the N feed;
+ * the count must stay within 2..the adjacent free devices from the anchor.
+ */
+export function updateBusbar(
+  id: string,
+  patch: {
+    type?: BusbarType
+    count?: number
+    colour?: WireColour | null
+  },
+): Command {
+  return define((content) => {
+    const { railIndex, rail, index, busbar } = busbarLocation(content, id)
+    const type = patch.type ?? busbar.type
+    const count = patch.count ?? busbar.count
+    const colour = patch.colour === undefined ? busbar.colour : patch.colour
+    if (type === busbar.type && count === busbar.count && colour === busbar.colour) return content
+    if (!BLOCK_COLOURS.includes(colour)) reject('invalid', 'colour')
+    if (type !== 'L' && type !== 'LN') reject('invalid', 'type')
+    if (!Number.isInteger(count) || count < MIN_BUSBAR_COUNT) reject('busbarRange')
+    if (count !== busbar.count && count > maxBusbarCount(rail, busbar.firstElementId, id)) {
+      reject('busbarRange')
+    }
+    const busbars = rail.busbars.map((b, i) => (i === index ? { ...b, type, count, colour } : b))
+    const after = replaceRail(content, railIndex, { ...rail, busbars })
+    const cascade =
+      type === 'L' && busbar.type === 'LN'
+        ? dropWires(after, (e) => e.kind === 'busbar' && e.busbarId === id && e.feedIndex >= 1)
+        : { content: after, removedWires: 0 }
+    return settle(content, cascade.content, cascade.removedWires)
+  })
+}
+
+export function removeBusbar(id: string): Command {
+  return define((content) => {
+    const { railIndex, rail, index } = busbarLocation(content, id)
+    const after = replaceRail(content, railIndex, {
+      ...rail,
+      busbars: rail.busbars.filter((_, i) => i !== index),
+    })
+    const cascade = dropWires(after, (e) => e.kind === 'busbar' && e.busbarId === id)
+    return settle(content, cascade.content, cascade.removedWires)
   })
 }
 

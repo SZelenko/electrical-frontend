@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import type { ElementBox } from '@/domain/geometry'
 import type { DeviceElement } from '@/domain/panelContent'
 import DeviceFrame from './DeviceFrame.vue'
-import ToggleZone from './ToggleZone.vue'
 
 /** Voltage relay: a display ("220" on, "---" off), an indicator and four small buttons. */
 const props = defineProps<{
@@ -27,9 +26,6 @@ const btns = computed(() =>
       y: props.box.y + 530 + row * 70,
     })),
   ),
-)
-const label = computed(
-  () => `Перемкнути реле напруги (зараз: ${props.element.on ? 'увімкнено' : 'вимкнено'})`,
 )
 </script>
 
@@ -73,14 +69,6 @@ const label = computed(
       rx="23"
       class="button"
       pointer-events="none"
-    />
-    <ToggleZone
-      :id="element.id"
-      :x="dispX - 6"
-      :y="dispY - 6"
-      :width="dispW + 12"
-      :height="DISP_H + 90"
-      :label="label"
     />
   </DeviceFrame>
 </template>

@@ -24,7 +24,8 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
     <h2 id="sum-input">Вхідні кабелі</h2>
     <ul>
       <li v-for="(cable, i) in content.inputCables" :key="cable.id">
-        Кабель {{ i + 1 }}: {{ formatInputCableLabel(cable) }}
+        Кабель {{ i + 1 }}{{ cable.label ? ` «${cable.label}»` : '' }}:
+        {{ formatInputCableLabel(cable) }}
         <ul>
           <li v-for="(wire, j) in cable.wires" :key="wire.id">
             Провід {{ j + 1 }}: {{ colourName(wire.colour) }}
@@ -39,7 +40,7 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
     <p v-if="content.outputCables.length === 0">Немає.</p>
     <ul v-else>
       <li v-for="(cable, i) in content.outputCables" :key="cable.id">
-        Кабель {{ i + 1 }}: {{ cable.description }}
+        Кабель {{ i + 1 }}{{ cable.label ? ` «${cable.label}»` : '' }}: {{ cable.description }}
         <ul>
           <li v-for="(wire, j) in cable.wires" :key="wire.id">
             Провід {{ j + 1 }}: {{ colourName(wire.colour) }}
@@ -62,10 +63,11 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
 
   <section aria-labelledby="sum-rails">
     <h2 id="sum-rails">DIN-рейки</h2>
+    <p>Ширина рейок: {{ content.railWidthModules }} мод.</p>
     <p v-if="content.rails.length === 0">Немає.</p>
     <ul v-else>
       <li v-for="(rail, i) in content.rails" :key="rail.id">
-        Рейка {{ i + 1 }}: ширина {{ rail.widthModules }} мод., відступ {{ rail.spacingMm }} мм
+        Рейка {{ i + 1 }}: відступ {{ rail.spacingMm }} мм
         <h3>Апарати</h3>
         <p v-if="rail.elements.length === 0">Немає.</p>
         <ul v-else>
@@ -73,6 +75,15 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
             {{ describeElement(element) }}
           </li>
         </ul>
+        <template v-if="rail.busbars.length > 0">
+          <h3>Шини</h3>
+          <ul>
+            <li v-for="busbar in rail.busbars" :key="busbar.id">
+              Шина {{ busbar.type === 'LN' ? 'L+N' : 'L' }}: апаратів {{ busbar.count }}, колір:
+              {{ busbar.colour ? colourName(busbar.colour) : 'сірий' }}
+            </li>
+          </ul>
+        </template>
         <h3>Клемні блоки</h3>
         <p v-if="rail.terminalBlocks.length === 0">Немає.</p>
         <ul v-else>

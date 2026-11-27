@@ -155,6 +155,7 @@ describe('contentToPayload: editor tenths -> payload mm', () => {
     const payload = contentToPayload(buildWorld())
     expect(payload.inputCables?.[0]).toEqual({
       id: id(1),
+      label: '',
       voltage: 230,
       frequency: 50,
       crossSection: 4,
@@ -165,6 +166,7 @@ describe('contentToPayload: editor tenths -> payload mm', () => {
     })
     expect(payload.outputCables?.[0]).toEqual({
       id: id(4),
+      label: '',
       description: '',
       wires: [{ id: id(5), colour: 'black' }],
     })

@@ -2,6 +2,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { panelsApi, type Panel } from '@/api/panels'
 import { ApiError } from '@/api/problem'
+import { invalidBusbarIds } from '@/domain/busbars'
 import { buildIndex, type ContentIndex } from '@/domain/contentIndex'
 import type { Command, CommandOutcome } from '@/domain/commands'
 import { computeLayout, type Layout } from '@/domain/geometry'
@@ -50,6 +51,8 @@ function itemExists(index: ContentIndex, ref: ItemRef): boolean {
       return index.elements.has(ref.id)
     case 'block':
       return index.blocks.has(ref.id)
+    case 'busbar':
+      return index.busbars.has(ref.id)
     case 'inputCable':
       return index.inputCables.has(ref.id)
     case 'outputCable':
@@ -126,6 +129,11 @@ export const usePanelEditorStore = defineStore('panelEditor', () => {
   const index = computed(() => (content.value ? buildIndex(content.value) : null))
   const layout = computed<Layout | null>(() =>
     content.value ? computeLayout(content.value) : null,
+  )
+
+  /** Busbars with a problem right now (highlighted live, not only after a failed save). */
+  const invalidBusbars = computed(() =>
+    content.value ? invalidBusbarIds(content.value) : new Set<string>(),
   )
 
   const localShortCircuits = computed(() =>
@@ -381,6 +389,7 @@ export const usePanelEditorStore = defineStore('panelEditor', () => {
     shortCircuits,
     shortCircuitWires,
     violationItems,
+    invalidBusbars,
     generalViolations,
     load,
     reloadDiscard,

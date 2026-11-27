@@ -5,6 +5,8 @@ import AtsProps from './properties/AtsProps.vue'
 import BlockProps from './properties/BlockProps.vue'
 import CableProps from './properties/CableProps.vue'
 import ElementProps from './properties/ElementProps.vue'
+import BusbarProps from './properties/BusbarProps.vue'
+import PanelProps from './properties/PanelProps.vue'
 import RailProps from './properties/RailProps.vue'
 import WireProps from './properties/WireProps.vue'
 
@@ -42,6 +44,7 @@ const elementKind = computed(() =>
       :id="target.id"
     />
     <ElementProps v-else-if="target?.kind === 'element'" :key="target.id" :id="target.id" />
+    <BusbarProps v-else-if="target?.kind === 'busbar'" :key="target.id" :id="target.id" />
     <BlockProps v-else-if="target?.kind === 'block'" :key="target.id" :id="target.id" />
     <CableProps
       v-else-if="target?.kind === 'inputCable' || target?.kind === 'outputCable'"
@@ -50,7 +53,7 @@ const elementKind = computed(() =>
       :id="target.id"
     />
     <WireProps v-else-if="target?.kind === 'wire'" :key="target.id" :id="target.id" />
-    <p v-else class="hint">Виберіть рейку, апарат, клемний блок, кабель або провід на схемі.</p>
+    <PanelProps v-else />
   </aside>
 </template>
 

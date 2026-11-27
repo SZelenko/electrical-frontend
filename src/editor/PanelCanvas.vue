@@ -6,6 +6,7 @@ import {
   moveRowBlock,
   copyItem,
   toggleElement,
+  updateBusbar,
   insertBend,
   removeBend,
   addWire,
@@ -21,6 +22,7 @@ import {
   wirePolyline,
   roundedPath,
   WIRE_COLOUR_HEX,
+  WIRE_STROKE_MM,
   ROW_BLOCK_H,
   MARGIN,
   MODULE,
@@ -34,6 +36,7 @@ import {
   snapToAxis,
 } from '@/domain/routes'
 import { inRowBand, railAtY, snapOffset } from '@/domain/placement'
+import { maxBusbarCount, railItems } from '@/domain/busbars'
 import {
   drawingKey,
   endpointKey,
@@ -46,8 +49,9 @@ import type { ItemRef } from '@/domain/validateContent'
 import BendHandles from './BendHandles.vue'
 import AtsShape from './shapes/AtsShape.vue'
 import CableRow from './CableRow.vue'
-import { deviceShapes } from './shapes/registry'
+import { shapeFor } from './shapes/registry'
 import ItemContacts from './ItemContacts.vue'
+import BusbarShape from './BusbarShape.vue'
 import RailShape from './RailShape.vue'
 import RowBlockShape from './RowBlockShape.vue'
 import TerminalBlockShape from './TerminalBlockShape.vue'
@@ -56,7 +60,7 @@ import { rejectionText } from './messages'
 import { newId } from './newId'
 import { useEditorContext } from './useEditor'
 import { useViewport } from './useViewport'
-import { MAX_BENDS_PER_WIRE, MAX_TOTAL_BENDS, MAX_WIRES, ROW_WIDTH_MODULES } from '@/domain/limits'
+import { MAX_BENDS_PER_WIRE, MAX_TOTAL_BENDS, MAX_WIRES } from '@/domain/limits'
 import { defaultWireColour } from '@/domain/wireDefaults'
 import { samePt } from '@/domain/autoRoute'
 
@@ -97,6 +101,14 @@ type Gesture =
       ghost: Ghost | null
     }
   | { type: 'bend'; wireId: string; k: number; moved: boolean; to: Pt; bends: Pt[] }
+  | {
+      /** Dragging the right end of a busbar: the covered count follows the pointer. */
+      type: 'busbarEdge'
+      id: string
+      count: number
+      moved: boolean
+      preview: PanelContent | null
+    }
 interface Ghost {
   x: number
   y: number
@@ -110,13 +122,22 @@ const pointer = shallowRef<Pt | null>(null)
 
 const content = computed(() => {
   const g = gesture.value
-  return (g?.type === 'item' && g.preview) || store.content
+  return ((g?.type === 'item' || g?.type === 'busbarEdge') && g.preview) || store.content
 })
 const layout = computed<Layout | null>(() => {
   const g = gesture.value
-  if (g?.type === 'item' && g.preview) return computeLayout(g.preview)
+  if ((g?.type === 'item' || g?.type === 'busbarEdge') && g.preview) return computeLayout(g.preview)
   return store.layout
 })
+const translucent = computed(() => ctx.translucent.value)
+
+/** Busbars to draw with their selection / problem state. */
+const busbarShapes = computed(() => {
+  const l = layout.value
+  if (!l) return []
+  return [...l.busbars.values()]
+})
+const busbarInvalid = (id: string) => violationIds.value.has(id) || store.invalidBusbars.has(id)
 
 const wireData = computed(() => {
   const c = content.value
@@ -225,6 +246,8 @@ function endpointFrom(el: Element): Endpoint | null {
     }
     case 'cableWire':
       return { kind: 'cableWire', cableWireId: a }
+    case 'busbar':
+      return { kind: 'busbar', busbarId: a, feedIndex: Number(ds.epB) }
     default:
       return null
   }
@@ -348,6 +371,7 @@ function onPointerDown(e: PointerEvent) {
     const item = kind === 'element' ? store.layout?.elements.get(id) : store.layout?.blocks.get(id)
     if (!u || !item) return
     svg.value.setPointerCapture(e.pointerId)
+    lastItemPoint = null
     gesture.value = {
       type: 'item',
       id,
@@ -364,6 +388,19 @@ function onPointerDown(e: PointerEvent) {
       error: null,
       preview: null,
       ghost: null,
+    }
+    return
+  }
+  if (hit && kind === 'busbar-edge' && id) {
+    const found = store.index?.busbars.get(id)
+    if (!found || store.readOnly || translucent.value) return
+    svg.value.setPointerCapture(e.pointerId)
+    gesture.value = {
+      type: 'busbarEdge',
+      id,
+      count: found.busbar.count,
+      moved: false,
+      preview: null,
     }
     return
   }
@@ -387,7 +424,11 @@ function onPointerDown(e: PointerEvent) {
   if (
     hit &&
     id &&
-    (kind === 'rail' || kind === 'inputCable' || kind === 'outputCable' || kind === 'wire')
+    (kind === 'rail' ||
+      kind === 'busbar' ||
+      kind === 'inputCable' ||
+      kind === 'outputCable' ||
+      kind === 'wire')
   ) {
     store.select({ kind, id })
     return
@@ -437,9 +478,50 @@ function onPointerMove(e: PointerEvent) {
     }
     return
   }
+  if (g.type === 'busbarEdge') {
+    dragBusbarEdge(g, u)
+    return
+  }
   if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < 4) return
+  if (translucent.value) {
+    // items cannot be moved or copied in translucent mode; the gesture only stops being a click
+    if (!g.moved) gesture.value = { ...g, moved: true }
+    return
+  }
   lastItemPoint = u
   dragItem(g, u, e.ctrlKey || e.metaKey)
+}
+
+/** The covered count nearest to the pointer, within 2..the adjacent free devices; previews it. */
+function dragBusbarEdge(g: Extract<Gesture, { type: 'busbarEdge' }>, u: Pt) {
+  const c = store.content
+  const found = store.index?.busbars.get(g.id)
+  if (!c || !found) return
+  const max = maxBusbarCount(found.rail, found.busbar.firstElementId, g.id)
+  const items = railItems(found.rail)
+  const a = items.findIndex((i) => i.id === found.busbar.firstElementId)
+  const boxes = store.layout
+  // the count whose right edge is nearest to the pointer
+  let count = 2
+  let best = Infinity
+  for (let k = 2; k <= max; k++) {
+    const last = items[a + k - 1]
+    const box = last && (boxes?.elements.get(last.id) ?? boxes?.blocks.get(last.id))
+    if (!box) break
+    const d = Math.abs(box.x + box.w - u.x)
+    if (d < best) {
+      best = d
+      count = k
+    }
+  }
+  if (g.moved && count === g.count) return
+  const outcome = updateBusbar(g.id, { count })(c)
+  gesture.value = {
+    ...g,
+    moved: true,
+    count,
+    preview: outcome.ok && outcome.content !== c ? outcome.content : null,
+  }
 }
 
 /** Last pointer position (drawing units) of an item drag, for re-evaluating it when Ctrl/Cmd changes. */
@@ -451,8 +533,10 @@ function dragItem(g: Extract<Gesture, { type: 'item' }>, u: Pt, copy: boolean) {
   if (!c || !l) return
   const item = g.kind === 'element' ? l.elements.get(g.id) : l.blocks.get(g.id)
   if (!item) return
-  const offset = snapOffset(u.x - g.grabDx)
-  const inRow = inRowBand(l, u.y)
+  const moduleOffset = snapOffset(u.x - g.grabDx)
+  const inRow = inRowBand(u.y)
+  // row offsets count from the end of the input cables
+  const offset = g.row && inRow ? moduleOffset - l.rowStartModules : moduleOffset
   const railIndex = g.row && inRow ? null : railAtY(l, u.y)
   const rail = railIndex === null ? null : c.rails[railIndex]
   const target: Target | null = rail
@@ -498,7 +582,13 @@ function dragItem(g: Extract<Gesture, { type: 'item' }>, u: Pt, copy: boolean) {
   const outcome = dropCommand(g, target, copy)(c)
   const spot: Ghost =
     'row' in target
-      ? { x: MARGIN + offset * MODULE, y: l.rowTop, w: widthModules * MODULE, h: ROW_BLOCK_H, copy }
+      ? {
+          x: MARGIN + (l.rowStartModules + offset) * MODULE,
+          y: MARGIN,
+          w: widthModules * MODULE,
+          h: ROW_BLOCK_H,
+          copy,
+        }
       : {
           x: MARGIN + offset * MODULE,
           y: (l.rails[railIndex as number] as { cy: number }).cy - item.h / 2,
@@ -543,6 +633,11 @@ function onPointerUp(e: PointerEvent) {
     if (g.toggle && !store.readOnly && !(e.ctrlKey || e.metaKey)) {
       ctx.run(toggleElement(g.id), 'Перемкнути')
     }
+  } else if (g.type === 'busbarEdge') {
+    if (g.moved && g.preview)
+      ctx.run(updateBusbar(g.id, { count: g.count }), 'Змінити довжину шини')
+  } else if (g.type === 'item' && g.moved && translucent.value) {
+    // no move or copy in translucent mode
   } else if (g.type === 'item' && g.moved) {
     // the modifier is read at the drop, not at the start of the drag
     const copy = e.ctrlKey || e.metaKey
@@ -567,10 +662,21 @@ function onPointerUp(e: PointerEvent) {
   }
 }
 
+/** Enter / Space on a focused toggle zone switches the element (one history entry). */
+function onKeydown(e: KeyboardEvent) {
+  if (e.key !== 'Enter' && e.key !== ' ') return
+  const hit =
+    e.target instanceof Element ? e.target.closest<SVGElement>('[data-kind=toggle]') : null
+  const id = hit?.dataset.id
+  if (!id || store.readOnly || ctx.drawing.value) return
+  e.preventDefault()
+  ctx.run(toggleElement(id), 'Перемкнути')
+}
+
 function onModifierKey(e: KeyboardEvent) {
   if (e.key !== 'Control' && e.key !== 'Meta') return
   const g = gesture.value
-  if (g?.type !== 'item' || !g.moved || !lastItemPoint) return
+  if (translucent.value || g?.type !== 'item' || !g.moved || !lastItemPoint) return
   dragItem(g, lastItemPoint, e.ctrlKey || e.metaKey)
 }
 onMounted(() => {
@@ -642,6 +748,7 @@ const dragHint = computed(() => {
       @pointerup="onPointerUp"
       @pointercancel="onPointerCancel"
       @dblclick="onDblClick"
+      @keydown="onKeydown"
       @contextmenu.prevent
       @wheel.prevent="onWheel"
     >
@@ -654,69 +761,28 @@ const dragHint = computed(() => {
           :selected="selectedId('rail') === rail.id"
           :violation="violationIds.has(rail.id)"
         />
-        <g class="row-band" pointer-events="none" data-testid="terminal-row">
+        <g
+          v-if="layout.rowCapacity > 0"
+          class="row-band"
+          pointer-events="none"
+          data-testid="terminal-row"
+        >
           <rect
-            :x="MARGIN"
-            :y="layout.rowTop"
-            :width="ROW_WIDTH_MODULES * MODULE"
+            :x="MARGIN + layout.rowStartModules * MODULE"
+            :y="MARGIN"
+            :width="layout.rowCapacity * MODULE"
             :height="ROW_BLOCK_H"
             class="row-band-rect"
           />
-          <text :x="MARGIN + 20" :y="layout.rowTop - 20" class="row-band-label">
+          <text
+            :x="MARGIN + layout.rowStartModules * MODULE + 20"
+            :y="MARGIN - 20"
+            class="row-band-label"
+          >
             Рядок клемників
           </text>
         </g>
-        <CableRow
-          layer="body"
-          :boxes="layout.inputBoxes"
-          kind="input"
-          :selected-id="selectedCable('inputCable')"
-          :violation-ids="violationIds"
-          :titles="cableTitles"
-        />
-        <CableRow
-          layer="body"
-          :boxes="layout.outputBoxes"
-          kind="output"
-          :selected-id="selectedCable('outputCable')"
-          :violation-ids="violationIds"
-          :titles="cableTitles"
-        />
-        <RowBlockShape
-          v-for="block in content.terminalRow"
-          :key="block.id"
-          :block="block"
-          :box="layout.blocks.get(block.id)!"
-          :selected="selectedId('block') === block.id"
-          :violation="violationIds.has(block.id)"
-        />
-        <template v-for="rail in content.rails" :key="rail.id">
-          <TerminalBlockShape
-            v-for="block in rail.terminalBlocks"
-            :key="block.id"
-            :block="block"
-            :box="layout.blocks.get(block.id)!"
-            :selected="selectedId('block') === block.id"
-            :violation="violationIds.has(block.id)"
-          />
-          <template v-for="element in rail.elements" :key="element.id">
-            <AtsShape
-              v-if="element.kind === 'ats'"
-              :element="element"
-              :box="layout.elements.get(element.id)!"
-              :selected="selectedId('element') === element.id"
-              :violation="violationIds.has(element.id)"
-            />
-            <component
-              :is="deviceShapes[element.style]"
-              v-else
-              :element="element"
-              :box="layout.elements.get(element.id)!"
-              :selected="selectedId('element') === element.id"
-              :violation="violationIds.has(element.id)"
-            />
-          </template>
-        </template>
+        <!-- wires lie under the device bodies; contacts, feeds and handles come above them -->
         <WirePath
           v-for="{ wire, d } in wireData"
           :key="wire.id"
@@ -726,7 +792,86 @@ const dragHint = computed(() => {
           :short-circuit="store.shortCircuitWires.has(wire.id)"
           :focused="ctx.focusedWires.value.has(wire.id)"
           :violation="violationIds.has(wire.id)"
+          :hit="!translucent"
         />
+        <g class="bodies" :class="{ translucent }" data-testid="bodies">
+          <CableRow
+            layer="body"
+            :boxes="layout.inputBoxes"
+            kind="input"
+            :selected-id="selectedCable('inputCable')"
+            :violation-ids="violationIds"
+            :titles="cableTitles"
+          />
+          <CableRow
+            layer="body"
+            :boxes="layout.outputBoxes"
+            kind="output"
+            :selected-id="selectedCable('outputCable')"
+            :violation-ids="violationIds"
+            :titles="cableTitles"
+          />
+          <RowBlockShape
+            v-for="block in content.terminalRow"
+            :key="block.id"
+            :block="block"
+            :box="layout.blocks.get(block.id)!"
+            :selected="selectedId('block') === block.id"
+            :violation="violationIds.has(block.id)"
+          />
+          <template v-for="rail in content.rails" :key="rail.id">
+            <TerminalBlockShape
+              v-for="block in rail.terminalBlocks"
+              :key="block.id"
+              :block="block"
+              :box="layout.blocks.get(block.id)!"
+              :selected="selectedId('block') === block.id"
+              :violation="violationIds.has(block.id)"
+            />
+            <template v-for="element in rail.elements" :key="element.id">
+              <AtsShape
+                v-if="element.kind === 'ats'"
+                :element="element"
+                :box="layout.elements.get(element.id)!"
+                :selected="selectedId('element') === element.id"
+                :violation="violationIds.has(element.id)"
+              />
+              <component
+                :is="shapeFor(element.style)"
+                v-else
+                :element="element"
+                :box="layout.elements.get(element.id)!"
+                :selected="selectedId('element') === element.id"
+                :violation="violationIds.has(element.id)"
+              />
+            </template>
+          </template>
+          <BusbarShape
+            v-for="box in busbarShapes"
+            :key="box.id"
+            layer="body"
+            :box="box"
+            :selected="selectedId('busbar') === box.id"
+            :violation="busbarInvalid(box.id)"
+            :handle="false"
+          />
+        </g>
+        <!-- translucent mode: an invisible wide stroke above the bodies keeps wires clickable -->
+        <g v-if="translucent" class="wire-hits">
+          <path
+            v-for="{ wire, d } in wireData"
+            :key="wire.id"
+            :d="bendDrag?.id === wire.id ? bendDrag.d : d"
+            fill="none"
+            stroke="transparent"
+            :stroke-width="Math.max(WIRE_STROKE_MM[wire.crossSection] * 10, 50)"
+            stroke-linejoin="round"
+            class="wire-hit"
+            data-kind="wire"
+            data-testid="wire"
+            :data-id="wire.id"
+          />
+        </g>
         <!-- contacts are drawn above the wires so they stay clickable -->
         <CableRow
           layer="contacts"
@@ -762,8 +907,20 @@ const dragHint = computed(() => {
             :key="element.id"
             :box="layout.elements.get(element.id)!"
             :element="element"
+            :read-only="store.readOnly"
           />
         </template>
+        <BusbarShape
+          v-for="box in busbarShapes"
+          :key="box.id"
+          layer="contacts"
+          :box="box"
+          :selected="false"
+          :violation="false"
+          :handle="
+            selectedId('busbar') === box.id && !store.readOnly && !translucent && !ctx.drawing.value
+          "
+        />
         <circle
           v-if="drawingStart"
           :cx="drawingStart.x"
@@ -840,6 +997,13 @@ const dragHint = computed(() => {
   stroke: #0a64d6;
   stroke-width: 10;
   stroke-dasharray: 30 15;
+}
+.wire-hit {
+  cursor: pointer;
+  pointer-events: stroke;
+}
+.bodies.translucent {
+  opacity: 0.35;
 }
 .row-band-rect {
   fill: rgb(61 107 69 / 0.05);

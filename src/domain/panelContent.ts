@@ -13,6 +13,8 @@ export interface CableWire {
 
 export interface InputCable {
   id: string
+  /** The user's free mark (at most 16 characters, may be empty); not the voltage/frequency/cross-section rating. */
+  label: string
   voltage: number
   frequency: number
   crossSection: number
@@ -21,6 +23,8 @@ export interface InputCable {
 
 export interface OutputCable {
   id: string
+  /** The user's free mark (at most 16 characters, may be empty). */
+  label: string
   description: string
   wires: CableWire[]
 }
@@ -73,12 +77,28 @@ export interface TerminalBlock {
   label: string
 }
 
+/**
+ * A busbar anchored at a device: it covers the anchor and the next `count - 1` items of the rail
+ * (in offset order) and joins their first input (L) or first two inputs (LN) to its feeds.
+ */
+export type BusbarType = 'L' | 'LN'
+
+export interface Busbar {
+  id: string
+  type: BusbarType
+  /** Appearance only; `null` is the grey default. */
+  colour: WireColour | null
+  firstElementId: string
+  count: number
+}
+
 export interface Rail {
   id: string
-  widthModules: number
   spacingMm: number
   elements: PanelElement[]
   terminalBlocks: TerminalBlock[]
+  /** Ordered by the offset of their anchor. */
+  busbars: Busbar[]
 }
 
 export type WireCrossSection = '1' | '1.5' | '2.5' | '4' | '6'
@@ -91,6 +111,7 @@ export type Endpoint =
   | { kind: 'pole'; elementId: string; poleIndex: number; side: 'input' | 'output' }
   | { kind: 'terminal'; terminalBlockId: string; terminalIndex: number; contactSide: ContactSide }
   | { kind: 'cableWire'; cableWireId: string }
+  | { kind: 'busbar'; busbarId: string; feedIndex: number }
 
 /** An endpoint as a short-circuit group lists it: the contact side is stripped. */
 export type NodeEndpoint =
@@ -119,6 +140,8 @@ export interface ShortCircuit {
 }
 
 export interface PanelContent {
+  /** Width of every rail in modules (1..60); also bounds the terminal row. */
+  railWidthModules: number
   inputCables: InputCable[]
   outputCables: OutputCable[]
   /** Terminal blocks in the terminal row (between the input cables and the first rail), ordered by offset. */
@@ -141,6 +164,8 @@ export function endpointKey(e: Endpoint | NodeEndpoint): string {
       return `t:${e.terminalBlockId}:${e.terminalIndex}`
     case 'cableWire':
       return `w:${e.cableWireId}`
+    case 'busbar':
+      return `b:${e.busbarId}:${e.feedIndex}`
   }
 }
 
@@ -158,6 +183,7 @@ export function colourName(colour: string): string {
     : colour
 }
 
+/** Rating text of an input cable ("230 V / 50 Hz / 4 mm²"); not the cable's free-form `label`. */
 export function formatInputCableLabel(
   cable: Pick<InputCable, 'voltage' | 'frequency' | 'crossSection'>,
 ): string {
@@ -263,6 +289,13 @@ export function describeEndpoint(content: PanelContent, endpoint: Endpoint): str
       }
       const side = endpoint.side === 'input' ? 'вхід' : 'вихід'
       return `апарат ${name}, полюс ${endpoint.poleIndex + 1} (${side})`
+    }
+    case 'busbar': {
+      const all = content.rails.flatMap((r) => r.busbars)
+      const index = all.findIndex((b) => b.id === endpoint.busbarId)
+      const busbar = all[index]
+      const feed = endpoint.feedIndex === 0 ? 'L' : 'N'
+      return `шина ${busbar ? busbar.type : '?'} №${index === -1 ? '?' : index + 1}, вивід ${feed}`
     }
     case 'terminal': {
       const sideName = CONTACT_SIDE_NAMES[endpoint.contactSide]

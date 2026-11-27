@@ -5,7 +5,7 @@ async function open(page: Page, content = panelContent()) {
   const s = server(content)
   await mockApi(page, s)
   await page.goto('/panels/p1')
-  await expect(page.getByRole('heading', { name: 'Щит' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Щит', level: 1 })).toBeVisible()
   return s
 }
 
@@ -64,7 +64,7 @@ test('adds an ATS, wires two sources through it and switches the state to clear 
   await expect(page.locator('path[stroke="#ff00ff"]')).not.toHaveCount(0)
 
   // state Б feeds the output from the source B only: the loop closes on one source, the short circuit goes
-  await ats.click()
+  await ats.click({ position: { x: 6, y: 6 } })
   await page
     .getByRole('region', { name: 'Властивості АВР' })
     .locator('select')

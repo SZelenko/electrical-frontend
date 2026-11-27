@@ -3,9 +3,11 @@ import { expect, test, type Page } from '@playwright/test'
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 
 const content = {
+  railWidthModules: 20,
   inputCables: [
     {
       id: id(1),
+      label: '',
       voltage: 230,
       frequency: 50,
       crossSection: 4,
@@ -20,7 +22,7 @@ const content = {
   rails: [
     {
       id: id(10),
-      widthModules: 20,
+      busbars: [],
       spacingMm: 150,
       elements: [
         {
@@ -85,7 +87,7 @@ async function mockApi(page: Page) {
 test('edits the schematic: add rail, undo, draw a wire, save', async ({ page }) => {
   await mockApi(page)
   await page.goto('/panels/p1')
-  await expect(page.getByRole('heading', { name: 'Щит' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Щит', level: 1 })).toBeVisible()
   await expect(page.getByTestId('element')).toHaveCount(1)
   await expect(page.getByText('Усі зміни збережено')).toBeVisible()
 
@@ -143,7 +145,8 @@ test('drags an element along the rail and reverts the drag with undo', async ({ 
   await expect(page.getByText('● Є незбережені зміни')).toBeVisible()
   await page.getByRole('button', { name: /^Скасувати: Перемістити/ }).click()
   const back = await element.boundingBox()
-  expect(back!.x).toBeCloseTo(start!.x, 0)
+  // the properties panel (panel width field) can shift the canvas by a sub-pixel amount
+  expect(Math.abs(back!.x - start!.x)).toBeLessThan(1)
 })
 
 test('draws a wire by hand: a click off the contacts adds a bend, Backspace removes it', async ({
@@ -154,9 +157,9 @@ test('draws a wire by hand: a click off the contacts adds a bend, Backspace remo
   await expect(page.getByTestId('element')).toHaveCount(1)
   await page.getByTestId('terminal').first().dispatchEvent('pointerdown', { button: 0 })
   const box = (await page.getByTestId('panel-canvas').boundingBox())!
-  await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.8)
+  await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.4)
   await page.keyboard.press('Backspace')
-  await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.8)
+  await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.4)
   await page
     .locator('[data-ep-kind="pole"][data-ep-side="input"]')
     .first()

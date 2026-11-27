@@ -141,7 +141,9 @@ describe('cable box width', () => {
 })
 
 describe('computeLayout: empty panel', () => {
-  const layout = computeLayout(content({ inputCables: [inputCable(1, [2, 3])] }))
+  const layout = computeLayout(
+    content({ inputCables: [inputCable(1, [2, 3])], railWidthModules: 60 }),
+  )
 
   it('input cable box and wire points sit on the bottom edge', () => {
     expect(layout.inputBoxes).toHaveLength(1)
@@ -153,15 +155,14 @@ describe('computeLayout: empty panel', () => {
   })
 
   it('railsTop and outTop (no rails) follow the formulas', () => {
-    expect(layout.rowTop).toBe(600)
-    expect(layout.railsTop).toBe(1000) // rowTop + ROW_BLOCK_H + CABLE_ROW_GAP
-    expect(layout.outTop).toBe(1150) // railsTop + CABLE_ROW_GAP
+    expect(layout.railsTop).toBe(600) // MARGIN + CABLE_BOX_H + CABLE_ROW_GAP
+    expect(layout.outTop).toBe(750) // railsTop + CABLE_ROW_GAP
     expect(layout.rails).toEqual([])
   })
 
   it('drawing size: width 2*MARGIN + 60 modules, height outTop + box + MARGIN', () => {
     expect(layout.width).toBe(400 + 60 * 175)
-    expect(layout.height).toBe(1150 + 250 + 200)
+    expect(layout.height).toBe(750 + 250 + 200)
   })
 })
 
@@ -170,30 +171,30 @@ describe('computeLayout: the world', () => {
   const layout = computeLayout(world)
 
   it('rail centre lines use centre-to-centre spacing, the first from railsTop', () => {
-    expect(layout.rails.map((r) => r.cy)).toEqual([1000 + 1500, 1000 + 1500 + 1000])
+    expect(layout.rails.map((r) => r.cy)).toEqual([600 + 1500, 600 + 1500 + 1000])
   })
 
   it('rail strip: x = MARGIN, width = modules * MODULE, centred on the line', () => {
-    expect(layout.rails[0]).toMatchObject({ x: 200, y: 2500 - 175, w: 24 * 175, h: 350, index: 0 })
-    expect(layout.rails[1]).toMatchObject({ x: 200, y: 3500 - 175, w: 24 * 175, h: 350, index: 1 })
+    expect(layout.rails[0]).toMatchObject({ x: 200, y: 2100 - 175, w: 24 * 175, h: 350, index: 0 })
+    expect(layout.rails[1]).toMatchObject({ x: 200, y: 3100 - 175, w: 24 * 175, h: 350, index: 1 })
   })
 
   it('element boxes are centred on the rail line', () => {
     expect(layout.elements.get(id(20))).toMatchObject({
       x: 200,
-      y: 2050,
+      y: 1650,
       w: 350,
       h: 900,
       railIndex: 0,
     })
-    expect(layout.elements.get(id(21))).toMatchObject({ x: 900, y: 2050, w: 175, h: 900 })
+    expect(layout.elements.get(id(21))).toMatchObject({ x: 900, y: 1650, w: 175, h: 900 })
   })
 
   it('rail blocks are one module wide and as tall as an element, centred on the rail line', () => {
-    expect(layout.blocks.get(id(40))).toMatchObject({ x: 1600, y: 2050, w: 175, h: 900 })
+    expect(layout.blocks.get(id(40))).toMatchObject({ x: 1600, y: 1650, w: 175, h: 900 })
     expect(layout.blocks.get(id(41))).toMatchObject({
       x: 200,
-      y: 3050,
+      y: 2650,
       w: 175,
       h: 900,
       railIndex: 1,
@@ -201,15 +202,15 @@ describe('computeLayout: the world', () => {
   })
 
   it('outTop = last rail centre + ELEMENT_H/2 + CABLE_ROW_GAP; output wire points on the top edge', () => {
-    expect(layout.outTop).toBe(3500 + 450 + 150)
-    expect(layout.outputBoxes[0]).toMatchObject({ x: 200, y: 4100, w: 200, h: 250 })
-    expect(layout.cableWires.get(id(5))?.pt).toEqual({ x: 300, y: 4100 })
+    expect(layout.outTop).toBe(3100 + 450 + 150)
+    expect(layout.outputBoxes[0]).toMatchObject({ x: 200, y: 3700, w: 200, h: 250 })
+    expect(layout.cableWires.get(id(5))?.pt).toEqual({ x: 300, y: 3700 })
     expect(layout.cableWires.get(id(5))).toMatchObject({ kind: 'output', cableId: id(4) })
   })
 
   it('drawing height = outTop + CABLE_BOX_H + MARGIN', () => {
-    expect(layout.height).toBe(4100 + 250 + 200)
-    expect(layout.width).toBe(10900)
+    expect(layout.height).toBe(3700 + 250 + 200)
+    expect(layout.width).toBe(400 + 24 * 175)
   })
 
   it('every derived coordinate is an integer', () => {
@@ -229,17 +230,17 @@ describe('endpoint points', () => {
   const layout = computeLayout(buildWorld())
 
   it.each([
-    ['E1 pole 0 input (top edge)', pole(id(20), 0, 'input'), { x: 288, y: 2050 }],
-    ['E1 pole 1 output (bottom edge)', pole(id(20), 1, 'output'), { x: 463, y: 2950 }],
-    ['E1 pole 0 output', pole(id(20), 0, 'output'), { x: 288, y: 2950 }],
-    ['E2 single pole centred (87.5 -> 88)', pole(id(21), 0, 'input'), { x: 988, y: 2050 }],
-    ['B1 contact 0, left (inset 25)', term(id(40), 0, 'left'), { x: 1625, y: 2088 }],
-    ['B1 contact 1, right (inset 25)', term(id(40), 1, 'right'), { x: 1750, y: 2163 }],
-    ['B1 contact 2, left (pitch 75)', term(id(40), 2, 'left'), { x: 1625, y: 2238 }],
-    ['B2 contact 0, left', term(id(41), 0), { x: 225, y: 3088 }],
-    ['B2 contact 1, right', term(id(41), 1, 'right'), { x: 350, y: 3163 }],
+    ['E1 pole 0 input (top edge)', pole(id(20), 0, 'input'), { x: 288, y: 1650 }],
+    ['E1 pole 1 output (bottom edge)', pole(id(20), 1, 'output'), { x: 463, y: 2550 }],
+    ['E1 pole 0 output', pole(id(20), 0, 'output'), { x: 288, y: 2550 }],
+    ['E2 single pole centred (87.5 -> 88)', pole(id(21), 0, 'input'), { x: 988, y: 1650 }],
+    ['B1 contact 0, left (inset 25)', term(id(40), 0, 'left'), { x: 1625, y: 1688 }],
+    ['B1 contact 1, right (inset 25)', term(id(40), 1, 'right'), { x: 1750, y: 1763 }],
+    ['B1 contact 2, left (pitch 75)', term(id(40), 2, 'left'), { x: 1625, y: 1838 }],
+    ['B2 contact 0, left', term(id(41), 0), { x: 225, y: 2688 }],
+    ['B2 contact 1, right', term(id(41), 1, 'right'), { x: 350, y: 2763 }],
     ['input cable wire', cw(id(3)), { x: 400, y: 450 }],
-    ['output cable wire', cw(id(5)), { x: 300, y: 4100 }],
+    ['output cable wire', cw(id(5)), { x: 300, y: 3700 }],
   ])('%s', (_n, endpoint, expected) => {
     expect(endpointPoint(layout, endpoint)).toEqual(expected)
   })
@@ -276,8 +277,8 @@ describe('sidesSwapped', () => {
   const layout = computeLayout(swapped)
 
   it('exchanges the edges: inputs at the bottom, outputs at the top', () => {
-    expect(endpointPoint(layout, pole(id(20), 0, 'input'))).toEqual({ x: 638, y: 2950 })
-    expect(endpointPoint(layout, pole(id(20), 0, 'output'))).toEqual({ x: 638, y: 2050 })
+    expect(endpointPoint(layout, pole(id(20), 0, 'input'))).toEqual({ x: 638, y: 2550 })
+    expect(endpointPoint(layout, pole(id(20), 0, 'output'))).toEqual({ x: 638, y: 1650 })
   })
 
   it('swaps the leave directions as well', () => {
@@ -310,24 +311,28 @@ describe('odd pole counts', () => {
     ])
   })
 
-  it('a 2-module row block with 4 contacts at offset 4: x 944, 1031, 1119, 1206, top y 600, bottom y 850', () => {
+  it('a 2-module row block with 4 contacts at offset 4 (row starts at module 2): x 1294, 1381, 1469, 1556, top y 200, bottom y 450', () => {
+    // one 1-wire input cable (200 u) -> rowStartModules = ceil(300 / 175) = 2; box x = 200 + 6 * 175 = 1250
     const layout = computeLayout(content({ terminalRow: [rowBlock(40, 4, 4)] }))
+    expect(layout.rowStartModules).toBe(2)
     expect([0, 1, 2, 3].map((i) => endpointPoint(layout, term(id(40), i, 'top'))?.x)).toEqual([
-      944, 1031, 1119, 1206,
+      1294, 1381, 1469, 1556,
     ])
-    expect(endpointPoint(layout, term(id(40), 0, 'top'))?.y).toBe(600)
-    expect(endpointPoint(layout, term(id(40), 0, 'bottom'))).toEqual({ x: 944, y: 850 })
+    expect(endpointPoint(layout, term(id(40), 0, 'top'))?.y).toBe(200)
+    expect(endpointPoint(layout, term(id(40), 0, 'bottom'))).toEqual({ x: 1294, y: 450 })
     expect(endpointPoint(layout, term(id(40), 0, 'left'))).toBeNull()
     expect(endpointDirection(layout, term(id(40), 0, 'top'))).toBe('up')
     expect(endpointDirection(layout, term(id(40), 0, 'bottom'))).toBe('down')
   })
 
   it('60 contacts on a 30-module row block are all integer points on the top edge', () => {
-    const layout = computeLayout(content({ terminalRow: [rowBlock(40, 0, 60)] }))
+    const layout = computeLayout(
+      content({ terminalRow: [rowBlock(40, 0, 60)], railWidthModules: 60 }),
+    )
     for (let i = 0; i < 60; i++) {
       const p = endpointPoint(layout, term(id(40), i, 'top'))
       expect(Number.isInteger(p?.x)).toBe(true)
-      expect(p?.y).toBe(600)
+      expect(p?.y).toBe(200)
     }
   })
 })
@@ -337,17 +342,13 @@ describe('rail spacing and decimals', () => {
     const layout = computeLayout(
       content({ rails: [rail(10, 24, 150.3), rail(11, 24, 99.9), rail(12, 24, 0)] }),
     )
-    expect(layout.rails.map((r) => r.cy)).toEqual([
-      1000 + 1503,
-      1000 + 1503 + 999,
-      1000 + 1503 + 999,
-    ])
+    expect(layout.rails.map((r) => r.cy)).toEqual([600 + 1503, 600 + 1503 + 999, 600 + 1503 + 999])
     expect(layout.rails.every((r) => Number.isInteger(r.y))).toBe(true)
   })
 
   it('outTop follows the last rail even when it is the only one', () => {
     const layout = computeLayout(content({ rails: [rail(10, 24, 150)] }))
-    expect(layout.outTop).toBe(2500 + 450 + 150)
+    expect(layout.outTop).toBe(2100 + 450 + 150)
     expect(layout.height).toBe(layout.outTop + 250 + 200)
   })
 })
@@ -373,10 +374,10 @@ describe('cable rows', () => {
       content({ outputCables: [outputCable(4, [5, 6, 7]), outputCable(8, [9])] }),
     )
     expect(layout.outputBoxes.map((b) => [b.x, b.w, b.y])).toEqual([
-      [200, 400, 1150],
-      [700, 200, 1150],
+      [200, 400, 750],
+      [700, 200, 750],
     ])
-    expect(layout.cableWires.get(id(9))?.pt).toEqual({ x: 800, y: 1150 })
+    expect(layout.cableWires.get(id(9))?.pt).toEqual({ x: 800, y: 750 })
   })
 
   it('20 four-wire input cables widen the drawing beyond 60 modules', () => {
@@ -414,7 +415,7 @@ describe('wirePolyline / viewBounds', () => {
       { x: 300, y: 450 },
       { x: 300, y: 1000 },
       { x: 288, y: 1000 },
-      { x: 288, y: 2050 },
+      { x: 288, y: 1650 },
     ])
   })
 

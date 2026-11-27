@@ -73,8 +73,8 @@ const allOrthogonal = (c: PanelContent) => {
 
 /**
  * World: C1 (id2 brown, id3 blue); row block R id50 [0,2) 3 contacts, row block id51 [4,5) 2 contacts;
- * rail 1 id10 (cy 2500): ATS id21 [0,2), device id20 [4,6) 2 poles, rail block id40 [10,11) 3 contacts;
- * rail 2 id11 (cy 3500) empty.
+ * rail 1 id10 (cy 2100): ATS id21 [0,2), device id20 [4,6) 2 poles, rail block id40 [10,11) 3 contacts;
+ * rail 2 id11 (cy 3100) empty; the input cable (2 wires, 300 u) puts the row start at module 3, the capacity is 24 - 3 = 21.
  */
 function world(): PanelContent {
   return content({
@@ -91,14 +91,14 @@ function world(): PanelContent {
 
 describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
   const layout = computeLayout(world())
-  // box x = 200 + 10*175 = 1950, y = 2500 - 450 = 2050
+  // box x = 200 + 10*175 = 1950, y = 2100 - 450 = 1650
   it.each([
-    [0, 'left', p(1975, 2088)],
-    [0, 'right', p(2100, 2088)],
-    [1, 'left', p(1975, 2163)],
-    [1, 'right', p(2100, 2163)],
-    [2, 'left', p(1975, 2238)],
-    [2, 'right', p(2100, 2238)],
+    [0, 'left', p(1975, 1688)],
+    [0, 'right', p(2100, 1688)],
+    [1, 'left', p(1975, 1763)],
+    [1, 'right', p(2100, 1763)],
+    [2, 'left', p(1975, 1838)],
+    [2, 'right', p(2100, 1838)],
   ] as const)('contact %i %s is at the exact integer point', (k, side, expected) => {
     expect(endpointPoint(layout, term(id(40), k, side))).toEqual(expected)
   })
@@ -114,9 +114,9 @@ describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
     const c = content({ rails: [rail(10, 24, 150, [], [block(40, 0, 1, 12)])] })
     const l = computeLayout(c)
     const last = endpointPoint(l, term(id(40), 11, 'left'))!
-    expect(last.y).toBe(2050 + 38 + 75 * 11)
-    expect(last.y).toBeLessThan(2050 + 900)
-    expect(railContactY(l.blocks.get(id(40))!, 0)).toBe(2088)
+    expect(last.y).toBe(1650 + 38 + 75 * 11)
+    expect(last.y).toBeLessThan(1650 + 900)
+    expect(railContactY(l.blocks.get(id(40))!, 0)).toBe(1688)
   })
 
   it('top/bottom sides do not exist on a rail block, left/right do not exist on a row block', () => {
@@ -138,59 +138,69 @@ describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
 
 describe('geometry: terminal-row blocks', () => {
   const layout = computeLayout(world())
-  it('row block box: y = rowTop 600, height 250, x = 200 + offset*175, width = modules*175', () => {
+  it('row block box: y = MARGIN 200, height 250, x = 200 + (rowStart 3 + offset)*175, width = modules*175', () => {
     const b = layout.blocks.get(id(50))!
-    expect([b.x, b.y, b.w, b.h, b.railId, b.railIndex]).toEqual([200, 600, 350, 250, null, null])
+    expect([b.x, b.y, b.w, b.h, b.railId, b.railIndex]).toEqual([725, 200, 350, 250, null, null])
     const b2 = layout.blocks.get(id(51))!
-    expect([b2.x, b2.w]).toEqual([900, 175])
+    expect([b2.x, b2.w]).toEqual([1425, 175])
   })
 
-  it('3 contacts on 2 modules follow the pole formula (258, 375, 492)', () => {
-    // x = 200 + floor((350*(2i+1) + 3) / 6)
+  it('3 contacts on 2 modules follow the pole formula (783, 900, 1017)', () => {
+    // x = 725 + floor((350*(2i+1) + 3) / 6)
     expect([0, 1, 2].map((i) => endpointPoint(layout, term(id(50), i, 'top'))?.x)).toEqual([
-      200 + Math.floor((350 * 1 + 3) / 6),
-      200 + Math.floor((350 * 3 + 3) / 6),
-      200 + Math.floor((350 * 5 + 3) / 6),
+      725 + Math.floor((350 * 1 + 3) / 6),
+      725 + Math.floor((350 * 3 + 3) / 6),
+      725 + Math.floor((350 * 5 + 3) / 6),
     ])
     expect([0, 1, 2].map((i) => endpointPoint(layout, term(id(50), i, 'top'))?.x)).toEqual([
-      258, 375, 492,
+      783, 900, 1017,
     ])
   })
 
-  it('top is at y 600 and bottom at y 850, same x', () => {
+  it('top is at y 200 and bottom at y 450, same x', () => {
     const t = endpointPoint(layout, term(id(51), 1, 'top'))!
     const b = endpointPoint(layout, term(id(51), 1, 'bottom'))!
-    expect(t.y).toBe(600)
-    expect(b.y).toBe(850)
+    expect(t.y).toBe(200)
+    expect(b.y).toBe(450)
     expect(t.x).toBe(b.x)
   })
 
-  it('railsTop is 1000: the first rail centre line is 1000 + spacing', () => {
-    expect(layout.railsTop).toBe(1000)
-    expect(layout.rails[0]?.cy).toBe(2500)
+  it('railsTop is 600 (no row band): the first rail centre line is 600 + spacing', () => {
+    expect(layout.railsTop).toBe(600)
+    expect(layout.rails[0]?.cy).toBe(2100)
   })
 
-  it('the drawing is always as wide as 60 modules even with an empty row', () => {
-    expect(computeLayout(content()).width).toBe(2 * 200 + 60 * 175)
+  it('the drawing is as wide as the panel rail width (rails or not)', () => {
+    expect(computeLayout(content({ railWidthModules: 60 })).width).toBe(2 * 200 + 60 * 175)
+    expect(computeLayout(content({ railWidthModules: 10 })).width).toBe(2 * 200 + 10 * 175)
+  })
+
+  it('rowStartModules and rowCapacity follow the input cables and the rail width', () => {
+    const l = computeLayout(world())
+    expect([l.rowStartModules, l.rowCapacity]).toEqual([3, 21])
+    // rail width equal to the row start: capacity 0 (no row blocks fit); narrower: negative
+    const narrow = computeLayout(content({ railWidthModules: 2 }))
+    expect([narrow.rowStartModules, narrow.rowCapacity]).toEqual([2, 0])
+    expect(computeLayout(content({ railWidthModules: 1 })).rowCapacity).toBe(-1)
   })
 })
 
 describe('geometry: ATS terminals (4 inputs, 2 outputs)', () => {
   const layout = computeLayout(world())
-  // box x 200, w 350, y 2050, h 900
+  // box x 200, w 350, y 1650, h 900
   it.each([
     [0, 244],
     [1, 331],
     [2, 419],
     [3, 506],
   ])('input %i sits at x %i on the top edge', (i, x) => {
-    expect(endpointPoint(layout, pole(id(21), i, 'input'))).toEqual(p(x, 2050))
+    expect(endpointPoint(layout, pole(id(21), i, 'input'))).toEqual(p(x, 1650))
   })
   it.each([
     [0, 288],
     [1, 463],
   ])('output %i sits at x %i on the bottom edge', (i, x) => {
-    expect(endpointPoint(layout, pole(id(21), i, 'output'))).toEqual(p(x, 2950))
+    expect(endpointPoint(layout, pole(id(21), i, 'output'))).toEqual(p(x, 2550))
   })
 
   it('there is no fifth input and no third output (error)', () => {
@@ -201,8 +211,8 @@ describe('geometry: ATS terminals (4 inputs, 2 outputs)', () => {
   it('sidesSwapped puts the inputs at the bottom and the outputs at the top, keeping x', () => {
     const c = run(world(), updateElement(id(21), { sidesSwapped: true })).content
     const l = computeLayout(c)
-    expect(endpointPoint(l, pole(id(21), 2, 'input'))).toEqual(p(419, 2950))
-    expect(endpointPoint(l, pole(id(21), 1, 'output'))).toEqual(p(463, 2050))
+    expect(endpointPoint(l, pole(id(21), 2, 'input'))).toEqual(p(419, 2550))
+    expect(endpointPoint(l, pole(id(21), 1, 'output'))).toEqual(p(463, 1650))
     expect(endpointDirection(l, pole(id(21), 0, 'input'))).toBe('down')
     expect(endpointDirection(l, pole(id(21), 0, 'output'))).toBe('up')
   })
@@ -362,32 +372,31 @@ describe('placement: ATS width, rail block, row band', () => {
     ['ATS grown into the neighbour', 21, 5, 'overlap'],
   ] as const)('%s', (_n, elId, width, expected) => {
     const el = r.elements.find((e) => e.id === id(elId)) as PanelElement
-    expect(checkElementWidth(r, el, width)).toBe(expected)
+    expect(checkElementWidth(r, 24, el, width)).toBe(expected)
   })
 
   it('an ATS is not limited by poles (poleCount is irrelevant)', () => {
-    expect(checkElementWidth(r, r.elements[0] as PanelElement, 2, 99)).toBeNull()
+    expect(checkElementWidth(r, 24, r.elements[0] as PanelElement, 2, 99)).toBeNull()
   })
 
   it('firstFreeRowOffset finds a gap between blocks and none in a full row', () => {
-    expect(firstFreeRowOffset([rowBlock(50, 0, 3)], 1)).toBe(2)
-    expect(firstFreeRowOffset([rowBlock(50, 0, 60)], 1)).toBe(30)
-    expect(firstFreeRowOffset([rowBlock(50, 0, 120)], 1)).toBeNull()
+    expect(firstFreeRowOffset([rowBlock(50, 0, 3)], 60, 1)).toBe(2)
+    expect(firstFreeRowOffset([rowBlock(50, 0, 60)], 60, 1)).toBe(30)
+    expect(firstFreeRowOffset([rowBlock(50, 0, 120)], 60, 1)).toBeNull()
   })
 
-  it('the row band is rowTop..rowTop+250 inclusive', () => {
-    const l = computeLayout(world())
-    expect([599, 600, 850, 851].map((y) => inRowBand(l, y))).toEqual([false, true, true, false])
+  it('the row band is MARGIN..MARGIN+250 inclusive', () => {
+    expect([199, 200, 450, 451].map((y) => inRowBand(y))).toEqual([false, true, true, false])
   })
 
   it('checkRowPlacement: fits, overlap, out of the row, negative offset, invalid size', () => {
     const row = [rowBlock(50, 0, 3)]
-    expect(checkRowPlacement(row, null, 2, 1)).toBeNull()
-    expect(checkRowPlacement(row, null, 1, 1)).toBe('overlap')
-    expect(checkRowPlacement(row, null, 59, 2)).toBe('outOfRow')
-    expect(checkRowPlacement(row, null, -1, 1)).toBe('negativeOffset')
-    expect(checkRowPlacement(row, null, 0.5, 1)).toBe('invalidSize')
-    expect(checkRowPlacement(row, id(50), 0, 3)).toBeNull()
+    expect(checkRowPlacement(row, 60, null, 2, 1)).toBeNull()
+    expect(checkRowPlacement(row, 60, null, 1, 1)).toBe('overlap')
+    expect(checkRowPlacement(row, 60, null, 59, 2)).toBe('outOfRow')
+    expect(checkRowPlacement(row, 60, null, -1, 1)).toBe('negativeOffset')
+    expect(checkRowPlacement(row, 60, null, 0.5, 1)).toBe('invalidSize')
+    expect(checkRowPlacement(row, 60, id(50), 0, 3)).toBeNull()
   })
 })
 
@@ -417,12 +426,23 @@ describe('validateContent: stage 3 rules (paths as the backend)', () => {
     expect(validateContent(c)).toEqual([])
   })
 
-  it('accepts a 60-contact row block and 12-contact rail block (the upper limits)', () => {
+  it('accepts a 60-contact row block and 12-contact rail block (the upper limits) on a 60-module rail', () => {
+    const c = content({
+      railWidthModules: 60,
+      terminalRow: [rowBlock(50, 0, 60)],
+      rails: [rail(10, 60, 150, [], [block(40, 0, 1, 12)])],
+    })
+    expect(validateContent(c)).toEqual([])
+  })
+
+  it('rejects a 60-contact row block when the rail is too narrow for the row (rail width - row start)', () => {
     const c = content({
       terminalRow: [rowBlock(50, 0, 60)],
       rails: [rail(10, 24, 150, [], [block(40, 0, 1, 12)])],
     })
-    expect(validateContent(c)).toEqual([])
+    expect(validateContent(c).map((v) => v.propertyPath)).toEqual([
+      'content.terminalRow[0].offsetModules',
+    ])
   })
 
   it.each([
@@ -648,8 +668,11 @@ describe('addRowBlock', () => {
     expect(rejection(addRowBlock(b)(world()))).toBe(reason)
   })
 
-  it('accepts 60 contacts on a full 30-module block at offset 30', () => {
-    expect(addRowBlock(rowBlock(52, 30, 60))(world()).ok).toBe(true)
+  it('accepts 60 contacts on a full 30-module block ending exactly at the row capacity', () => {
+    // 60-module rail, row start 3 -> capacity 57: [27, 57) fits, [28, 58) does not
+    const wide = { ...world(), railWidthModules: 60 }
+    expect(addRowBlock(rowBlock(52, 27, 60))(wide).ok).toBe(true)
+    expect(rejection(addRowBlock(rowBlock(52, 28, 60))(wide))).toBe('outOfRow')
   })
 
   it('rejects the 61st block of the row (limit)', () => {
@@ -845,7 +868,7 @@ describe('updateBlock on a row block', () => {
   })
 
   it('growing past the row end is outOfRow', () => {
-    const c = run(world(), moveRowBlock(id(51), 58)).content
+    const c = run(world(), moveRowBlock(id(51), 20)).content // [20, 21): the last module of the capacity 21
     expect(rejection(updateBlock(id(51), { terminalCount: 6 })(c))).toBe('outOfRow')
   })
 

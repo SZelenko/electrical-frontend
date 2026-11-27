@@ -1,5 +1,8 @@
 <script setup lang="ts">
-/** Invisible click zone that switches an element; a drag from it still moves the element. */
+/**
+ * Click zone that switches an element; a drag from it still moves the element. Focusable with the
+ * keyboard (Enter / Space handled by the canvas); no pointer feedback when the panel is read-only.
+ */
 defineProps<{
   id: string
   x: number
@@ -7,6 +10,7 @@ defineProps<{
   width: number
   height: number
   label: string
+  readOnly: boolean
 }>()
 </script>
 
@@ -18,7 +22,10 @@ defineProps<{
     :height="height"
     rx="8"
     class="toggle"
+    :class="{ 'read-only': readOnly }"
     role="button"
+    :tabindex="readOnly ? -1 : 0"
+    :aria-disabled="readOnly"
     data-kind="toggle"
     data-testid="toggle"
     :data-id="id"
@@ -35,5 +42,16 @@ defineProps<{
 }
 .toggle:hover {
   fill: rgb(10 100 214 / 0.12);
+}
+.toggle:focus-visible {
+  outline: none;
+  stroke: #0a64d6;
+  stroke-width: 8;
+}
+.toggle.read-only {
+  cursor: default;
+}
+.toggle.read-only:hover {
+  fill: transparent;
 }
 </style>

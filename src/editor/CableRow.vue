@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { WIRE_COLOUR_HEX, type CableBox } from '@/domain/geometry'
+import { fitText } from './shapes/fitText'
+import {
+  CABLE_LABEL_INPUT_Y,
+  CABLE_LABEL_INSET,
+  CABLE_LABEL_OUTPUT_Y,
+  WIRE_COLOUR_HEX,
+  type CableBox,
+} from '@/domain/geometry'
 
 defineProps<{
-  /** `body`: boxes and labels (below the wires); `contacts`: wire points (above the wires). */
+  /** `body`: boxes and labels (above the wires); `contacts`: wire points (above the wires). */
   layer: 'body' | 'contacts'
   boxes: readonly CableBox[]
   kind: 'input' | 'output'
@@ -35,12 +42,24 @@ defineProps<{
     <text
       v-if="layer === 'body'"
       :x="box.x + box.w / 2"
-      :y="kind === 'input' ? box.y + 80 : box.y + box.h - 60"
+      :y="kind === 'input' ? box.y + 80 : box.y + 190"
       class="cable-label"
       text-anchor="middle"
       pointer-events="none"
     >
       {{ kind === 'input' ? 'Вх' : 'Вих' }} {{ box.index + 1 }}
+    </text>
+    <text
+      v-if="layer === 'body' && box.label"
+      :x="box.x + box.w / 2"
+      :y="box.y + (kind === 'input' ? CABLE_LABEL_INPUT_Y : CABLE_LABEL_OUTPUT_Y)"
+      v-bind="fitText(box.label, 35, box.w - CABLE_LABEL_INSET)"
+      class="user-label"
+      text-anchor="middle"
+      pointer-events="none"
+      data-testid="cable-mark"
+    >
+      {{ box.label }}
     </text>
     <g v-for="wire in layer === 'contacts' ? box.wires : []" :key="wire.id">
       <circle
@@ -85,6 +104,11 @@ defineProps<{
 .cable-label {
   font-size: 40px;
   fill: #33415c;
+  user-select: none;
+}
+.user-label {
+  font-size: 35px;
+  fill: #1f2733;
   user-select: none;
 }
 .terminal-hit {

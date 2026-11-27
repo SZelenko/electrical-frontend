@@ -10,3 +10,8 @@ export const deviceShapes: Record<DeviceStyle, Component> = {
   rcd: RcdShape,
   voltageRelay: VoltageRelayShape,
 }
+
+/** The shape of a style; an unknown style (newer backend) falls back to the breaker. */
+export function shapeFor(style: DeviceStyle): Component {
+  return deviceShapes[style] ?? BreakerShape
+}

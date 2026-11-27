@@ -28,7 +28,7 @@ const world = buildWorld()
 
 describe('addWire validates the drawn route', () => {
   const start = cw(id(2)) // (300,450)
-  const end = pole(id(20), 0, 'input') // (288,2050)
+  const end = pole(id(20), 0, 'input') // (288,1650)
   const add = (bends: Pt[], base: PanelContent = world) =>
     addWire(newWire(60, start, end, bends))(base)
 
@@ -43,7 +43,7 @@ describe('addWire validates the drawn route', () => {
   })
 
   it('accepts a route that goes around (orthogonal with backtracking)', () => {
-    expect(rejection(add([p(300, 300), p(900, 300), p(900, 2050)]))).toBeNull()
+    expect(rejection(add([p(300, 300), p(900, 300), p(900, 1650)]))).toBeNull()
   })
 
   it.each([
@@ -67,7 +67,7 @@ describe('addWire validates the drawn route', () => {
   it('accepts exactly 50 bends and rejects 51', () => {
     const fifty = [
       ...Array.from({ length: 49 }, (_, i) => p(300, 500 + i)),
-      p(300, 2050), // aligned with the pole input row
+      p(300, 1650), // aligned with the pole input row
     ]
     expect(fifty).toHaveLength(50)
     expect(rejection(add(fifty))).toBeNull()
@@ -81,7 +81,7 @@ describe('addWire validates the drawn route', () => {
       ...world,
       wires: Array.from({ length: n }, (_, i) => panelWire(1000 + i, cw(id(2)), cw(id(3)), bends)),
     })
-    const route = [...Array.from({ length: 49 }, (_, i) => p(300, 500 + i)), p(300, 2050)]
+    const route = [...Array.from({ length: 49 }, (_, i) => p(300, 500 + i)), p(300, 1650)]
     expect(rejection(addWire(newWire(60, start, end, route))(heavy(399)))).toBeNull() // 19950 + 50
     expect(rejection(addWire(newWire(60, start, end, route))(heavy(400)))).toBe('limit') // 20000 + 50
     expect(add([p(300, 1050), p(288, 1050)], heavy(400))).toMatchObject({
@@ -94,7 +94,7 @@ describe('addWire validates the drawn route', () => {
   it.each([
     ['below 0', [p(300, -10), p(288, -10)]],
     ['past 99999.9 mm', [p(300, MAX_COORD_U + 1), p(288, MAX_COORD_U + 1)]],
-    ['left of 0', [p(-5, 450), p(-5, 2050)]],
+    ['left of 0', [p(-5, 450), p(-5, 1650)]],
   ])('rejects a bend %s as outside the coordinate range', (_n, bends) => {
     expect(add(bends)).toMatchObject({ ok: false, reason: 'limit', detail: 'coordinates' })
   })
@@ -178,7 +178,7 @@ describe('snapToAxis', () => {
 
 describe('finishDrawnRoute', () => {
   it.each([
-    ['aligned vertically with the start: no elbow', p(300, 450), [], p(300, 2050), []],
+    ['aligned vertically with the start: no elbow', p(300, 450), [], p(300, 1650), []],
     ['aligned horizontally with the start: no elbow', p(300, 450), [], p(900, 450), []],
     [
       'last bend aligned with the end (same y): no elbow',
@@ -220,7 +220,7 @@ describe('finishDrawnRoute', () => {
   it('the finished route is orthogonal start to end for any clicks that are themselves orthogonal', () => {
     const bad: string[] = []
     const start = p(300, 450)
-    for (const end of [p(300, 2050), p(288, 1650), p(900, 450), p(100, 100), p(300, 450)]) {
+    for (const end of [p(300, 1650), p(288, 1650), p(900, 450), p(100, 100), p(300, 450)]) {
       for (const bends of [
         [],
         [p(300, 800)],
@@ -237,7 +237,7 @@ describe('finishDrawnRoute', () => {
 
   it('does not mutate the clicked bends and returns a new array', () => {
     const bends = [p(300, 800)]
-    const out = finishDrawnRoute(p(300, 450), bends, p(300, 2050))
+    const out = finishDrawnRoute(p(300, 450), bends, p(300, 1650))
     expect(bends).toEqual([p(300, 800)])
     expect(out).not.toBe(bends)
   })

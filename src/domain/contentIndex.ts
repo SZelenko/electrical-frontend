@@ -1,5 +1,6 @@
 /** Lookup maps over a content snapshot; build once per content identity (e.g. in a computed). */
 import type {
+  Busbar,
   CableWire,
   InputCable,
   OutputCable,
@@ -15,6 +16,7 @@ export interface ContentIndex {
   elements: Map<string, { element: PanelElement; rail: Rail; railIndex: number }>
   /** `rail`/`railIndex` are null for a terminal-row block. */
   blocks: Map<string, { block: TerminalBlock; rail: Rail | null; railIndex: number | null }>
+  busbars: Map<string, { busbar: Busbar; rail: Rail; railIndex: number }>
   inputCables: Map<string, { cable: InputCable; index: number }>
   outputCables: Map<string, { cable: OutputCable; index: number }>
   cableWires: Map<
@@ -35,6 +37,7 @@ export function buildIndex(content: PanelContent): ContentIndex {
     rails: new Map(),
     elements: new Map(),
     blocks: new Map(),
+    busbars: new Map(),
     inputCables: new Map(),
     outputCables: new Map(),
     cableWires: new Map(),
@@ -47,6 +50,7 @@ export function buildIndex(content: PanelContent): ContentIndex {
     idx.rails.set(rail.id, { rail, index: railIndex })
     for (const element of rail.elements) idx.elements.set(element.id, { element, rail, railIndex })
     for (const block of rail.terminalBlocks) idx.blocks.set(block.id, { block, rail, railIndex })
+    for (const busbar of rail.busbars) idx.busbars.set(busbar.id, { busbar, rail, railIndex })
   })
   content.inputCables.forEach((cable, index) => {
     idx.inputCables.set(cable.id, { cable, index })

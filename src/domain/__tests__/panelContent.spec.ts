@@ -12,10 +12,12 @@ import {
 } from '../panelContent'
 
 const content: PanelContent = {
+  railWidthModules: 12,
   terminalRow: [],
   inputCables: [
     {
       id: 'c1',
+      label: '',
       voltage: 230,
       frequency: 50,
       crossSection: 4,
@@ -26,6 +28,7 @@ const content: PanelContent = {
     },
     {
       id: 'c2',
+      label: '',
       voltage: 400,
       frequency: 50,
       crossSection: 1.5,
@@ -36,9 +39,9 @@ const content: PanelContent = {
   rails: [
     {
       id: 'r1',
-      widthModules: 12,
       spacingMm: 0,
       terminalBlocks: [],
+      busbars: [],
       elements: [
         {
           kind: 'device' as const,
@@ -68,7 +71,7 @@ const content: PanelContent = {
         },
       ],
     },
-    { id: 'r2', widthModules: 12, spacingMm: 10, terminalBlocks: [], elements: [] },
+    { id: 'r2', spacingMm: 10, terminalBlocks: [], elements: [], busbars: [] },
   ],
   wires: [
     {

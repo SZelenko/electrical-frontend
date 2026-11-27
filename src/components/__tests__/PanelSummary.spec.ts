@@ -37,11 +37,39 @@ describe('PanelSummary elements', () => {
       render(c)
         .findAll('section[aria-labelledby=sum-rails] p')
         .map((p) => p.text()),
-    ).toEqual(['Немає.', 'Немає.'])
+    ).toEqual(['Ширина рейок: 24 мод.', 'Немає.', 'Немає.'])
   })
 
   it('lists terminal blocks', () => {
     expect(render().text()).toContain('1 мод., клем: 4')
+  })
+})
+
+describe('PanelSummary busbars and rail width', () => {
+  it('shows the panel rail width and no busbar section without busbars', () => {
+    const text = render().text()
+    expect(text).toContain('Ширина рейок: 24 мод.')
+    expect(text).not.toContain('Шини')
+  })
+
+  it('lists the busbars of a rail with type and device count', () => {
+    const c = content()
+    c.rails[0]!.busbars = [
+      { id: 'b1', type: 'LN', colour: null, firstElementId: 'e1', count: 3 },
+      { id: 'b2', type: 'L', colour: null, firstElementId: 'e1', count: 2 },
+    ]
+    const items = render(c)
+      .findAll('section[aria-labelledby=sum-rails] h3')
+      .map((h) => h.text())
+    expect(items).toContain('Шини')
+    expect(render(c).text()).toContain('Шина L+N: апаратів 3')
+    expect(render(c).text()).toContain('Шина L: апаратів 2')
+  })
+
+  it('shows the cable label in guillemets next to the cable', () => {
+    const c = content()
+    c.inputCables[0]!.label = 'Ввід А'
+    expect(render(c).text()).toContain('Кабель 1 «Ввід А»')
   })
 })
 
@@ -73,5 +101,17 @@ describe('PanelSummary wires', () => {
     c.wires = []
     expect(lines(c)).toEqual([])
     expect(render(c).text()).toContain('0 проводів')
+  })
+})
+
+describe('PanelSummary busbar colour', () => {
+  it.each([
+    [null, 'сірий'],
+    ['red', 'червоний'],
+    ['green-yellow', 'жовто-зелений'],
+  ] as const)('shows the busbar colour %s as "%s"', (colour, name) => {
+    const c = content()
+    c.rails[0]!.busbars = [{ id: 'b1', type: 'L', colour, firstElementId: 'e1', count: 2 }]
+    expect(render(c).text()).toContain(`Шина L: апаратів 2, колір: ${name}`)
   })
 })

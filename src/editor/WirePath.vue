@@ -16,6 +16,8 @@ const props = defineProps<{
   shortCircuit: boolean
   focused: boolean
   violation: boolean
+  /** Draw the clickable hit stroke (off in translucent mode, where the canvas draws it above the bodies). */
+  hit?: boolean
 }>()
 
 // Stroke widths are drawn in tenths of a millimetre (the model group is scaled by 0.1).
@@ -71,6 +73,7 @@ const halo = computed(
       pointer-events="none"
     />
     <path
+      v-if="hit !== false"
       :d="d"
       fill="none"
       stroke="transparent"

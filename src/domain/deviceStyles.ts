@@ -6,13 +6,20 @@ export interface StyleDefaults {
   /** Transit flag per pole. */
   poles: boolean[]
   title: string
+  /** History label of the toolbar action. */
+  addLabel: string
 }
 
 export const DEVICE_STYLE_DEFAULTS: Record<DeviceStyle, StyleDefaults> = {
-  breaker: { widthModules: 1, poles: [false], title: 'Автомат' },
-  rcd: { widthModules: 2, poles: [false, false], title: 'ПЗВ' },
+  breaker: { widthModules: 1, poles: [false], title: 'Автомат', addLabel: 'Додати автомат' },
+  rcd: { widthModules: 2, poles: [false, false], title: 'ПЗВ', addLabel: 'Додати ПЗВ' },
   // the second pole (neutral) passes through
-  voltageRelay: { widthModules: 2, poles: [false, true], title: 'Реле напруги' },
+  voltageRelay: {
+    widthModules: 2,
+    poles: [false, true],
+    title: 'Реле напруги',
+    addLabel: 'Додати реле напруги',
+  },
 }
 
 /** A new device of `style` with its creation defaults, switched on. */

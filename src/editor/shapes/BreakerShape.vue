@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import type { ElementBox } from '@/domain/geometry'
 import type { DeviceElement } from '@/domain/panelContent'
 import DeviceFrame from './DeviceFrame.vue'
-import ToggleZone from './ToggleZone.vue'
 
 /** Circuit breaker: a lever (up = on, down = off) marked I / O. */
 const props = defineProps<{
@@ -19,9 +18,6 @@ const slotY = computed(() => props.box.y + 290)
 const LEVER_H = 150
 const SLOT_H = 300
 const leverY = computed(() => (props.element.on ? slotY.value : slotY.value + SLOT_H - LEVER_H))
-const label = computed(
-  () => `Перемкнути автомат (зараз: ${props.element.on ? 'увімкнено' : 'вимкнено'})`,
-)
 </script>
 
 <template>
@@ -54,14 +50,24 @@ const label = computed(
     >
       {{ element.on ? 'I' : 'O' }}
     </text>
-    <ToggleZone
-      :id="element.id"
-      :x="cx - slotW / 2 - 10"
-      :y="slotY - 10"
-      :width="slotW + 20"
-      :height="SLOT_H + 20"
-      :label="label"
-    />
+    <text
+      :x="cx - slotW / 2 - 20"
+      :y="slotY + 34"
+      class="io"
+      :class="{ active: element.on }"
+      text-anchor="middle"
+      pointer-events="none"
+      >I</text
+    >
+    <text
+      :x="cx - slotW / 2 - 20"
+      :y="slotY + SLOT_H - 8"
+      class="io"
+      :class="{ active: !element.on }"
+      text-anchor="middle"
+      pointer-events="none"
+      >O</text
+    >
   </DeviceFrame>
 </template>
 
@@ -82,5 +88,14 @@ const label = computed(
   font-weight: 700;
   fill: #fff;
   user-select: none;
+}
+.io {
+  font-size: 30px;
+  font-weight: 700;
+  fill: #aeb4bd;
+  user-select: none;
+}
+.io.active {
+  fill: #1f2733;
 }
 </style>

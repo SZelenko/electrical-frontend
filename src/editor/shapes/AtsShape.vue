@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import type { ElementBox } from '@/domain/geometry'
 import { terminalX } from '@/domain/geometry'
-import { ATS_STATE_NAMES, type AtsElement } from '@/domain/panelContent'
+import { describeElement, type AtsElement } from '@/domain/panelContent'
 import { fitText } from './fitText'
-import ToggleZone from './ToggleZone.vue'
+import ScrewHead from './ScrewHead.vue'
 
 /**
  * Automatic transfer switch: two terminal groups (source A and B), a red rotary handle pointing to
@@ -21,7 +21,7 @@ const cx = computed(() => props.box.x + props.box.w / 2)
 const w = computed(() => props.element.widthModules)
 const swapped = computed(() => props.element.sidesSwapped)
 const groupLabelY = computed(() =>
-  swapped.value ? props.box.y + props.box.h - 70 : props.box.y + 100,
+  swapped.value ? props.box.y + props.box.h - 118 : props.box.y + 142,
 )
 const groups = computed(() => [
   {
@@ -33,16 +33,16 @@ const groups = computed(() => [
     x: (terminalX(props.box.x, w.value, 2, 4) + terminalX(props.box.x, w.value, 3, 4)) / 2,
   },
 ])
+const inY = computed(() => (swapped.value ? props.box.y + props.box.h - 58 : props.box.y + 58))
+const outY = computed(() => (swapped.value ? props.box.y + 58 : props.box.y + props.box.h - 58))
+const inXs = computed(() => [0, 1, 2, 3].map((i) => terminalX(props.box.x, w.value, i, 4)))
+const outXs = computed(() => [0, 1].map((i) => terminalX(props.box.x, w.value, i, 2)))
+const screwR = computed(() => Math.min(30, (props.box.w / 4) * 0.4))
 const handleY = computed(() => props.box.y + props.box.h / 2)
 const r = computed(() => Math.min(80, props.box.w / 5))
 const ANGLE = { A: -50, off: 0, B: 50 } as const
 const angle = computed(() => ANGLE[props.element.state])
-const stateName = computed(() => ATS_STATE_NAMES[props.element.state])
-const title = computed(() => {
-  const e = props.element
-  return `${e.label || 'АВР'}${e.marking ? ` (${e.marking})` : ''}, ${e.widthModules} мод., стан: ${stateName.value}`
-})
-const label = computed(() => `Перемкнути АВР (стан: ${stateName.value})`)
+const title = computed(() => describeElement(props.element))
 const panelW = computed(() => props.box.w - 28)
 </script>
 
@@ -64,12 +64,38 @@ const panelW = computed(() => props.box.w - 28)
       <title>{{ title }}</title>
     </rect>
     <rect
+      :x="box.x + 6"
+      :y="box.y"
+      :width="box.w - 12"
+      :height="110"
+      class="strip"
+      pointer-events="none"
+    />
+    <rect
+      :x="box.x + 6"
+      :y="box.y + box.h - 110"
+      :width="box.w - 12"
+      :height="110"
+      class="strip"
+      pointer-events="none"
+    />
+    <ScrewHead v-for="x in inXs" :key="`i${x}`" :x="x" :y="inY" :r="screwR" />
+    <ScrewHead v-for="x in outXs" :key="`o${x}`" :x="x" :y="outY" :r="screwR" />
+    <rect
       :x="box.x + 14"
       :y="box.y + 150"
       :width="panelW"
       :height="box.h - 300"
       rx="8"
       class="front"
+      pointer-events="none"
+    />
+    <rect
+      :x="box.x + 14"
+      :y="handleY - r - 55"
+      :width="panelW"
+      :height="2 * r + 175"
+      class="cover"
       pointer-events="none"
     />
     <text
@@ -132,14 +158,6 @@ const panelW = computed(() => props.box.w - 28)
     >
       АВР{{ element.label ? ` ${element.label}` : '' }}
     </text>
-    <ToggleZone
-      :id="element.id"
-      :x="cx - r - 8"
-      :y="handleY - r - 8"
-      :width="2 * r + 16"
-      :height="2 * r + 16"
-      :label="label"
-    />
   </g>
 </template>
 
@@ -159,6 +177,12 @@ const panelW = computed(() => props.box.w - 28)
   stroke-dasharray: 20 10;
   stroke-width: 14;
 }
+.strip {
+  fill: #e1e5ea;
+}
+.cover {
+  fill: #aeb4bd;
+}
 .front {
   fill: #fff;
   stroke: #c9ced6;
@@ -166,7 +190,7 @@ const panelW = computed(() => props.box.w - 28)
 }
 .group,
 .pos {
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 700;
   fill: #33415c;
   user-select: none;

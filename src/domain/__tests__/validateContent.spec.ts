@@ -300,23 +300,23 @@ describe('validateContent: rails and devices', () => {
     [
       'rail width 0',
       (c: PanelContent) => {
-        c.rails[0]!.widthModules = 0
+        c.railWidthModules = 0
       },
-      ['content.rails[0].widthModules'],
+      ['content.railWidthModules'],
     ],
     [
       'rail width 61',
       (c: PanelContent) => {
-        c.rails[0]!.widthModules = 61
+        c.railWidthModules = 61
       },
-      ['content.rails[0].widthModules'],
+      ['content.railWidthModules'],
     ],
     [
       'rail width 1.5',
       (c: PanelContent) => {
-        c.rails[1]!.widthModules = 1.5
+        c.railWidthModules = 1.5
       },
-      ['content.rails[1].widthModules'],
+      ['content.railWidthModules'],
     ],
     [
       'spacing 150.55',
@@ -455,7 +455,8 @@ describe('validateContent: rails and devices', () => {
 
   it('does not report a fit violation when the rail width itself is invalid', () => {
     const c = content({ rails: [rail(10, 61, 150, [element(20, 59, 4, 2)])] })
-    expect(paths(c)).toEqual(['content.rails[0].widthModules'])
+    // the rail width is a panel value now: only it is reported, the rail items are not checked against it
+    expect(paths(c)).toEqual(['content.railWidthModules'])
   })
 
   it('flags the later item of an overlapping pair (sorted by offset, then end)', () => {
@@ -660,14 +661,14 @@ describe('validateContent: ids', () => {
 })
 
 describe('validateContent: output', () => {
-  it('collects several violations in validation order (cables, rails, wires)', () => {
+  it('collects several violations in validation order (rail width, cables, rails, wires)', () => {
     const c = w()
     c.inputCables[0]!.voltage = 0
-    c.rails[0]!.widthModules = 0
+    c.railWidthModules = 0
     c.wires[0]!.end = c.wires[0]!.start
     expect(paths(c)).toEqual([
+      'content.railWidthModules',
       'content.inputCables[0].voltage',
-      'content.rails[0].widthModules',
       'content.wires[0].end',
     ])
   })
@@ -693,7 +694,6 @@ describe('resolveViolationItem (E9: nearest ancestor with an id)', () => {
   const world = buildWorld()
   it.each([
     ['content.rails[1]', { kind: 'rail', id: id(11) }],
-    ['content.rails[0].widthModules', { kind: 'rail', id: id(10) }],
     ['content.rails[0].elements[1].poles', { kind: 'element', id: id(21) }],
     ['content.rails[0].elements[0].label', { kind: 'element', id: id(20) }],
     ['content.rails[0].terminalBlocks[0].terminalCount', { kind: 'block', id: id(40) }],
@@ -711,6 +711,7 @@ describe('resolveViolationItem (E9: nearest ancestor with an id)', () => {
 
   it.each([
     ['content.wires'],
+    ['content.railWidthModules'], // a panel value, no item
     ['content.rails'],
     ['content.inputCables'],
     ['content.rails[9].widthModules'],

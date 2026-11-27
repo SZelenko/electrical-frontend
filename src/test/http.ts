@@ -66,9 +66,11 @@ export const CABLE_WIRE_ENDPOINT = {
 /** Complete, valid panel content as the API guarantees it. Returns a fresh object on each call. */
 export function panelContentJson() {
   return {
+    railWidthModules: 24,
     inputCables: [
       {
         id: 'c1',
+        label: '',
         voltage: 230,
         frequency: 50,
         crossSection: 4,
@@ -78,12 +80,14 @@ export function panelContentJson() {
         ],
       },
     ],
-    outputCables: [{ id: 'o1', description: 'Розетки', wires: [{ id: 'ow1', colour: 'black' }] }],
+    outputCables: [
+      { id: 'o1', label: '', description: 'Розетки', wires: [{ id: 'ow1', colour: 'black' }] },
+    ],
     terminalRow: [],
     rails: [
       {
         id: 'r1',
-        widthModules: 24,
+        busbars: [],
         spacingMm: 150,
         elements: [
           {

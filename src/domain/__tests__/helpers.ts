@@ -4,6 +4,8 @@ import { computeLayout } from '../geometry'
 import { autoRouteFor } from '../routes'
 import type {
   AtsElement,
+  Busbar,
+  BusbarType,
   ContactSide,
   DeviceElement,
   Endpoint,
@@ -36,6 +38,18 @@ export const term = (
   terminalIndex,
   contactSide,
 })
+
+/** A busbar feed endpoint (feedIndex 0 = L, 1 = N). */
+export const feed = (busbarId: string, feedIndex = 0): Endpoint => ({
+  kind: 'busbar',
+  busbarId,
+  feedIndex,
+})
+
+/** A busbar anchored at the device `firstElementId` covering `count` items. */
+export function busbar(n: number, type: BusbarType, firstElementId: string, count: number): Busbar {
+  return { id: id(n), type, colour: null, firstElementId, count }
+}
 
 export function element(
   n: number,
@@ -105,14 +119,20 @@ export function ats(
   }
 }
 
+/** The width a test asked for per rail; `content()` uses the widest one as the panel-wide rail width. */
+const railWidthHint = new WeakMap<Rail, number>()
+
 export function rail(
   n: number,
   widthModules = 24,
   spacingMm = 150,
   elements: (DeviceElement | AtsElement)[] = [],
   terminalBlocks: TerminalBlock[] = [],
+  busbars: Busbar[] = [],
 ): Rail {
-  return { id: id(n), widthModules, spacingMm, elements, terminalBlocks }
+  const created: Rail = { id: id(n), spacingMm, elements, terminalBlocks, busbars }
+  railWidthHint.set(created, widthModules)
+  return created
 }
 
 export function inputCable(
@@ -122,6 +142,7 @@ export function inputCable(
 ): InputCable {
   return {
     id: id(n),
+    label: '',
     voltage: 230,
     frequency: 50,
     crossSection: 4,
@@ -132,6 +153,7 @@ export function inputCable(
 export function outputCable(n: number, wireNumbers: number[]): OutputCable {
   return {
     id: id(n),
+    label: '',
     description: '',
     wires: wireNumbers.map((w) => ({ id: id(w), colour: 'black' as const })),
   }
@@ -147,7 +169,10 @@ export function panelWire(
 }
 
 export function content(over: Partial<PanelContent> = {}): PanelContent {
+  const hints = (over.rails ?? []).flatMap((r) => railWidthHint.get(r) ?? [])
+  const widest = hints.length > 0 ? Math.max(...hints) : 24
   return {
+    railWidthModules: widest,
     inputCables: [inputCable(1, [2])],
     outputCables: [],
     terminalRow: [],

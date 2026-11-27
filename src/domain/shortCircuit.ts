@@ -1,4 +1,5 @@
 /** Short-circuit check: mirrors the backend ShortCircuitChecker (union-find over electrical nodes). */
+import { busbarCover, coveredDevices, railItems } from './busbars'
 import {
   endpointKey,
   type Endpoint,
@@ -67,6 +68,21 @@ export function checkShortCircuits(content: PanelContent): ShortCircuit[] {
       })
     }
     rail.terminalBlocks.forEach(bar)
+    // Busbars join feed L to the first input and (LN) feed N to the second input of every covered
+    // device; tolerant of an invalid busbar: only the devices of its (clamped) covered set count.
+    if (rail.busbars.length > 0) {
+      const items = railItems(rail)
+      for (const busbar of rail.busbars) {
+        const cover = busbarCover(rail, busbar, items)
+        if (!cover) continue
+        for (const device of coveredDevices(cover)) {
+          union(`b:${busbar.id}:0`, `p:${device.id}:0:input`)
+          if (busbar.type === 'LN' && device.poles.length >= 2) {
+            union(`b:${busbar.id}:1`, `p:${device.id}:1:input`)
+          }
+        }
+      }
+    }
   }
 
   const sourcesByRoot = new Map<string, string[]>()

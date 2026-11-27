@@ -71,6 +71,19 @@ describe('shared fixture: strict reading', () => {
       'row_block_wrong_width_is_rejected',
       'contact_side_top_on_a_rail_block_is_rejected',
       'row_contact_top_to_bottom_same_node_is_rejected',
+      'busbar_l_joins_covered_pole0_inputs_short',
+      'busbar_l_feed_and_covered_input_short',
+      'busbar_ln_sources_on_l_and_n_no_short',
+      'busbar_ln_wire_between_feeds_short',
+      'busbar_ln_one_pole_device_neutral_not_joined_no_short',
+      'busbar_four_pole_device_pole2_never_joined_no_short',
+      'busbar_four_pole_device_pole1_joined_to_feed_n_short',
+      'busbar_device_off_feed_l_vs_pole0_output_no_short',
+      'busbar_device_on_feed_l_vs_pole0_output_short',
+      'busbar_all_sides_swapped_same_result_short',
+      'busbar_does_not_cover_device_beyond_count_no_short',
+      'busbar_l_feed_index_1_is_rejected',
+      'busbar_count_beyond_the_rail_items_is_rejected',
     ]) {
       expect(names).toContain(required)
     }
@@ -119,6 +132,20 @@ describe('shared fixture: strict reading', () => {
   it('every valid fixture case is also valid content for the client validator', () => {
     for (const c of valid) expect(validateContent(normalizeContent(c.panel))).toEqual([])
   })
+})
+
+describe('shared fixture: invalid cases', () => {
+  const invalid = cases.filter((c) => !c.expected.valid)
+
+  it('there are invalid cases', () => expect(invalid.length).toBeGreaterThan(0))
+
+  it.each(invalid.map((c) => [c.name, c] as const))(
+    '%s: the client validator reports exactly the expected property paths',
+    (_n, c) => {
+      const paths = validateContent(normalizeContent(c.panel)).map((v) => v.propertyPath)
+      expect([...new Set(paths)].sort()).toEqual([...(c.expected.violations ?? [])].sort())
+    },
+  )
 })
 
 describe('checkShortCircuits: extra cases', () => {

@@ -191,7 +191,7 @@ describe('load', () => {
     expect(store.layout).toBeNull()
     await store.load('p1')
     expect(store.index?.elements.has(id(20))).toBe(true)
-    expect(store.layout?.width).toBe(10900)
+    expect(store.layout?.width).toBe(2 * 200 + 24 * 175) // rail width 24 modules
   })
 })
 

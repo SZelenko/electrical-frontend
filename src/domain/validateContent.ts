@@ -2,6 +2,8 @@
  * Client-side mirror of the backend PanelContentValidator. Violations carry payload-style property
  * paths (`content.rails[2].elements[0].widthModules`) and the offending item id where there is one.
  */
+import { busbarIssues, railItems } from './busbars'
+import { rowCapacity as rowCapacityOf } from './geometry'
 import {
   ATS_INPUTS,
   ATS_MIN_WIDTH,
@@ -23,13 +25,14 @@ import {
   MAX_OUTPUT_CABLES,
   MAX_POLES_PER_MODULE,
   MAX_RAIL_BLOCK_TERMINALS,
+  MAX_BUSBARS_PER_RAIL,
+  MAX_CABLE_LABEL_LENGTH,
   MAX_RAIL_WIDTH,
   MAX_RAILS,
   MAX_ROW_BLOCK_TERMINALS,
   MAX_ROW_BLOCKS,
   MAX_TOTAL_BENDS,
   MAX_WIRES,
-  ROW_WIDTH_MODULES,
   rowBlockWidth,
   SPACING_RULE,
   VOLTAGE_RULE,
@@ -37,6 +40,7 @@ import {
 import {
   endpointKey,
   type CableWire,
+  type Busbar,
   type Endpoint,
   type PanelContent,
   type TerminalBlock,
@@ -71,7 +75,7 @@ class Run {
     else this.claimed.add(id)
   }
 
-  intRange(value: number, min: number, max: number, path: string, id: string): boolean {
+  intRange(value: number, min: number, max: number, path: string, id: string | null): boolean {
     if (!Number.isInteger(value) || value < min || value > max) {
       this.add(path, `Must be between ${min} and ${max}.`, id)
       return false
@@ -79,7 +83,7 @@ class Run {
     return true
   }
 
-  maxLength(value: string, max: number, path: string, id: string): void {
+  maxLength(value: string, max: number, path: string, id: string | null): void {
     if (codePointLength(value) > max) this.add(path, `Must be at most ${max} characters long.`, id)
   }
 }
@@ -91,6 +95,16 @@ export function validateContent(content: PanelContent): Violation[] {
   /** Terminals per element id: devices have `poles` inputs and outputs, an ATS 4 and 2. */
   const poleCounts = new Map<string, { inputs: number; outputs: number }>()
   const blocks = new Map<string, { count: number; row: boolean }>()
+  /** Feeds per busbar id (registered even when the busbar is invalid). */
+  const busbarFeeds = new Map<string, number>()
+
+  const railWidthOk = run.intRange(
+    content.railWidthModules,
+    1,
+    MAX_RAIL_WIDTH,
+    'content.railWidthModules',
+    null,
+  )
 
   // cables
   if (content.inputCables.length < 1)
@@ -110,6 +124,7 @@ export function validateContent(content: PanelContent): Violation[] {
   content.inputCables.forEach((cable, i) => {
     const path = `content.inputCables[${i}]`
     run.claimId(cable.id, `${path}.id`)
+    run.maxLength(cable.label, MAX_CABLE_LABEL_LENGTH, `${path}.label`, cable.id)
     for (const [value, rule, field] of [
       [cable.voltage, VOLTAGE_RULE, 'voltage'],
       [cable.frequency, FREQUENCY_RULE, 'frequency'],
@@ -126,9 +141,20 @@ export function validateContent(content: PanelContent): Violation[] {
   content.outputCables.forEach((cable, i) => {
     const path = `content.outputCables[${i}]`
     run.claimId(cable.id, `${path}.id`)
+    run.maxLength(cable.label, MAX_CABLE_LABEL_LENGTH, `${path}.label`, cable.id)
     run.maxLength(cable.description, MAX_DESCRIPTION_LENGTH, `${path}.description`, cable.id)
     wires(cable.wires, path)
   })
+
+  // Modules the terminal row has: rail width minus the input-cable row; unknown while those are invalid.
+  const inputsValid =
+    content.inputCables.length >= 1 &&
+    content.inputCables.length <= MAX_INPUT_CABLES &&
+    content.inputCables.every((c) => c.wires.length >= 1 && c.wires.length <= MAX_CABLE_WIRES)
+  const rowCapacity = railWidthOk && inputsValid ? rowCapacityOf(content) : null
+
+  /** Offset/width/fit/overlap violations so far; a rail with any of them skips the busbar coverage walk. */
+  let spanBad = 0
 
   const checkBlock = (b: TerminalBlock, itemPath: string, row: boolean) => {
     run.claimId(b.id, `${itemPath}.id`)
@@ -150,6 +176,7 @@ export function validateContent(content: PanelContent): Violation[] {
     zone: 'rail' | 'row',
   ) => {
     let valid = true
+    const before = run.list.length
     if (offset < 0) {
       run.add(`${itemPath}.offsetModules`, 'Must not be negative.', id)
       valid = false
@@ -161,10 +188,13 @@ export function validateContent(content: PanelContent): Violation[] {
     if (valid && limit !== null && offset + width > limit) {
       run.add(
         `${itemPath}.offsetModules`,
-        `Does not fit within the ${zone === 'rail' ? 'rail width' : 'terminal row'}.`,
+        zone === 'rail'
+          ? 'Does not fit within the rail width.'
+          : 'Does not fit within the terminal row (rail width minus the input cables).',
         id,
       )
     }
+    spanBad += run.list.length - before
     if (valid) spans.push({ offset, end: offset + width, path: itemPath, id })
   }
   const checkOverlaps = (spans: Span[], zone: 'rail' | 'row') => {
@@ -172,9 +202,12 @@ export function validateContent(content: PanelContent): Violation[] {
     let previousEnd = 0
     for (const s of spans) {
       if (s.offset < previousEnd) {
+        spanBad++
         run.add(
           `${s.path}.offsetModules`,
-          `Overlaps another item ${zone === 'rail' ? 'on the rail' : 'in the terminal row'}.`,
+          zone === 'rail'
+            ? 'Overlaps another item on the rail.'
+            : 'Overlaps another block in the terminal row.',
           s.id,
         )
       }
@@ -186,7 +219,7 @@ export function validateContent(content: PanelContent): Violation[] {
   if (content.terminalRow.length > MAX_ROW_BLOCKS) {
     run.add(
       'content.terminalRow',
-      `At most ${MAX_ROW_BLOCKS} terminal blocks are allowed in the row.`,
+      `At most ${MAX_ROW_BLOCKS} terminal blocks are allowed in the terminal row.`,
     )
   }
   const rowSpans: Span[] = []
@@ -201,11 +234,11 @@ export function validateContent(content: PanelContent): Violation[] {
     ) {
       run.add(
         `${itemPath}.widthModules`,
-        `Must be ${rowBlockWidth(b.terminalCount)} (half the contacts, rounded up).`,
+        `Must be ${rowBlockWidth(b.terminalCount)} (half of the terminal count, rounded up).`,
         b.id,
       )
     }
-    collectSpan(rowSpans, b.id, b.offsetModules, b.widthModules, itemPath, ROW_WIDTH_MODULES, 'row')
+    collectSpan(rowSpans, b.id, b.offsetModules, b.widthModules, itemPath, rowCapacity, 'row')
   })
   checkOverlaps(rowSpans, 'row')
 
@@ -215,19 +248,21 @@ export function validateContent(content: PanelContent): Violation[] {
   content.rails.forEach((rail, i) => {
     const path = `content.rails[${i}]`
     run.claimId(rail.id, `${path}.id`)
-    const railOk = run.intRange(
-      rail.widthModules,
-      1,
-      MAX_RAIL_WIDTH,
-      `${path}.widthModules`,
-      rail.id,
-    )
     const spacing = checkDecimal(rail.spacingMm, SPACING_RULE)
     if (spacing) run.add(`${path}.spacingMm`, spacing, rail.id)
 
     const spans: Span[] = []
+    const spanBadBefore = spanBad
     const collect = (id: string, offset: number, width: number, itemPath: string) =>
-      collectSpan(spans, id, offset, width, itemPath, railOk ? rail.widthModules : null, 'rail')
+      collectSpan(
+        spans,
+        id,
+        offset,
+        width,
+        itemPath,
+        railWidthOk ? content.railWidthModules : null,
+        'rail',
+      )
     rail.elements.forEach((el, j) => {
       const itemPath = `${path}.elements[${j}]`
       // the payload may carry fields of the other kind (kept by the normaliser): read them untyped
@@ -271,12 +306,39 @@ export function validateContent(content: PanelContent): Violation[] {
       const itemPath = `${path}.terminalBlocks[${j}]`
       checkBlock(b, itemPath, false)
       if (b.widthModules > 1) {
-        run.add(`${itemPath}.widthModules`, 'A rail terminal block is 1 module wide.', b.id)
+        run.add(
+          `${itemPath}.widthModules`,
+          'A terminal block on a rail is exactly 1 module wide.',
+          b.id,
+        )
       }
       collect(b.id, b.offsetModules, b.widthModules, itemPath)
     })
 
     checkOverlaps(spans, 'rail')
+    const railSane = spanBad === spanBadBefore
+
+    // busbars
+    if (rail.busbars.length > MAX_BUSBARS_PER_RAIL) {
+      run.add(`${path}.busbars`, `At most ${MAX_BUSBARS_PER_RAIL} busbars per rail are allowed.`)
+    }
+    const items = railSane ? railItems(rail) : null
+    const covered = new Set<string>()
+    rail.busbars.forEach((busbar: Busbar, j) => {
+      const busbarPath = `${path}.busbars[${j}]`
+      run.claimId(busbar.id, `${busbarPath}.id`)
+      busbarFeeds.set(busbar.id, busbar.type === 'LN' ? 2 : 1)
+      if (!BLOCK_COLOURS.includes(busbar.colour)) {
+        run.add(`${busbarPath}.colour`, 'Must be one of the wire colours or null.', busbar.id)
+      }
+      for (const issue of busbarIssues(rail, busbar, items, covered)) {
+        run.add(
+          issue.field === 'busbar' ? busbarPath : `${busbarPath}.${issue.field}`,
+          issue.message,
+          busbar.id,
+        )
+      }
+    })
   })
 
   // wires
@@ -318,6 +380,18 @@ export function validateContent(content: PanelContent): Violation[] {
           ok = false
         }
         return ok
+      }
+      case 'busbar': {
+        const feeds = busbarFeeds.get(e.busbarId)
+        if (feeds === undefined) {
+          run.add(path, 'Refers to a busbar that is not part of this content.', wireId)
+          return false
+        }
+        if (!Number.isInteger(e.feedIndex) || e.feedIndex < 0 || e.feedIndex >= feeds) {
+          run.add(`${path}.feedIndex`, `Must be between 0 and ${feeds - 1}.`, wireId)
+          return false
+        }
+        return true
       }
       case 'cableWire':
         if (!cableWires.has(e.cableWireId)) {
@@ -362,7 +436,7 @@ export function validateContent(content: PanelContent): Violation[] {
 }
 
 export type ItemKind =
-  'rail' | 'element' | 'block' | 'inputCable' | 'outputCable' | 'cableWire' | 'wire'
+  'rail' | 'element' | 'block' | 'busbar' | 'inputCable' | 'outputCable' | 'cableWire' | 'wire'
 export interface ItemRef {
   kind: ItemKind
   id: string
@@ -390,7 +464,10 @@ export function resolveViolationItem(content: PanelContent, propertyPath: string
       const rail = content.rails[s1.index]
       if (!rail) return null
       found = { kind: 'rail', id: rail.id }
-      if (s2?.index != null && (s2.name === 'elements' || s2.name === 'terminalBlocks')) {
+      if (s2?.index != null && s2.name === 'busbars') {
+        const busbar = rail.busbars[s2.index]
+        if (busbar) found = { kind: 'busbar', id: busbar.id }
+      } else if (s2?.index != null && (s2.name === 'elements' || s2.name === 'terminalBlocks')) {
         const item =
           s2.name === 'elements' ? rail.elements[s2.index] : rail.terminalBlocks[s2.index]
         if (item) found = { kind: s2.name === 'elements' ? 'element' : 'block', id: item.id }

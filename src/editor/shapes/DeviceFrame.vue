@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { terminalX, type ElementBox } from '@/domain/geometry'
-import type { DeviceElement } from '@/domain/panelContent'
+import { describeElement, type DeviceElement } from '@/domain/panelContent'
 import { fitText } from './fitText'
+import ScrewHead from './ScrewHead.vue'
 
 /**
  * Common look of a modular device: white body, terminal strips at the top and bottom, a front panel
@@ -25,6 +26,11 @@ const panel = computed(() => ({
   w: props.box.w - 28,
   h: props.box.h - 2 * PANEL_TOP,
 }))
+const poleXs = computed(() =>
+  props.element.poles.map((_, i) =>
+    terminalX(props.box.x, props.element.widthModules, i, props.element.poles.length),
+  ),
+)
 const transit = computed(() =>
   props.element.poles.flatMap((pole, i) =>
     pole.transit
@@ -32,10 +38,13 @@ const transit = computed(() =>
       : [],
   ),
 )
-const title = computed(() => {
-  const e = props.element
-  return `${e.label || 'Апарат'}${e.marking ? ` (${e.marking})` : ''}, ${e.widthModules} мод., полюсів: ${e.poles.length}, ${e.on ? 'увімкнено' : 'вимкнено'}`
-})
+const title = computed(() => describeElement(props.element))
+/** Screw and transit-mark size follow the pole pitch so neighbours never overlap. */
+const pitch = computed(() => props.box.w / props.element.poles.length)
+const screwR = computed(() => Math.min(30, pitch.value * 0.4))
+const markS = computed(() => Math.min(12, pitch.value * 0.25))
+const markTop = computed(() => props.box.y + 58 + screwR.value + 6)
+const markBottom = computed(() => props.box.y + props.box.h - 58 - screwR.value - 6)
 </script>
 
 <template>
@@ -71,6 +80,10 @@ const title = computed(() => {
       class="strip"
       pointer-events="none"
     />
+    <template v-for="x in poleXs" :key="x">
+      <ScrewHead :x="x" :y="box.y + 58" :r="screwR" />
+      <ScrewHead :x="x" :y="box.y + box.h - 58" :r="screwR" />
+    </template>
     <rect
       :x="panel.x"
       :y="panel.y"
@@ -82,12 +95,12 @@ const title = computed(() => {
     />
     <template v-for="x in transit" :key="x">
       <polygon
-        :points="`${x + 26},${box.y + 45} ${x + 26},${box.y + 75} ${x + 50},${box.y + 60}`"
+        :points="`${x - markS},${markTop} ${x + markS},${markTop} ${x},${markTop + markS * 1.2}`"
         class="transit-mark"
         pointer-events="none"
       />
       <polygon
-        :points="`${x + 26},${box.y + box.h - 75} ${x + 26},${box.y + box.h - 45} ${x + 50},${box.y + box.h - 60}`"
+        :points="`${x - markS},${markBottom} ${x + markS},${markBottom} ${x},${markBottom - markS * 1.2}`"
         class="transit-mark"
         pointer-events="none"
       />

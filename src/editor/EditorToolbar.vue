@@ -67,6 +67,22 @@ const undoTitle = computed(() => {
     </button>
     <button
       type="button"
+      :disabled="!!ctx.disabledReason.value.busbar"
+      :title="ctx.disabledReason.value.busbar ?? 'Додати шину L від вибраного апарата'"
+      @click="ctx.addBusbar('L')"
+    >
+      Додати шину L
+    </button>
+    <button
+      type="button"
+      :disabled="!!ctx.disabledReason.value.busbar"
+      :title="ctx.disabledReason.value.busbar ?? 'Додати шину L+N від вибраного апарата'"
+      @click="ctx.addBusbar('LN')"
+    >
+      Додати шину L+N
+    </button>
+    <button
+      type="button"
       :disabled="!!ctx.disabledReason.value.rowBlock"
       :title="ctx.disabledReason.value.rowBlock ?? 'Додати клемник у рядок клемників'"
       @click="ctx.addRowBlock"
@@ -117,6 +133,14 @@ const undoTitle = computed(() => {
       Видалити вибране
     </button>
     <span class="sep" aria-hidden="true" />
+    <button
+      type="button"
+      :aria-pressed="ctx.translucent.value"
+      title="Прозорий режим: корпуси напівпрозорі, проводи під ними доступні; переміщення вимкнено"
+      @click="ctx.translucent.value = !ctx.translucent.value"
+    >
+      Прозорий режим
+    </button>
     <label>
       Колір проводу
       <select
