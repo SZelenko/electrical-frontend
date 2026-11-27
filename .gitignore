@@ -10,3 +10,8 @@ __screenshots__/
 test-results/
 playwright-report/
 blob-report/
+
+# env files
+.env
+.env.dev
+.env.test
