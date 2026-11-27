@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{.Values.serviceName}}
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: {{.Values.serviceName}}
+    template:
+        metadata:
+            labels:
+                app: {{.Values.serviceName}}
+        spec:
+            containers:
+                - name: node
+                  image: localhost:32000/{{.Values.serviceName}}:latest
+                  ports:
+                      - containerPort: 5173
+                  securityContext:
+                      runAsNonRoot: true
+                      runAsUser: 1000
+                      runAsGroup: 1000
+                      allowPrivilegeEscalation: false
+                      capabilities:
+                          drop:
+                              - ALL
+                  env:
+                      - name: VITE_API_URL
+                        value: {{.Values.viteApiUrl | quote}}
+                  volumeMounts:
+                      - name: code
+                        mountPath: /var/www/app
+                      - name: shared
+                        mountPath: /var/www/shared
+                        readOnly: true
+
+            volumes:
+                - name: code
+                  hostPath:
+                      path: {{.Values.hostPath}}
+                - name: shared
+                  hostPath:
+                      path: {{.Values.sharedHostPath}}

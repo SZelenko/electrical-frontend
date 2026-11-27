@@ -1,0 +1,61 @@
+{{- if .Values.playwright.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{.Values.playwright.name}}
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: {{.Values.playwright.name}}
+    template:
+        metadata:
+            labels:
+                app: {{.Values.playwright.name}}
+        spec:
+            automountServiceAccountToken: false
+            containers:
+                - name: playwright
+                  image: {{.Values.playwright.image | quote}}
+                  command: ["sleep", "infinity"]
+                  workingDir: /var/www/app
+                  securityContext:
+                      runAsNonRoot: true
+                      runAsUser: 1000
+                      runAsGroup: 1000
+                      allowPrivilegeEscalation: false
+                      seccompProfile:
+                          type: RuntimeDefault
+                      capabilities:
+                          drop:
+                              - ALL
+                  {{- with .Values.playwright.resources }}
+                  resources:
+                      {{- toYaml . | nindent 22 }}
+                  {{- end }}
+                  env:
+                      - name: E2E_BASE_URL
+                        value: {{.Values.playwright.baseUrl | quote}}
+                      - name: HOME
+                        value: /tmp
+                  volumeMounts:
+                      - name: code
+                        mountPath: /var/www/app
+                      - name: shared
+                        mountPath: /var/www/shared
+                        readOnly: true
+                      - name: dshm
+                        mountPath: /dev/shm
+
+            volumes:
+                - name: code
+                  hostPath:
+                      path: {{.Values.hostPath}}
+                - name: shared
+                  hostPath:
+                      path: {{.Values.sharedHostPath}}
+                - name: dshm
+                  emptyDir:
+                      medium: Memory
+                      sizeLimit: 1Gi
+{{- end }}

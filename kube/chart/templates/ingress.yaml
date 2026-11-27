@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+    name: {{.Values.serviceName}}-ingress
+    {{- if and .Values.tlsSecretName .Values.httpsRedirect }}
+    annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    {{- end }}
+spec:
+    {{- if .Values.tlsSecretName }}
+    tls:
+        - hosts:
+            - {{.Values.host}}
+          secretName: {{.Values.tlsSecretName}}
+    {{- end }}
+    rules:
+        - host: {{.Values.host}}
+          http:
+              paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                        service:
+                            name: {{.Values.serviceName}}
+                            port:
+                                number: 5173
+{{- if and .Values.tlsSecretName .Values.httpsRedirect }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+    name: {{.Values.serviceName}}-ingress-http
+    annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: web
+        traefik.ingress.kubernetes.io/router.middlewares: {{.Release.Namespace}}-{{.Values.serviceName}}-https-redirect@kubernetescrd
+spec:
+    rules:
+        - host: {{.Values.host}}
+          http:
+              paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                        service:
+                            name: {{.Values.serviceName}}
+                            port:
+                                number: 5173
+{{- end }}

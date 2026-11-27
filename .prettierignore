@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+kube
+package-lock.json
+values.yaml
+values.yaml.dist

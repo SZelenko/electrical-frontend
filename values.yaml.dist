@@ -1,0 +1,19 @@
+serviceName: electrical-app
+host: app.electrical.local
+tlsSecretName: electrical-local-tls
+viteApiUrl: https://api.electrical.local/api/v1
+hostPath: /media/Data/own/electrical/frontend # Codebase location
+sharedHostPath: /media/Data/own/electrical/shared # Repo shared/ (fixtures), mounted read-only at /var/www/shared
+
+playwright:
+    enabled: true
+    name: electrical-e2e
+    image: mcr.microsoft.com/playwright:v1.65.1-noble # must match @playwright/test in package.json
+    baseUrl: http://electrical-app:5173 # in-cluster Vite dev server
+    resources:
+        requests:
+            cpu: 250m
+            memory: 512Mi
+        limits:
+            cpu: "2"
+            memory: 2Gi

@@ -1,0 +1,12 @@
+node_modules
+dist
+values.yaml
+*.local
+coverage
+.vite
+*.tsbuildinfo
+.eslintcache
+__screenshots__/
+test-results/
+playwright-report/
+blob-report/

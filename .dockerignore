@@ -1,0 +1,8 @@
+node_modules
+dist
+values.yaml
+kube/chart
+*.local
+.env.*.local
+coverage
+.vite

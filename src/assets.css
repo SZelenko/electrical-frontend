@@ -1,0 +1,74 @@
+:root {
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 28rem;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+.field input {
+  padding: 0.5rem;
+  font: inherit;
+}
+.field input[aria-invalid='true'] {
+  border-color: #b00020;
+}
+.field-error,
+.form-error {
+  margin: 0;
+  color: #b00020;
+}
+.form-error {
+  margin-bottom: 1rem;
+}
+.form-info {
+  color: #1b5e20;
+}
+button {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+main.wide {
+  max-width: 48rem;
+}
+.panel-list {
+  padding: 0;
+  list-style: none;
+}
+.panel-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ddd;
+}
+.inline-form {
+  margin: 1rem 0;
+}
+.pagination {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1rem;
+}
