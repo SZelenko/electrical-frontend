@@ -8,6 +8,7 @@ import {
   MAX_ROW_BLOCK_TERMINALS,
 } from '@/domain/limits'
 import { colourName, type WireColour } from '@/domain/panelContent'
+import { t } from '@/i18n'
 import CommitField from './CommitField.vue'
 import { useCommit } from './useCommit'
 
@@ -20,37 +21,37 @@ const colourValue = computed(() => found.value?.block.colour ?? '')
 
 function setColour(value: string) {
   const colour = value === '' ? null : (value as WireColour)
-  ctx.run(updateBlock(props.id, { colour }), 'Змінити колір клемника')
+  ctx.run(updateBlock(props.id, { colour }), 'editor.history.changeBlockColour')
 }
 </script>
 
 <template>
   <section
     v-if="found"
-    :aria-label="row ? 'Властивості клемника в ряду' : 'Властивості клемного блока'"
+    :aria-label="row ? t('props.block.ariaLabelRow') : t('props.block.ariaLabelRail')"
   >
-    <h3>{{ row ? 'Клемник у ряду' : 'Клемний блок' }}</h3>
+    <h3>{{ row ? t('props.block.titleRow') : t('props.block.titleRail') }}</h3>
     <CommitField
-      label="Назва"
+      :label="t('props.name')"
       :maxlength="MAX_LABEL_LENGTH"
       :model-value="found.block.label"
       :disabled="store.readOnly"
-      @commit="(v) => ctx.run(updateBlock(id, { label: v }), 'Змінити назву клемника')"
+      @commit="(v) => ctx.run(updateBlock(id, { label: v }), 'editor.history.changeBlockLabel')"
     />
     <label class="field">
-      Колір
+      {{ t('props.colour') }}
       <select
         :value="colourValue"
         :disabled="store.readOnly"
         @change="(e) => setColour((e.target as HTMLSelectElement).value)"
       >
         <option v-for="c in BLOCK_COLOURS" :key="c ?? 'grey'" :value="c ?? ''">
-          {{ c ? colourName(c) : 'сірий' }}
+          {{ c ? colourName(c, t) : t('domain.colour.grey') }}
         </option>
       </select>
     </label>
     <CommitField
-      label="Кількість клем"
+      :label="t('props.block.terminalCount')"
       type="number"
       :min="1"
       :max="row ? MAX_ROW_BLOCK_TERMINALS : MAX_RAIL_BLOCK_TERMINALS"
@@ -58,28 +59,30 @@ function setColour(value: string) {
       :disabled="store.readOnly"
       @commit="
         (v) =>
-          commit(num(v), (n) => updateBlock(id, { terminalCount: n }), 'Змінити кількість клем')
+          commit(
+            num(v),
+            (n) => updateBlock(id, { terminalCount: n }),
+            'editor.history.changeTerminalCount',
+          )
       "
     />
-    <p v-if="row" class="hint">
-      Ширина: {{ found.block.widthModules }} мод. (половина клем, з округленням угору).
-    </p>
-    <p v-else class="hint">Клемний блок на рейці завжди займає 1 модуль.</p>
+    <p v-if="row" class="hint">{{ t('props.block.rowWidth', { n: found.block.widthModules }) }}</p>
+    <p v-else class="hint">{{ t('props.block.railWidth') }}</p>
     <template v-if="rowId">
       <p class="hint" data-testid="block-row">
-        {{ rowId === 'top' ? 'Верхній ряд клемників' : 'Нижній ряд клемників' }}
+        {{ t(`domain.rowTitle.${rowId}`) }}
       </p>
       <button
         type="button"
         :disabled="store.readOnly || ctx.translucent.value"
         data-testid="move-block-row"
-        @click="ctx.run(moveBlockToOtherRow(id), 'Перенести клемник в інший ряд')"
+        @click="ctx.run(moveBlockToOtherRow(id), 'editor.history.moveBlockRow')"
       >
-        {{ rowId === 'top' ? 'Перенести у нижній ряд' : 'Перенести у верхній ряд' }}
+        {{ rowId === 'top' ? t('props.block.moveToBottom') : t('props.block.moveToTop') }}
       </button>
     </template>
     <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
-      {{ row ? 'Видалити клемник' : 'Видалити клемний блок' }}
+      {{ row ? t('props.block.deleteRow') : t('props.block.deleteRail') }}
     </button>
   </section>
 </template>

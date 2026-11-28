@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Pt } from '@/domain/geometry'
+import { t } from '@/i18n'
 
 defineProps<{ wireId: string; bends: readonly Pt[] }>()
 </script>
@@ -18,7 +19,7 @@ defineProps<{ wireId: string; bends: readonly Pt[] }>()
       :data-wire-id="wireId"
       :data-index="k"
     >
-      <title>Злам {{ k + 1 }}: перетягніть; подвійний клік — видалити</title>
+      <title>{{ t('editor.shape.bend', { n: k + 1 }) }}</title>
     </circle>
   </g>
 </template>

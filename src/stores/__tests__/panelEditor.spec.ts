@@ -18,7 +18,10 @@ describe('panelEditor store', () => {
     await store.load('p1')
     const saved = store.content
     expect(store.dirty).toBe(false)
-    const outcome = store.apply(addRail({ id: '00000000-0000-4000-8000-0000000000aa' }), 'add rail')
+    const outcome = store.apply(
+      addRail({ id: '00000000-0000-4000-8000-0000000000aa' }),
+      'editor.history.addRail',
+    )
     expect(outcome.ok).toBe(true)
     expect(store.dirty).toBe(true)
     store.undo()

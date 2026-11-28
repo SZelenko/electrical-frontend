@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { updateRail } from '@/domain/commands'
+import { t } from '@/i18n'
 import CommitField from './CommitField.vue'
 import RailWidthField from './RailWidthField.vue'
 import { useCommit } from './useCommit'
@@ -11,11 +12,11 @@ const found = computed(() => store.index?.rails.get(props.id))
 </script>
 
 <template>
-  <section v-if="found" aria-label="Властивості рейки">
-    <h3>Рейка {{ found.index + 1 }}</h3>
+  <section v-if="found" :aria-label="t('props.rail.ariaLabel')">
+    <h3>{{ t('props.rail.title', { n: found.index + 1 }) }}</h3>
     <RailWidthField />
     <CommitField
-      label="Відстань від попередньої рейки, мм"
+      :label="t('props.rail.spacing')"
       type="number"
       :min="0"
       step="0.1"
@@ -23,12 +24,16 @@ const found = computed(() => store.index?.rails.get(props.id))
       :disabled="store.readOnly"
       @commit="
         (v) =>
-          commit(num(v), (n) => updateRail(id, { spacingMm: n }), 'Змінити відстань між рейками')
+          commit(
+            num(v),
+            (n) => updateRail(id, { spacingMm: n }),
+            'editor.history.changeRailSpacing',
+          )
       "
     />
-    <p class="hint">Відстань рахується між осями рейок (для першої — від верху зони рейок).</p>
+    <p class="hint">{{ t('props.rail.hint') }}</p>
     <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
-      Видалити рейку
+      {{ t('props.rail.delete') }}
     </button>
   </section>
 </template>

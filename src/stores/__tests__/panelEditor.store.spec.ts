@@ -15,6 +15,7 @@ import type { PanelContent } from '@/domain/panelContent'
 import { buildWorld, id, cw, run, addAuto } from '@/domain/__tests__/helpers'
 import { useAuthStore } from '../auth'
 import { HISTORY_LIMIT, itemKey, usePanelEditorStore } from '../panelEditor'
+import { t } from '@/i18n'
 
 const world = buildWorld()
 
@@ -94,7 +95,7 @@ describe('load', () => {
 
   it('reuses the editor state for the same panel and the same user (no GET, edits kept)', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'voltage')
+    store.apply(voltage(400), 'editor.history.changeVoltage')
     const edited = store.content
     expect(await store.load('p1')).toBe('reused')
     expect(get).toHaveBeenCalledTimes(1)
@@ -115,7 +116,7 @@ describe('load', () => {
 
   it('an editor that went back to the saved state by undo is clean and is not reused', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     store.undo()
     expect(await store.load('p1')).toBe('loaded')
     expect(get).toHaveBeenCalledTimes(2)
@@ -123,7 +124,7 @@ describe('load', () => {
 
   it('an editor that was just saved is clean and is not reused', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     await store.save()
     expect(await store.load('p1')).toBe('loaded')
     expect(get).toHaveBeenCalledTimes(2)
@@ -131,7 +132,7 @@ describe('load', () => {
 
   it('a dirty editor of the same panel and user is reused without a GET', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     get.mockClear()
     expect(await store.load('p1')).toBe('reused')
     expect(get).not.toHaveBeenCalled()
@@ -139,7 +140,7 @@ describe('load', () => {
 
   it('discards the state and loads again for another panel', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'voltage')
+    store.apply(voltage(400), 'editor.history.changeVoltage')
     get.mockResolvedValueOnce(panelOf(world, { id: 'p2', name: 'Другий' }))
     expect(await store.load('p2')).toBe('loaded')
     expect(store.panelId).toBe('p2')
@@ -157,7 +158,7 @@ describe('load', () => {
 
   it('does not reuse the state of another user', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'voltage')
+    store.apply(voltage(400), 'editor.history.changeVoltage')
     login('u2')
     await nextTick()
     expect(store.content).toBeNull() // cleared by the user switch
@@ -203,7 +204,10 @@ describe('trashed panels are read-only', () => {
 
   it('is flagged read-only and refuses commands, undo, redo and save', async () => {
     expect(store.readOnly).toBe(true)
-    expect(store.apply(voltage(400), 'v')).toEqual({ ok: false, reason: 'readOnly' })
+    expect(store.apply(voltage(400), 'editor.history.changeVoltage')).toEqual({
+      ok: false,
+      reason: 'readOnly',
+    })
     expect(store.content).toBe(world)
     expect(store.undo()).toBeNull()
     expect(store.redo()).toBeNull()
@@ -219,23 +223,23 @@ describe('apply / undo / redo', () => {
   })
 
   it('records one entry per applied command with its label', () => {
-    const out = store.apply(voltage(400), 'Змінити напругу')
+    const out = store.apply(voltage(400), 'editor.history.changeVoltage')
     expect(out.ok).toBe(true)
     expect(store.canUndo).toBe(true)
-    expect(store.undoLabel).toBe('Змінити напругу')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити напругу')
     expect(store.content).not.toBe(world)
   })
 
   it('undo and redo swap references exactly and return the label', () => {
     const before = store.content
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     const after = store.content
-    expect(store.undo()).toBe('A')
+    expect(store.undo()).toBe('editor.history.addRail')
     expect(store.content).toBe(before)
     expect(store.canUndo).toBe(false)
     expect(store.canRedo).toBe(true)
-    expect(store.redoLabel).toBe('A')
-    expect(store.redo()).toBe('A')
+    expect(store.redoLabel && t(store.redoLabel)).toBe('Додати рейку')
+    expect(store.redo()).toBe('editor.history.addRail')
     expect(store.content).toBe(after)
     expect(store.canRedo).toBe(false)
   })
@@ -247,7 +251,7 @@ describe('apply / undo / redo', () => {
   })
 
   it('a rejected command records nothing and returns the reason', () => {
-    const out = store.apply(removeElement(id(99)), 'del')
+    const out = store.apply(removeElement(id(99)), 'editor.history.removeElement')
     expect(out).toEqual({ ok: false, reason: 'notFound', detail: id(99) })
     expect(store.canUndo).toBe(false)
     expect(store.content).toBe(world)
@@ -255,33 +259,42 @@ describe('apply / undo / redo', () => {
   })
 
   it('a no-op command records nothing', () => {
-    const out = store.apply(voltage(230), 'same')
+    const out = store.apply(voltage(230), 'editor.history.changeVoltage')
     expect(out.ok).toBe(true)
     expect(store.canUndo).toBe(false)
     expect(store.dirty).toBe(false)
   })
 
   it('a new command clears the redo stack', () => {
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     store.undo()
     expect(store.canRedo).toBe(true)
-    store.apply(voltage(500), 'B')
+    store.apply(voltage(500), 'editor.history.addBreaker')
     expect(store.canRedo).toBe(false)
     expect(store.redo()).toBeNull()
   })
 
   it('undo walks back through several entries in order', () => {
-    store.apply(voltage(400), 'A')
-    store.apply(voltage(500), 'B')
-    store.apply(voltage(600), 'C')
-    expect([store.undo(), store.undo(), store.undo(), store.undo()]).toEqual(['C', 'B', 'A', null])
+    store.apply(voltage(400), 'editor.history.addRail')
+    store.apply(voltage(500), 'editor.history.addBreaker')
+    store.apply(voltage(600), 'editor.history.addRcd')
+    expect([store.undo(), store.undo(), store.undo(), store.undo()]).toEqual([
+      'editor.history.addRcd',
+      'editor.history.addBreaker',
+      'editor.history.addRail',
+      null,
+    ])
     expect(store.content).toBe(world)
-    expect([store.redo(), store.redo()]).toEqual(['A', 'B'])
+    expect([store.redo(), store.redo()]).toEqual([
+      'editor.history.addRail',
+      'editor.history.addBreaker',
+    ])
     expect(store.content?.inputCables[0]?.voltage).toBe(500)
   })
 
   it(`keeps at most ${HISTORY_LIMIT} undo steps, dropping the oldest`, () => {
-    for (let i = 1; i <= HISTORY_LIMIT + 5; i++) store.apply(voltage(1000 + i), `s${i}`)
+    for (let i = 1; i <= HISTORY_LIMIT + 5; i++)
+      store.apply(voltage(1000 + i), 'editor.history.changeVoltage')
     let undone = 0
     while (store.undo() !== null) undone++
     expect(HISTORY_LIMIT).toBe(200)
@@ -292,18 +305,18 @@ describe('apply / undo / redo', () => {
   })
 
   it('a structural command with a cascade is one entry; undo restores items and wires identically', () => {
-    const out = store.apply(removeElement(id(20)), 'Видалити апарат')
+    const out = store.apply(removeElement(id(20)), 'editor.history.removeElement')
     expect(out.ok && out.removedWires).toBe(2)
     expect(store.content?.wires).toHaveLength(2)
-    expect(store.undo()).toBe('Видалити апарат')
+    expect(store.undo()).toBe('editor.history.removeElement')
     expect(store.content).toBe(world) // same reference: ids, order and wires restored exactly
     expect(store.content?.wires.map((w) => w.id)).toEqual([id(30), id(31), id(32), id(33)])
-    expect(store.redo()).toBe('Видалити апарат')
+    expect(store.redo()).toBe('editor.history.removeElement')
     expect(store.content?.wires).toHaveLength(2)
   })
 
   it('a pole-count cascade is undone in one step', () => {
-    store.apply(updateElement(id(20), { poleCount: 1 }), 'Полюси')
+    store.apply(updateElement(id(20), { poleCount: 1 }), 'editor.history.changePoleCount')
     expect(store.content?.wires.some((w) => w.id === id(31))).toBe(false)
     store.undo()
     expect(store.content).toBe(world)
@@ -311,7 +324,10 @@ describe('apply / undo / redo', () => {
 
   it('an apply on an empty store is rejected as read-only', () => {
     store.clear()
-    expect(store.apply(voltage(400), 'x')).toEqual({ ok: false, reason: 'readOnly' })
+    expect(store.apply(voltage(400), 'editor.history.addRail')).toEqual({
+      ok: false,
+      reason: 'readOnly',
+    })
   })
 })
 
@@ -322,12 +338,12 @@ describe('dirty is identity-based', () => {
 
   it('is clean after loading and dirty after a change', () => {
     expect(store.dirty).toBe(false)
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     expect(store.dirty).toBe(true)
   })
 
   it('undoing back to the saved state is clean again; redo is dirty again', () => {
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     store.undo()
     expect(store.dirty).toBe(false)
     store.redo()
@@ -335,15 +351,15 @@ describe('dirty is identity-based', () => {
   })
 
   it('an edit that restores equal values by hand is still dirty (a new reference)', () => {
-    store.apply(voltage(400), 'A')
-    store.apply(voltage(230), 'B')
+    store.apply(voltage(400), 'editor.history.addRail')
+    store.apply(voltage(230), 'editor.history.addBreaker')
     expect(store.content).toEqual(world)
     expect(store.dirty).toBe(true)
   })
 
   it('canSave follows dirty', () => {
     expect(store.canSave).toBe(false)
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     expect(store.canSave).toBe(true)
   })
 })
@@ -355,19 +371,19 @@ describe('selection', () => {
 
   it('is dropped when the selected item is deleted by a command', () => {
     store.select({ kind: 'element', id: id(20) })
-    store.apply(removeElement(id(20)), 'del')
+    store.apply(removeElement(id(20)), 'editor.history.removeElement')
     expect(store.selection).toBeNull()
   })
 
   it('survives commands that keep the item', () => {
     store.select({ kind: 'element', id: id(20) })
-    store.apply(voltage(400), 'v')
+    store.apply(voltage(400), 'editor.history.changeVoltage')
     expect(store.selection).toEqual({ kind: 'element', id: id(20) })
   })
 
   it('is not restored by undo (the selection is not part of the history)', () => {
     store.select({ kind: 'element', id: id(20) })
-    store.apply(removeElement(id(20)), 'del')
+    store.apply(removeElement(id(20)), 'editor.history.removeElement')
     store.undo()
     expect(store.selection).toBeNull()
   })
@@ -380,7 +396,7 @@ describe('selection', () => {
 describe('save: success', () => {
   beforeEach(async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
   })
 
   it('sends the base version and the exact snapshot, then adopts the new version and snapshot', async () => {
@@ -416,7 +432,7 @@ describe('save: success', () => {
     const sentSnapshot = store.content
     const pending = store.save()
     expect(store.saving).toBe(true)
-    store.apply(voltage(500), 'B')
+    store.apply(voltage(500), 'editor.history.addBreaker')
     const newer = store.content
     d.resolve(panelOf(sentSnapshot as PanelContent, { version: 4 }))
     expect(await pending).toBe('saved')
@@ -434,7 +450,7 @@ describe('save: success', () => {
     save.mockReturnValueOnce(d.promise)
     const sent = store.content as PanelContent
     const pending = store.save()
-    store.apply(voltage(500), 'B')
+    store.apply(voltage(500), 'editor.history.addBreaker')
     store.undo() // back to the sent snapshot
     d.resolve(panelOf(sent, { version: 4 }))
     await pending
@@ -451,7 +467,7 @@ describe('save: success', () => {
 describe('save: single flight and guards', () => {
   beforeEach(async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
   })
 
   it('only one save at a time: the second call is skipped and the button state says so', async () => {
@@ -482,7 +498,7 @@ describe('save: single flight and guards', () => {
 describe('save: errors', () => {
   beforeEach(async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
   })
 
   it('409 panel_version_conflict opens the conflict state with the current version and keeps local work', async () => {
@@ -575,7 +591,7 @@ describe('save: errors', () => {
 describe('save: 422 violations (E9)', () => {
   it('resolves paths against the sent payload, selects the first existing item and lists the rest as general', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     save.mockRejectedValueOnce(
       apiError({
         status: 422,
@@ -606,11 +622,11 @@ describe('save: 422 violations (E9)', () => {
 
   it('resolves against the SENT payload: an item deleted while saving becomes a general violation', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     const d = deferred<Panel>()
     save.mockReturnValueOnce(d.promise)
     const pending = store.save()
-    store.apply(removeElement(id(20)), 'del') // elements[0] is now E2 in the current content
+    store.apply(removeElement(id(20)), 'editor.history.removeElement') // elements[0] is now E2 in the current content
     d.reject(
       apiError({
         status: 422,
@@ -632,11 +648,11 @@ describe('save: 422 violations (E9)', () => {
 
   it('a violation index that no longer matches after the edit still points at the sent item', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     const d = deferred<Panel>()
     save.mockReturnValueOnce(d.promise)
     const pending = store.save()
-    store.apply(removeElement(id(20)), 'del')
+    store.apply(removeElement(id(20)), 'editor.history.removeElement')
     d.reject(
       apiError({
         status: 422,
@@ -651,11 +667,15 @@ describe('save: 422 violations (E9)', () => {
 
   it('a 422 without a violations list becomes one general message', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     save.mockRejectedValueOnce(apiError({ status: 422, type: 'unknown', message: 'Unprocessable' }))
     await store.save()
     expect(store.generalViolations).toEqual([
-      { propertyPath: '', messages: ['Unprocessable'], item: null },
+      {
+        propertyPath: '',
+        details: [{ code: '', message: 'Unprocessable' }],
+        item: null,
+      },
     ])
   })
 
@@ -681,7 +701,7 @@ describe('short circuits: backend vs local', () => {
   it('switches to the local result as soon as the content differs and back on undo', async () => {
     get.mockResolvedValue(panelOf(shorted, { shortCircuits: fake }))
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     expect(store.shortCircuits).toBe(store.localShortCircuits)
     expect(store.shortCircuits[0]?.wireIds).toEqual([id(30), id(60)]) // W1 hangs on the shorted cable wire
     store.undo()
@@ -696,14 +716,14 @@ describe('short circuits: backend vs local', () => {
 
   it('after a save the backend answer is authoritative until the next edit', async () => {
     await store.load('p1')
-    store.apply(addAuto(60, cw(id(2)), cw(id(3))), 'wire')
+    store.apply(addAuto(60, cw(id(2)), cw(id(3))), 'editor.history.addWire')
     expect(store.shortCircuits).toHaveLength(1) // local while dirty
     save.mockImplementationOnce(async (_id, version, c) =>
       panelOf(c, { version: version + 1, shortCircuits: [] }),
     )
     await store.save()
     expect(store.shortCircuits).toEqual([]) // the server says none: its word wins
-    store.apply(voltage(400), 'v')
+    store.apply(voltage(400), 'editor.history.changeVoltage')
     expect(store.shortCircuits).toHaveLength(1)
   })
 })
@@ -711,7 +731,7 @@ describe('short circuits: backend vs local', () => {
 describe('reloadDiscard', () => {
   it('after a conflict replaces everything with the server state and clears the error and history', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     save.mockRejectedValueOnce(
       apiError({ status: 409, type: 'panel_version_conflict', message: 's', currentVersion: 5 }),
     )
@@ -732,7 +752,7 @@ describe('reloadDiscard', () => {
   it('keeps the owner: unsaved edits made after a reload are reused for the same user', async () => {
     await store.load('p1')
     await store.reloadDiscard()
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     expect(await store.load('p1')).toBe('reused')
   })
 
@@ -751,7 +771,7 @@ describe('reloadDiscard', () => {
 
   it('a failing reload rejects and keeps the local state', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     const local = store.content
     get.mockRejectedValueOnce(apiError({ status: 0, type: 'network', message: 'n' }))
     await expect(store.reloadDiscard()).rejects.toMatchObject({ type: 'network' })
@@ -774,7 +794,7 @@ describe('reloadDiscard', () => {
 describe('late responses after the session ended', () => {
   it('a save that finishes after clear() does not resurrect the state', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     const d = deferred<Panel>()
     save.mockReturnValueOnce(d.promise)
     const pending = store.save()
@@ -788,7 +808,7 @@ describe('late responses after the session ended', () => {
 
   it('a save error after clear() is ignored', async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     const d = deferred<Panel>()
     save.mockReturnValueOnce(d.promise)
     const pending = store.save()
@@ -830,14 +850,14 @@ describe('noteRenamed (E11)', () => {
 
   it('the next save after a skipped version still sends the old base (the server answers 409)', async () => {
     store.noteRenamed('p1', 'Інша', 6)
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     await store.save()
     expect(save).toHaveBeenCalledWith('p1', 3, expect.anything())
   })
 
   it('the next save after an adopted version sends the new base', async () => {
     store.noteRenamed('p1', 'Нова', 4)
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
     await store.save()
     expect(save).toHaveBeenCalledWith('p1', 4, expect.anything())
   })
@@ -846,7 +866,7 @@ describe('noteRenamed (E11)', () => {
 describe('session handling (E7)', () => {
   beforeEach(async () => {
     await store.load('p1')
-    store.apply(voltage(400), 'A')
+    store.apply(voltage(400), 'editor.history.addRail')
   })
 
   it('logout (anonymous) clears the editor completely', async () => {
@@ -931,11 +951,11 @@ describe('commands through the store keep content valid', () => {
   it('adding rails up to the limit then rejecting the next leaves history consistent', async () => {
     await store.load('p1')
     for (let i = 0; i < 6; i++)
-      expect(store.apply(addRail({ id: id(100 + i) }), `rail${i}`).ok).toBe(true)
+      expect(store.apply(addRail({ id: id(100 + i) }), 'editor.history.addRail').ok).toBe(true)
     expect(store.content?.rails).toHaveLength(8)
-    const rejected = store.apply(addRail({ id: id(200) }), 'one too many')
+    const rejected = store.apply(addRail({ id: id(200) }), 'editor.history.addRail')
     expect(rejected).toMatchObject({ ok: false, reason: 'limit' })
-    expect(store.undoLabel).toBe('rail5')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати рейку')
     for (let i = 0; i < 6; i++) store.undo()
     expect(store.content).toBe(world)
   })
@@ -952,7 +972,7 @@ describe('save validates locally first', () => {
   beforeEach(async () => {
     get.mockResolvedValue(panelOf(invalid))
     await store.load('p1')
-    store.apply(updateRail(id(10), { spacingMm: 160 }), 'spacing')
+    store.apply(updateRail(id(10), { spacingMm: 160 }), 'editor.history.changeRailSpacing')
   })
 
   it('shows the backend-style violations and does not send the PUT', async () => {
@@ -978,7 +998,7 @@ describe('save validates locally first', () => {
     const noCables = { ...world, inputCables: [], wires: [] }
     get.mockResolvedValue(panelOf(noCables))
     await store.load('p1')
-    store.apply(updateRail(id(10), { spacingMm: 160 }), 'spacing')
+    store.apply(updateRail(id(10), { spacingMm: 160 }), 'editor.history.changeRailSpacing')
     await store.save()
     expect(store.generalViolations.map((v) => v.propertyPath)).toEqual(['content.inputCables'])
     expect(save).not.toHaveBeenCalled()
@@ -986,8 +1006,8 @@ describe('save validates locally first', () => {
 
   it('a fixed content saves normally and clears the violations', async () => {
     await store.save()
-    store.apply(updateInputCable(id(1), { voltage: 230 }), 'fix voltage')
-    store.apply(updateElement(id(20), { label: 'QF' }), 'fix label')
+    store.apply(updateInputCable(id(1), { voltage: 230 }), 'editor.history.changeVoltage')
+    store.apply(updateElement(id(20), { label: 'QF' }), 'editor.history.changeElementLabel')
     expect(await store.save()).toBe('saved')
     expect(save).toHaveBeenCalledTimes(1)
     expect(store.saveError).toBeNull()

@@ -38,11 +38,11 @@ import {
   type WireCrossSection,
 } from '@/domain/panelContent'
 import type { ItemRef } from '@/domain/validateContent'
+import type { MessageKey } from '@/domain/translate'
+import { t } from '@/i18n'
 import { usePanelEditorStore } from '@/stores/panelEditor'
 import { rejectionText, removedWiresText } from './messages'
 import { newId } from './newId'
-
-const ROW_NAME = { top: 'верхньому', bottom: 'нижньому' } as const
 
 export interface Notice {
   text: string
@@ -136,11 +136,11 @@ export function createEditorContext() {
     }
   }
 
-  function run(command: cmd.Command, label: string): cmd.CommandOutcome {
+  function run(command: cmd.Command, label: MessageKey): cmd.CommandOutcome {
     const outcome = store.apply(command, label)
     if (!outcome.ok && outcome.reason === 'notFound' && quiet > 0) return outcome
-    if (!outcome.ok) say(rejectionText(outcome.reason, outcome.detail), 'error')
-    else if (outcome.removedWires > 0) say(removedWiresText(outcome.removedWires))
+    if (!outcome.ok) say(rejectionText(outcome.reason, t, outcome.detail), 'error')
+    else if (outcome.removedWires > 0) say(removedWiresText(outcome.removedWires, t))
     return outcome
   }
 
@@ -161,22 +161,21 @@ export function createEditorContext() {
 
   const disabledReason = computed(() => {
     const c = content.value
-    const base = !c
-      ? 'Щит не завантажено'
-      : store.readOnly
-        ? 'Щит доступний лише для читання'
-        : null
-    const device = base ?? (targetRail.value ? null : 'Спочатку додайте рейку')
+    const base = !c ? t('editor.reason.notLoaded') : store.readOnly ? t('editor.readOnly') : null
+    const device = base ?? (targetRail.value ? null : t('editor.reason.addRailFirst'))
     const space = (width: number) =>
       device ??
       (c &&
       targetRail.value &&
       firstFreeOffset(targetRail.value, c.railWidthModules, width) === null
-        ? 'На рейці немає вільного місця'
+        ? t('editor.reason.noRoom')
         : null)
     return {
       rail:
-        base ?? (c && c.rails.length >= MAX_RAILS ? `Досягнуто ліміт: ${MAX_RAILS} рейок` : null),
+        base ??
+        (c && c.rails.length >= MAX_RAILS
+          ? t('editor.reason.railLimit', { max: MAX_RAILS })
+          : null),
       breaker: space(1),
       rcd: space(2),
       voltageRelay: space(2),
@@ -186,16 +185,18 @@ export function createEditorContext() {
       inputCable:
         base ??
         (c && c.inputCables.length >= MAX_INPUT_CABLES
-          ? `Досягнуто ліміт: ${MAX_INPUT_CABLES} кабелів`
+          ? t('editor.reason.cableLimit', { max: MAX_INPUT_CABLES })
           : null),
       outputCable:
         base ??
         (c && c.outputCables.length >= MAX_OUTPUT_CABLES
-          ? `Досягнуто ліміт: ${MAX_OUTPUT_CABLES} кабелів`
+          ? t('editor.reason.cableLimit', { max: MAX_OUTPUT_CABLES })
           : null),
       wire:
         base ??
-        (c && c.wires.length >= MAX_WIRES ? `Досягнуто ліміт: ${MAX_WIRES} проводів` : null),
+        (c && c.wires.length >= MAX_WIRES
+          ? t('editor.reason.wireLimit', { max: MAX_WIRES })
+          : null),
       busbar: busbarReason(base),
       edit: base,
     }
@@ -206,9 +207,12 @@ export function createEditorContext() {
     if (base || !c) return base
     const blocks = rowBlocks(c, row)
     if (blocks.length >= MAX_ROW_BLOCKS)
-      return `Досягнуто ліміт: ${MAX_ROW_BLOCKS} клемників у ${ROW_NAME[row]} ряду`
+      return t('editor.reason.rowBlockLimit', {
+        max: MAX_ROW_BLOCKS,
+        row: t(`domain.rowIn.${row}`),
+      })
     return firstFreeRowOffset(blocks, rowCapacity(c), 1) === null
-      ? `У ${ROW_NAME[row]} ряду немає вільного місця`
+      ? t('editor.reason.rowNoRoom', { row: t(`domain.rowIn.${row}`) })
       : null
   }
 
@@ -222,18 +226,21 @@ export function createEditorContext() {
   function busbarReason(base: string | null): string | null {
     if (base) return base
     const anchor = busbarAnchor.value
-    if (!anchor) return 'Виберіть апарат, з якого починається шина'
+    if (!anchor) return t('editor.reason.busbarSelect')
     if (anchor.rail.busbars.length >= MAX_BUSBARS_PER_RAIL) {
-      return `Досягнуто ліміт: ${MAX_BUSBARS_PER_RAIL} шин на рейці`
+      return t('editor.reason.busbarLimit', { max: MAX_BUSBARS_PER_RAIL })
     }
     return maxBusbarCount(anchor.rail, anchor.element.id) < MIN_BUSBAR_COUNT
-      ? 'Праворуч від апарата немає вільного суміжного апарата'
+      ? t('editor.reason.busbarNoNeighbour')
       : null
   }
 
   function addRail() {
     const id = newId()
-    const outcome = run(cmd.addRail({ id, spacingMm: DEFAULT_RAIL_SPACING_MM }), 'Додати рейку')
+    const outcome = run(
+      cmd.addRail({ id, spacingMm: DEFAULT_RAIL_SPACING_MM }),
+      'editor.history.addRail',
+    )
     if (outcome.ok) store.select({ kind: 'rail', id })
   }
 
@@ -242,12 +249,12 @@ export function createEditorContext() {
     const width = DEVICE_STYLE_DEFAULTS[style].widthModules
     const offset =
       rail && content.value ? firstFreeOffset(rail, content.value.railWidthModules, width) : null
-    if (!rail || offset === null) return say('На рейці немає вільного місця', 'error')
+    if (!rail || offset === null) return say(t('editor.reason.noRoom'), 'error')
     const id = newId()
     if (
       run(
         cmd.addElement(rail.id, newDevice(style, id, offset)),
-        DEVICE_STYLE_DEFAULTS[style].addLabel,
+        DEVICE_STYLE_DEFAULTS[style].addLabelKey,
       ).ok
     )
       store.select({ kind: 'element', id })
@@ -259,7 +266,7 @@ export function createEditorContext() {
       rail && content.value
         ? firstFreeOffset(rail, content.value.railWidthModules, ATS_MIN_WIDTH)
         : null
-    if (!rail || offset === null) return say('На рейці немає вільного місця', 'error')
+    if (!rail || offset === null) return say(t('editor.reason.noRoom'), 'error')
     const id = newId()
     const element: PanelElement = {
       kind: 'ats',
@@ -274,7 +281,7 @@ export function createEditorContext() {
       on: null,
       poles: null,
     }
-    if (run(cmd.addElement(rail.id, element), 'Додати АВР').ok)
+    if (run(cmd.addElement(rail.id, element), 'editor.history.addAts').ok)
       store.select({ kind: 'element', id })
   }
 
@@ -282,7 +289,7 @@ export function createEditorContext() {
     const rail = targetRail.value
     const offset =
       rail && content.value ? firstFreeOffset(rail, content.value.railWidthModules, 1) : null
-    if (!rail || offset === null) return say('На рейці немає вільного місця', 'error')
+    if (!rail || offset === null) return say(t('editor.reason.noRoom'), 'error')
     const id = newId()
     const block = {
       id,
@@ -292,14 +299,15 @@ export function createEditorContext() {
       colour: null,
       label: '',
     }
-    if (run(cmd.addBlock(rail.id, block), 'Додати клемний блок').ok)
+    if (run(cmd.addBlock(rail.id, block), 'editor.history.addBlock').ok)
       store.select({ kind: 'block', id })
   }
 
   function addRowBlock(row: RowId) {
     const c = content.value
     const offset = c ? firstFreeRowOffset(rowBlocks(c, row), rowCapacity(c), 1) : null
-    if (offset === null) return say(`У ${ROW_NAME[row]} ряду немає вільного місця`, 'error')
+    if (offset === null)
+      return say(t('editor.reason.rowNoRoom', { row: t(`domain.rowIn.${row}`) }), 'error')
     const id = newId()
     const block = {
       id,
@@ -312,7 +320,7 @@ export function createEditorContext() {
     if (
       run(
         cmd.addRowBlock(row, block),
-        `Додати клемник у ${row === 'top' ? 'верхній' : 'нижній'} ряд`,
+        row === 'top' ? 'editor.history.addRowBlockTop' : 'editor.history.addRowBlockBottom',
       ).ok
     )
       store.select({ kind: 'block', id })
@@ -320,11 +328,11 @@ export function createEditorContext() {
 
   function addBusbar(type: BusbarType) {
     const anchor = busbarAnchor.value
-    if (!anchor) return say('Виберіть апарат, з якого починається шина', 'error')
+    if (!anchor) return say(t('editor.reason.busbarSelect'), 'error')
     const id = newId()
     const outcome = run(
       cmd.addBusbar({ id, type, firstElementId: anchor.element.id }),
-      type === 'LN' ? 'Додати шину L+N' : 'Додати шину L',
+      type === 'LN' ? 'editor.history.addBusbarLN' : 'editor.history.addBusbarL',
     )
     if (outcome.ok) store.select({ kind: 'busbar', id })
   }
@@ -332,8 +340,10 @@ export function createEditorContext() {
   function addInputCable() {
     const id = newId()
     if (
-      run(cmd.addInputCable(cmd.defaultInputCable(id, newId(), newId())), 'Додати вхідний кабель')
-        .ok
+      run(
+        cmd.addInputCable(cmd.defaultInputCable(id, newId(), newId())),
+        'editor.history.addInputCable',
+      ).ok
     ) {
       store.select({ kind: 'inputCable', id })
     }
@@ -344,31 +354,37 @@ export function createEditorContext() {
     if (
       run(
         cmd.addOutputCable(cmd.defaultOutputCable(id, newId(), newId())),
-        'Додати вихідний кабель',
+        'editor.history.addOutputCable',
       ).ok
     ) {
       store.select({ kind: 'outputCable', id })
     }
   }
 
-  function removeCommandFor(ref: ItemRef): { command: cmd.Command; label: string } {
+  function removeCommandFor(ref: ItemRef): { command: cmd.Command; label: MessageKey } {
     switch (ref.kind) {
       case 'rail':
-        return { command: cmd.removeRail(ref.id), label: 'Видалити рейку' }
+        return { command: cmd.removeRail(ref.id), label: 'editor.history.removeRail' }
       case 'element':
-        return { command: cmd.removeElement(ref.id), label: 'Видалити апарат' }
+        return { command: cmd.removeElement(ref.id), label: 'editor.history.removeElement' }
       case 'block':
-        return { command: cmd.removeBlock(ref.id), label: 'Видалити клемний блок' }
+        return { command: cmd.removeBlock(ref.id), label: 'editor.history.removeBlock' }
       case 'busbar':
-        return { command: cmd.removeBusbar(ref.id), label: 'Видалити шину' }
+        return { command: cmd.removeBusbar(ref.id), label: 'editor.history.removeBusbar' }
       case 'inputCable':
-        return { command: cmd.removeInputCable(ref.id), label: 'Видалити вхідний кабель' }
+        return {
+          command: cmd.removeInputCable(ref.id),
+          label: 'editor.history.removeInputCable',
+        }
       case 'outputCable':
-        return { command: cmd.removeOutputCable(ref.id), label: 'Видалити вихідний кабель' }
+        return {
+          command: cmd.removeOutputCable(ref.id),
+          label: 'editor.history.removeOutputCable',
+        }
       case 'cableWire':
-        return { command: cmd.removeCableWire(ref.id), label: 'Видалити провід кабелю' }
+        return { command: cmd.removeCableWire(ref.id), label: 'editor.history.removeCableWire' }
       case 'wire':
-        return { command: cmd.removeWire(ref.id), label: 'Видалити провід' }
+        return { command: cmd.removeWire(ref.id), label: 'editor.history.removeWire' }
     }
   }
 

@@ -19,6 +19,7 @@ import {
 import { newDevice } from '@/domain/deviceStyles'
 import { deviceShapes } from '../shapes/registry'
 import { mountEditor, pointer, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 /** R1 id10: breaker id20 [0,1), RCD id21 [2,4), relay id22 [5,7) (pole 2 transit), ATS id23 [8,10); R2 id11 empty. */
 const base: PanelContent = content({
@@ -176,21 +177,21 @@ describe('style registry and shapes', () => {
     const { wrapper, store } = await mountEditor(base)
     const marks = () =>
       body(wrapper, 21).element.parentElement!.querySelectorAll('.transit-mark').length
-    store.apply(setPoleTransit(id(21), 0, true), 'x')
+    store.apply(setPoleTransit(id(21), 0, true), 'editor.history.addRail')
     await nextTick()
     expect(marks()).toBe(2)
-    store.apply(setPoleTransit(id(21), 1, true), 'x')
+    store.apply(setPoleTransit(id(21), 1, true), 'editor.history.addRail')
     await nextTick()
     expect(marks()).toBe(4)
-    store.apply(setPoleTransit(id(21), 0, false), 'x')
-    store.apply(setPoleTransit(id(21), 1, false), 'x')
+    store.apply(setPoleTransit(id(21), 0, false), 'editor.history.addRail')
+    store.apply(setPoleTransit(id(21), 1, false), 'editor.history.addRail')
     await nextTick()
     expect(marks()).toBe(0)
   })
 
   it('a style change swaps the shape and keeps the element', async () => {
     const { wrapper, store } = await mountEditor(base)
-    store.apply(updateElement(id(20), { style: 'rcd' }), 'x')
+    store.apply(updateElement(id(20), { style: 'rcd' }), 'editor.history.addRail')
     await nextTick()
     expect(body(wrapper, 20).attributes('data-element-style')).toBe('rcd')
     expect(wrapper.findAll(`[data-testid=toggle][data-id="${id(20)}"]`)).toHaveLength(1)
@@ -198,7 +199,7 @@ describe('style registry and shapes', () => {
 
   it('the label and marking appear on the front panel', async () => {
     const { wrapper, store } = await mountEditor(base)
-    store.apply(updateElement(id(20), { label: 'Q1', marking: 'C16' }), 'x')
+    store.apply(updateElement(id(20), { label: 'Q1', marking: 'C16' }), 'editor.history.addRail')
     await nextTick()
     const text = body(wrapper, 20).element.parentElement!.textContent!
     expect(text).toContain('Q1')
@@ -212,7 +213,7 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     await clickToggle(wrapper, 20)
     expect(el(store.content, 20)).toMatchObject({ on: false })
     expect(store.selection).toEqual({ kind: 'element', id: id(20) })
-    expect(store.undoLabel).toBe('Перемкнути')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемкнути')
     expect(historyLength(store)).toBe(1)
     expect(el(store.content, 20)).toMatchObject({ on: true })
   })
@@ -246,7 +247,7 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to))
     await wrapper.get('svg').trigger('pointerup', pointer(wrapper, to))
     expect(el(store.content, 20)).toMatchObject({ on: true, offsetModules: 12 })
-    expect(store.undoLabel).toBe('Перемістити апарат')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити апарат')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -270,7 +271,7 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     expect(el(store.content, 20)).toMatchObject({ on: true })
     const copy = store.content!.rails[1]!.elements[0]!
     expect(copy).toMatchObject({ style: 'breaker', on: true })
-    expect(store.undoLabel).toBe('Копіювати')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Копіювати')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -333,8 +334,8 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
       rails: [rail(10, 24, 150, [newDevice('breaker', id(20), 0)])],
     })
     const m = await mountEditor(wired)
-    m.store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'a')
-    m.store.apply(addAuto(31, pole(id(20), 0, 'output'), cw(id(3))), 'b')
+    m.store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'editor.history.addWire')
+    m.store.apply(addAuto(31, pole(id(20), 0, 'output'), cw(id(3))), 'editor.history.removeWire')
     await nextTick()
     expect(m.wrapper.findAll('path[stroke="#ff00ff"]').length).toBeGreaterThan(0)
     const l = computeLayout(m.store.content!)
@@ -380,7 +381,7 @@ describe('toolbar defaults per button', () => {
         poles: transit.map((t) => ({ transit: t })),
       })
       expect(store.selection).toEqual({ kind: 'element', id: e.id })
-      expect(store.undoLabel).toBe(label)
+      expect(store.undoLabel && t(store.undoLabel)).toBe(label)
     },
   )
 
@@ -468,7 +469,7 @@ describe('style select in the properties panel', () => {
       on: true,
       poles: [{ transit: false }, { transit: false }],
     })
-    expect(store.undoLabel).toBe('Змінити стиль апарата')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити стиль апарата')
     expect(body(wrapper, 21).attributes('data-element-style')).toBe(style)
     expect(historyLength(store)).toBe(1)
   })

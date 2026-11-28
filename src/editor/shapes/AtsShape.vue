@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { ElementBox } from '@/domain/geometry'
 import { terminalX } from '@/domain/geometry'
 import { describeElement, type AtsElement } from '@/domain/panelContent'
+import { t } from '@/i18n'
 import { fitText } from './fitText'
 import ScrewHead from './ScrewHead.vue'
 
@@ -25,11 +26,11 @@ const groupLabelY = computed(() =>
 )
 const groups = computed(() => [
   {
-    text: 'А',
+    text: t('domain.ats.sourceA'),
     x: (terminalX(props.box.x, w.value, 0, 4) + terminalX(props.box.x, w.value, 1, 4)) / 2,
   },
   {
-    text: 'Б',
+    text: t('domain.ats.sourceB'),
     x: (terminalX(props.box.x, w.value, 2, 4) + terminalX(props.box.x, w.value, 3, 4)) / 2,
   },
 ])
@@ -42,8 +43,11 @@ const handleY = computed(() => props.box.y + props.box.h / 2)
 const r = computed(() => Math.min(80, props.box.w / 5))
 const ANGLE = { A: -50, off: 0, B: 50 } as const
 const angle = computed(() => ANGLE[props.element.state])
-const title = computed(() => describeElement(props.element))
+const title = computed(() => describeElement(props.element, t))
 const panelW = computed(() => props.box.w - 28)
+const atsName = computed(() =>
+  props.element.label ? `${t('domain.ats.name')} ${props.element.label}` : t('domain.ats.name'),
+)
 </script>
 
 <template>
@@ -121,9 +125,13 @@ const panelW = computed(() => props.box.w - 28)
       {{ element.marking }}
     </text>
     <g pointer-events="none" data-testid="ats-state" :data-state="element.state">
-      <text :x="cx - r - 40" :y="handleY + 12" text-anchor="middle" class="pos">А</text>
+      <text :x="cx - r - 40" :y="handleY + 12" text-anchor="middle" class="pos">
+        {{ t('domain.ats.sourceA') }}
+      </text>
       <text :x="cx" :y="handleY - r - 18" text-anchor="middle" class="pos">0</text>
-      <text :x="cx + r + 40" :y="handleY + 12" text-anchor="middle" class="pos">Б</text>
+      <text :x="cx + r + 40" :y="handleY + 12" text-anchor="middle" class="pos">
+        {{ t('domain.ats.sourceB') }}
+      </text>
       <circle :cx="cx" :cy="handleY" :r="r" class="handle" />
       <line
         :x1="cx"
@@ -153,10 +161,10 @@ const panelW = computed(() => props.box.w - 28)
       :y="box.y + box.h - 190"
       text-anchor="middle"
       class="label"
-      v-bind="fitText(`АВР${element.label ? ` ${element.label}` : ''}`, 28, panelW - 8)"
+      v-bind="fitText(atsName, 28, panelW - 8)"
       pointer-events="none"
     >
-      АВР{{ element.label ? ` ${element.label}` : '' }}
+      {{ atsName }}
     </text>
   </g>
 </template>

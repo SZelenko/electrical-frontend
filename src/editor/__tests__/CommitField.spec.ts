@@ -13,6 +13,7 @@ import {
   rail,
 } from '@/domain/__tests__/helpers'
 import { mountEditor, pointer, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 function mountField(props: Record<string, unknown> = {}) {
   const onCommit = vi.fn()
@@ -184,7 +185,7 @@ describe('CommitField inside the properties panel (one history entry per session
     expect(store.dirty).toBe(false)
     await input.trigger('blur')
     expect(store.content?.rails[0]?.elements[0]?.label).toBe('QF1')
-    expect(store.undoLabel).toBe('Змінити назву апарата')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити назву апарата')
     let n = 0
     while (store.undo() !== null) n++
     expect(n).toBe(1)
@@ -216,7 +217,7 @@ describe('CommitField inside the properties panel (one history entry per session
     await nextTick()
     expect(store.selection).toBeNull()
     expect(store.content?.rails[0]?.elements[0]?.label).toBe('QF1')
-    expect(store.undoLabel).toBe('Змінити назву апарата')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити назву апарата')
   })
 
   it('a focused draft is committed by a press on a contact and the new drawing survives', async () => {
@@ -235,7 +236,7 @@ describe('CommitField inside the properties panel (one history entry per session
       .trigger('pointerdown', { button: 0, pointerId: 1 })
     await nextTick()
     expect(store.content?.rails[0]?.elements[0]?.label).toBe('QF1')
-    expect(store.undoLabel).toBe('Змінити назву апарата')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити назву апарата')
     expect(ctx.drawing.value).not.toBeNull()
     expect(ctx.drawing.value?.start).toEqual(cw(id(2)))
   })
@@ -282,7 +283,7 @@ describe('CommitField inside the properties panel (one history entry per session
     expect(store.content?.rails[0]?.elements[0]?.poles).toHaveLength(1)
     expect(store.content?.wires.map((w) => w.id)).toEqual([id(31)])
     expect(ctx.notice.value?.text).toBe('Видалено 1 провід')
-    expect(store.undoLabel).toBe('Змінити кількість полюсів')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити кількість полюсів')
   })
 
   it('the width of an element is committed through the panel', async () => {

@@ -1,0 +1,668 @@
+{
+  "app": {
+    "title": "Electrical panel builder",
+    "localeNotSaved": "Could not save the language to your profile; it may revert after you sign in again."
+  },
+  "common": {
+    "loading": "Loading…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "rename": "Rename",
+    "delete": "Delete",
+    "none": "None.",
+    "back": "Back",
+    "next": "Next",
+    "navigation": "Navigation",
+    "language": "Language",
+    "languages": {
+      "uk": "Українська",
+      "en": "English"
+    },
+    "email": "Email",
+    "password": "Password",
+    "confirm": "Confirm",
+    "listAnd": "{head} and {last}"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "relogin": "Your session has ended. Sign in again to continue.",
+      "submit": "Sign in",
+      "createAccount": "Create an account"
+    },
+    "register": {
+      "title": "Sign up",
+      "submit": "Sign up",
+      "haveAccount": "Already have an account? Sign in"
+    },
+    "verifyEmail": {
+      "title": "Email verification",
+      "intro": "We sent an 8-character code to your email.",
+      "code": "Verification code"
+    },
+    "twoFactor": {
+      "title": "Two-factor authentication",
+      "intro": "Enter the 8-character code sent to your email.",
+      "code": "Code",
+      "backToLogin": "Return to sign in",
+      "back": "Back to sign in"
+    },
+    "resend": "Send the code again",
+    "resendIn": "Send the code again ({seconds} s)",
+    "resent": "A new code has been sent.",
+    "account": {
+      "title": "Account",
+      "email": "Email:",
+      "twoFactorHeading": "Two-factor authentication",
+      "twoFactorStatus": "Two-factor authentication:",
+      "enabled": "enabled",
+      "disabled": "disabled",
+      "confirmPassword": "Password to confirm",
+      "saved": "Changes saved.",
+      "enable": "Enable 2FA",
+      "disable": "Disable 2FA",
+      "toPanels": "Back to my panels",
+      "logout": "Sign out",
+      "logoutConfirm": "The panel has unsaved changes that will be lost. Sign out?"
+    }
+  },
+  "panels": {
+    "myPanels": "My panels",
+    "newName": "New name",
+    "moveToTrashConfirm": "Move the panel “{name}” to the trash?",
+    "unsavedLost": "Unsaved changes will be lost.",
+    "pagination": {
+      "label": "Pages",
+      "page": "Page {page} of {pages}"
+    },
+    "home": {
+      "create": "Create panel",
+      "trash": "Trash",
+      "account": "Account",
+      "nameLabel": "Panel name",
+      "createSubmit": "Create",
+      "empty": "You have no panels yet. Create the first one.",
+      "updated": "Updated: {date}"
+    },
+    "trash": {
+      "title": "Trash",
+      "empty": "The trash is empty.",
+      "renameHint": "Rename the panel in the trash and restore it again.",
+      "deleted": "Deleted: {date}",
+      "restore": "Restore",
+      "deleteForever": "Delete permanently",
+      "deleteForeverConfirm": "Delete the panel “{name}” permanently? This cannot be undone."
+    },
+    "view": {
+      "notFound": "Panel not found.",
+      "inTrash": "The panel is in the trash. Editing is disabled.",
+      "saving": "Saving…",
+      "conflictSaveTitle": "The panel was changed elsewhere: saving is disabled until it is reloaded",
+      "dirty": "● Unsaved changes",
+      "clean": "All changes saved",
+      "conflictBanner": "The panel was changed elsewhere. Saving is disabled.",
+      "reloadDiscard": "Load the latest version (discard my changes)",
+      "serverRejected": "The server rejected the changes:",
+      "violationsHighlighted": "Items with errors are highlighted on the diagram.",
+      "shortCircuitsLabel": "Short circuits",
+      "shortCircuitsHeading": "Short circuits: {n}",
+      "showOnDiagram": "Show on diagram",
+      "shortCircuitGroup": "Sources: {sources}. Wire: {wires} | Sources: {sources}. Wires: {wires}",
+      "noShortCircuits": "No short circuits found.",
+      "hideTable": "Hide the contents table",
+      "showTable": "Contents table",
+      "loadFailed": "Could not load the panel.",
+      "conflictTitle": "The panel was changed elsewhere",
+      "conflictBody": "The saved version of the panel is newer than the one you are editing. Your changes were not written so that nothing is overwritten.",
+      "continueEditing": "Continue editing (saving is disabled)",
+      "leaveConfirm": "There are unsaved changes. Leave the page without saving?",
+      "saved": "Saved.",
+      "savedWithShortCircuits": "Saved. Warning: short circuits found: {n}."
+    },
+    "summary": {
+      "placement": "Placement: {side}",
+      "inputCables": "Input cables",
+      "outputCables": "Output cables",
+      "cable": "Cable {n}",
+      "cableLabelled": "Cable {n} “{label}”",
+      "wire": "Wire {n}: {colour}",
+      "defaultBlock": "Terminal block",
+      "rowBlock": "{name}: {width} mod., terminals: {count}, colour: {colour}",
+      "railBlock": "{width} mod., terminals: {count}, colour: {colour}",
+      "railBlockLabelled": "{label}: {width} mod., terminals: {count}, colour: {colour}",
+      "rails": "DIN rails",
+      "railWidth": "Rail width: {n} mod.",
+      "rail": "Rail {n}: spacing {spacing} mm",
+      "devices": "Devices",
+      "busbars": "Busbars",
+      "busbar": "Busbar {type}: {n} device, colour: {colour} | Busbar {type}: {n} devices, colour: {colour}",
+      "terminalBlocks": "Terminal blocks",
+      "wires": "Panel wires",
+      "wireCount": "{n} wire | {n} wires",
+      "shortCircuits": "Short circuits",
+      "noShortCircuits": "No short circuits found",
+      "foundShortCircuits": "Short circuits found: {n}",
+      "group": "Group {n}: sources — {sources}; wires — {wires}",
+      "noWires": "none"
+    }
+  },
+  "editor": {
+    "readOnly": "The panel is read-only",
+    "toolbar": {
+      "ariaLabel": "Editor tools",
+      "addRail": "Add rail",
+      "addRailTitle": "Add a DIN rail",
+      "addBreaker": "Add breaker",
+      "addBreakerTitle": "Add a breaker to the selected rail",
+      "addRcd": "Add RCD",
+      "addRcdTitle": "Add an RCD to the selected rail",
+      "addVoltageRelay": "Add voltage relay",
+      "addVoltageRelayTitle": "Add a voltage relay to the selected rail",
+      "addAts": "Add ATS",
+      "addAtsTitle": "Add an ATS to the selected rail",
+      "addBlock": "Add terminal block",
+      "addBlockTitle": "Add a terminal block to the selected rail",
+      "addBusbarL": "Add L busbar",
+      "addBusbarLTitle": "Add an L busbar from the selected device",
+      "addBusbarLN": "Add L+N busbar",
+      "addBusbarLNTitle": "Add an L+N busbar from the selected device",
+      "addRowBlockTop": "Terminal block to top row",
+      "addRowBlockTopTitle": "Add a terminal block to the top terminal row",
+      "addRowBlockBottom": "Terminal block to bottom row",
+      "addRowBlockBottomTitle": "Add a terminal block to the bottom terminal row",
+      "addInputCable": "Add input cable",
+      "addOutputCable": "Add output cable",
+      "undo": "Undo",
+      "undoWith": "Undo: {label}",
+      "nothingToUndo": "Nothing to undo",
+      "undoRemoveBend": "Remove the last bend",
+      "undoCancelWire": "Cancel the wire",
+      "redo": "Redo",
+      "redoWith": "Redo: {label}",
+      "nothingToRedo": "Nothing to redo",
+      "deleteSelected": "Delete selected",
+      "deleteSelectedTitle": "Delete selected (Delete)",
+      "translucent": "Translucent mode",
+      "translucentTitle": "Translucent mode: bodies are see-through, wires beneath them are reachable; moving is disabled",
+      "wireColour": "Wire colour",
+      "wireCrossSection": "Wire cross-section, mm²"
+    },
+    "reason": {
+      "notLoaded": "The panel is not loaded",
+      "addRailFirst": "Add a rail first",
+      "noRoom": "There is no free space on the rail",
+      "railLimit": "Limit reached: {max} rails",
+      "cableLimit": "Limit reached: {max} cables",
+      "wireLimit": "Limit reached: {max} wires",
+      "rowBlockLimit": "Limit reached: {max} terminal blocks in the {row} row",
+      "rowNoRoom": "There is no free space in the {row} row",
+      "busbarSelect": "Select the device the busbar starts at",
+      "busbarLimit": "Limit reached: {max} busbars per rail",
+      "busbarNoNeighbour": "There is no free adjacent device to the right of the device"
+    },
+    "limit": {
+      "default": "Limit reached",
+      "rails": "Limit reached: at most {max} rails",
+      "inputCables": "Limit reached: at most {max} input cables",
+      "outputCables": "Limit reached: at most {max} output cables",
+      "cableWires": "A cable can have at most {max} wires",
+      "wires": "Limit reached: at most {max} wires",
+      "bends": "Wire bend limit reached",
+      "rowBlocks": "Limit reached: at most {max} terminal blocks in a row",
+      "rowTerminals": "A row terminal block has at most {max} terminals",
+      "railTerminals": "A rail terminal block has at most {max} terminals",
+      "busbars": "Limit reached: at most {max} busbars per rail",
+      "coordinates": "The diagram exceeds the allowed size (up to {max} mm)"
+    },
+    "rejection": {
+      "invalidSize": "Invalid size or position",
+      "negativeOffset": "Position out of bounds",
+      "outOfRail": "Does not fit on the rail",
+      "overlap": "The place is taken by another item",
+      "tooNarrowForPoles": "Too many poles for this width (up to 4 per module)",
+      "tooNarrowForAts": "An ATS must take at least 2 modules",
+      "outOfRow": "Does not fit in the terminal row (the row is as wide as the rails)",
+      "railTooNarrow": "Rails cannot be narrower than the items mounted on them",
+      "rowOverflow": "The terminal blocks in the row do not fit: reduce their number or increase the rail width",
+      "rowNoRoom": "There is no free space in the other row",
+      "busbarNoRoom": "A busbar needs a device and at least one free adjacent device to its right",
+      "busbarRange": "A busbar can cover from 2 devices up to the free adjacent devices to the right",
+      "notFound": "Item not found",
+      "duplicateId": "This identifier already exists",
+      "invalid": "Invalid value",
+      "lastInputCable": "The last input cable cannot be deleted",
+      "lastCableWire": "The last cable wire cannot be deleted",
+      "sameTerminal": "Both ends of the wire are at the same point"
+    },
+    "removedWires": "Removed {n} wire | Removed {n} wires",
+    "busbarIssue": {
+      "type": "Invalid busbar type",
+      "anchorMissing": "The busbar is anchored to a device that is not on this rail",
+      "anchorAts": "A busbar cannot be anchored to an ATS",
+      "count": "A busbar must cover from 2 to 60 devices",
+      "tooFew": "There are not as many devices to the right as the busbar covers",
+      "notDevice": "An ATS or a terminal block is in the busbar's way",
+      "gap": "There are free modules between the busbar's devices",
+      "mixedSwap": "The busbar's devices have different input/output positions",
+      "overlap": "The device is already covered by another busbar"
+    },
+    "toggle": {
+      "ats": "Toggle the ATS (state: {state})",
+      "rcd": "Toggle the RCD (now: {state})",
+      "voltageRelay": "Toggle the voltage relay (now: {state})",
+      "breaker": "Toggle the breaker (now: {state})"
+    },
+    "contact": {
+      "atsInput": "Input {name}",
+      "atsOutput": "Output {name}",
+      "pole": "Pole {n} ({side})",
+      "terminal": "Terminal {n}"
+    },
+    "shape": {
+      "rail": "Rail {n}",
+      "bend": "Bend {n}: drag; double-click to delete",
+      "busbar": "Busbar {type}, devices: {count}",
+      "busbarFeed": "Busbar feed {feed}",
+      "busbarHandle": "Drag to change the number of devices on the busbar",
+      "railBlock": "Terminal block, terminals: {count}, colour: {colour}",
+      "railBlockLabelled": "Terminal block {label}, terminals: {count}, colour: {colour}",
+      "rowBlock": "Row terminal block, terminals: {count}, colour: {colour}",
+      "rowBlockLabelled": "Row terminal block {label}, terminals: {count}, colour: {colour}"
+    },
+    "canvas": {
+      "ariaLabel": "Panel diagram",
+      "zoom": "Zoom",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fit": "Fit",
+      "fitLabel": "Fit the diagram to the window",
+      "tooManyBends": "Too many bends: align the last bend with the terminal or remove a bend.",
+      "bendLimit": "Wire bend limit reached ({max}). Finish the wire at a terminal.",
+      "dragToRow": "Drag into a terminal row",
+      "dragToRail": "Drag onto a rail",
+      "rowBlockToRail": "A row terminal block cannot be moved onto a rail",
+      "railItemToRow": "A rail item cannot be moved into a terminal row",
+      "failed": "Failed",
+      "notCopied": "{reason}. The copy was not created.",
+      "movedBack": "{reason}. The item was returned to its place.",
+      "drawingHint": "Click on the canvas to add a bend and on a terminal to finish the wire. Backspace or Ctrl+Z removes the last bend, Esc cancels.",
+      "inputCableTitle": "Input cable: {rating}",
+      "outputCableTitle": "Output cable",
+      "outputCableTitleDescribed": "Output cable: {description}",
+      "inputCaption": "In {n}",
+      "outputCaption": "Out {n}"
+    },
+    "history": {
+      "addRail": "Add rail",
+      "addBreaker": "Add breaker",
+      "addRcd": "Add RCD",
+      "addVoltageRelay": "Add voltage relay",
+      "addAts": "Add ATS",
+      "addBlock": "Add terminal block",
+      "addBusbarL": "Add L busbar",
+      "addBusbarLN": "Add L+N busbar",
+      "addRowBlockTop": "Add terminal block to the top row",
+      "addRowBlockBottom": "Add terminal block to the bottom row",
+      "addInputCable": "Add input cable",
+      "addOutputCable": "Add output cable",
+      "removeRail": "Delete rail",
+      "removeElement": "Delete device",
+      "removeBlock": "Delete terminal block",
+      "removeBusbar": "Delete busbar",
+      "removeInputCable": "Delete input cable",
+      "removeOutputCable": "Delete output cable",
+      "removeCableWire": "Delete cable wire",
+      "removeWire": "Delete wire",
+      "addWire": "Add wire",
+      "toggle": "Toggle device",
+      "changeBusbarLength": "Change busbar length",
+      "copy": "Copy",
+      "moveElement": "Move device",
+      "moveBlock": "Move terminal block",
+      "moveBend": "Move bend",
+      "removeBend": "Delete bend",
+      "insertBend": "Add bend",
+      "changeCableLabel": "Change cable mark",
+      "changeVoltage": "Change voltage",
+      "changeFrequency": "Change frequency",
+      "changeCableCrossSection": "Change cable cross-section",
+      "changeCableDescription": "Change cable description",
+      "changeCableWireColour": "Change cable wire colour",
+      "addCableWire": "Add wire to cable",
+      "changeElementStyle": "Change device style",
+      "changeElementLabel": "Change device name",
+      "changeMarking": "Change marking",
+      "changeElementWidth": "Change device width",
+      "changePoleCount": "Change pole count",
+      "toggleElement": "Toggle device",
+      "swapSides": "Swap input and output",
+      "transitPole": "Transit pole",
+      "changeBlockColour": "Change terminal block colour",
+      "changeBlockLabel": "Change terminal block name",
+      "changeTerminalCount": "Change terminal count",
+      "moveBlockRow": "Move terminal block to the other row",
+      "changeAtsLabel": "Change ATS name",
+      "changeAtsWidth": "Change ATS width",
+      "changeAtsState": "Change ATS state",
+      "swapAtsSides": "Swap inputs and outputs",
+      "changeBusbarColour": "Change busbar colour",
+      "changeBusbarType": "Change busbar type",
+      "changeCableSides": "Change cable side",
+      "changeWireColour": "Change wire colour",
+      "changeWireCrossSection": "Change wire cross-section",
+      "resetRoute": "Re-route",
+      "changeRailSpacing": "Change rail spacing",
+      "changeRailWidth": "Change rail width"
+    }
+  },
+  "props": {
+    "ariaLabel": "Selection properties",
+    "name": "Name",
+    "marking": "Marking",
+    "colour": "Colour",
+    "panel": {
+      "ariaLabel": "Panel properties",
+      "title": "Panel",
+      "railWidth": "Width of all rails, modules",
+      "inputSide": "Input cable side",
+      "outputSide": "Output cable side",
+      "side": {
+        "top": "Top",
+        "bottom": "Bottom",
+        "left": "Left",
+        "right": "Right"
+      },
+      "hintWidth": "The width is the same for all rails and both terminal rows. Cables on the same side go one after another: input cables first, then output cables.",
+      "hintSelect": "Select a rail, device, busbar, terminal block, cable or wire on the diagram."
+    },
+    "rail": {
+      "ariaLabel": "Rail properties",
+      "title": "Rail {n}",
+      "spacing": "Distance from the previous rail, mm",
+      "hint": "The distance is measured between rail axes (for the first rail, from the top of the rail area).",
+      "delete": "Delete rail"
+    },
+    "cable": {
+      "ariaLabelInput": "Input cable properties",
+      "ariaLabelOutput": "Output cable properties",
+      "titleInput": "Input cable",
+      "titleOutput": "Output cable",
+      "mark": "Mark (drawn next to the cable)",
+      "voltage": "Voltage, V",
+      "frequency": "Frequency, Hz",
+      "crossSection": "Cross-section, mm²",
+      "description": "Description",
+      "wires": "Cable wires",
+      "wireColour": "Wire {n} colour",
+      "deleteWireLast": "The last cable wire cannot be deleted",
+      "deleteWire": "Delete cable wire",
+      "deleteWireLabel": "Delete wire {n} of the cable",
+      "addWireLimit": "A cable can have at most {max} wires",
+      "addWireTitle": "Add a wire to the cable",
+      "addWire": "Add cable wire",
+      "deleteLastInput": "The last input cable cannot be deleted",
+      "delete": "Delete cable"
+    },
+    "element": {
+      "ariaLabel": "Device properties",
+      "title": "Device",
+      "style": "Style",
+      "width": "Width, modules",
+      "poleCount": "Number of poles",
+      "on": "On",
+      "swapped": "Input at the bottom, output at the top",
+      "transit": "Transit poles",
+      "pole": "Pole {n}",
+      "delete": "Delete device"
+    },
+    "ats": {
+      "ariaLabel": "ATS properties",
+      "title": "ATS",
+      "state": "State",
+      "swapped": "Inputs at the bottom, outputs at the top",
+      "hint": "Inputs: source A (L, N) and source B (L, N); outputs: L, N.",
+      "delete": "Delete ATS"
+    },
+    "block": {
+      "ariaLabelRow": "Row terminal block properties",
+      "ariaLabelRail": "Terminal block properties",
+      "titleRow": "Row terminal block",
+      "titleRail": "Terminal block",
+      "terminalCount": "Number of terminals",
+      "rowWidth": "Width: {n} mod. (half the terminals, rounded up).",
+      "railWidth": "A terminal block on a rail always takes 1 module.",
+      "moveToBottom": "Move to the bottom row",
+      "moveToTop": "Move to the top row",
+      "deleteRow": "Delete terminal block",
+      "deleteRail": "Delete terminal block"
+    },
+    "busbar": {
+      "ariaLabel": "Busbar properties",
+      "title": "Busbar",
+      "type": "Type",
+      "count": "Number of devices",
+      "hint": "The busbar covers the selected device and the adjacent devices to its right (up to {max}). Type L+N: feed N connects to the second pole. Drag the right edge to change the length.",
+      "hintLN": "Switching to L deletes the wires connected to feed N.",
+      "delete": "Delete busbar"
+    },
+    "wire": {
+      "ariaLabel": "Wire properties",
+      "title": "Wire #{n}",
+      "crossSection": "Cross-section, mm²",
+      "hint": "Bends: {count}. Drag the white markers; double-click the line to add a bend, a marker to delete it.",
+      "reroute": "Re-route",
+      "delete": "Delete wire"
+    }
+  },
+  "domain": {
+    "colour": {
+      "black": "black",
+      "brown": "brown",
+      "red": "red",
+      "blue": "blue",
+      "green-yellow": "green-yellow",
+      "grey": "grey"
+    },
+    "cableSide": {
+      "top": "top",
+      "bottom": "bottom",
+      "left": "left",
+      "right": "right"
+    },
+    "contactSide": {
+      "top": "top",
+      "bottom": "bottom",
+      "left": "left",
+      "right": "right"
+    },
+    "side": {
+      "input": "input",
+      "output": "output"
+    },
+    "rowTitle": {
+      "top": "Top terminal row",
+      "bottom": "Bottom terminal row"
+    },
+    "rowIn": {
+      "top": "top",
+      "bottom": "bottom"
+    },
+    "deviceStyle": {
+      "breaker": "Breaker",
+      "rcd": "RCD",
+      "voltageRelay": "Voltage relay"
+    },
+    "ats": {
+      "name": "ATS",
+      "sourceA": "A",
+      "sourceB": "B",
+      "state": {
+        "A": "A",
+        "B": "B",
+        "off": "0"
+      }
+    },
+    "units": {
+      "rating": "{v} V / {f} Hz / {s} mm²"
+    },
+    "ordinal": "#{n}",
+    "element": {
+      "noName": "Unnamed",
+      "modules": "{n} mod.",
+      "poles": "poles: {n}",
+      "on": "on",
+      "off": "off",
+      "transit": "transit poles: {list}",
+      "atsSummary": "{title}, {width} mod., state: {state}"
+    },
+    "panelWire": {
+      "short": "wire #{n}",
+      "full": "#{n} {colour}, {crossSection} mm², {from} → {to}"
+    },
+    "cableWire": {
+      "input": "input cable {cable}, wire {wire} ({colour})",
+      "output": "output cable {cable}, wire {wire} ({colour})"
+    },
+    "endpoint": {
+      "device": "device {name}, pole {pole} ({side})",
+      "atsInput": "ATS {name}, input {source} {line}",
+      "atsOutput": "ATS {name}, output {line}",
+      "busbar": "busbar {type} #{n}, feed {feed}",
+      "rowBlock": "terminal block {name} in the {row} row, terminal {terminal} ({side})",
+      "railBlock": "terminal block {name}, terminal {terminal} ({side})"
+    }
+  },
+  "violations": {
+    "id": {
+      "invalid": "Must be a lowercase RFC 4122 UUID.",
+      "duplicate": "Duplicate id within the payload."
+    },
+    "value": {
+      "out_of_range": "Must be between {min} and {max}.",
+      "out_of_range_above_min": "Must be greater than {min} and at most {max}.",
+      "too_many_decimals": "Must have at most {decimals} decimal places.",
+      "too_long": "Must be at most {max} characters long.",
+      "too_short": "Must be at least {min} characters long.",
+      "too_small": "Must be at least {min}.",
+      "negative": "Must not be negative.",
+      "not_a_list": "Must be a JSON array (list), not an object.",
+      "blank": "This value should not be blank.",
+      "required": "This value is required.",
+      "invalid_type": "Invalid type or value.",
+      "invalid": "Invalid value."
+    },
+    "email": {
+      "invalid": "This is not a valid email address.",
+      "already_registered": "This email is already registered."
+    },
+    "password": {
+      "too_weak": "The password is too weak. Please use a stronger one."
+    },
+    "name": {
+      "invalid_encoding": "The name must be valid UTF-8.",
+      "blank": "The name must not be blank.",
+      "surrounding_whitespace": "The name must not start or end with whitespace.",
+      "control_characters": "The name must not contain control characters.",
+      "too_long": "The name must be at most {max} characters long."
+    },
+    "input_cables": {
+      "required": "At least one input cable is required.",
+      "too_many": "At most {max} input cables are allowed."
+    },
+    "output_cables": {
+      "too_many": "At most {max} output cables are allowed."
+    },
+    "cable": {
+      "wire_count": "A cable has {min} to {max} wires."
+    },
+    "rails": {
+      "too_many": "At most {max} rails are allowed."
+    },
+    "rail": {
+      "does_not_fit": "Does not fit within the rail width.",
+      "overlap": "Overlaps another item on the rail."
+    },
+    "rail_block": {
+      "width": "A terminal block on a rail is exactly 1 module wide."
+    },
+    "row": {
+      "too_many_blocks": "At most {max} terminal blocks are allowed in the {row} terminal row.",
+      "block_width_mismatch": "Must be {expected} (half of the terminal count, rounded up).",
+      "does_not_fit": "Does not fit within the {row} terminal row (rail width).",
+      "overlap": "Overlaps another block in the {row} terminal row."
+    },
+    "device": {
+      "pole_count": "A device has 1 to {max} poles (at most {perModule} per module of width).",
+      "state_forbidden": "Only an ATS has a state.",
+      "on_required": "A device needs an on/off state.",
+      "style_required": "A device needs a style.",
+      "poles_required": "A device needs poles."
+    },
+    "ats": {
+      "state_required": "An ATS needs a state.",
+      "on_forbidden": "An ATS has no on/off state.",
+      "poles_forbidden": "An ATS has no poles.",
+      "style_forbidden": "An ATS has no style.",
+      "too_narrow": "An ATS is at least {min} modules wide."
+    },
+    "busbars": {
+      "too_many": "At most {max} busbars per rail are allowed."
+    },
+    "busbar": {
+      "anchor_missing": "The busbar is anchored to a device that is not on this rail.",
+      "anchor_not_device": "A busbar cannot be anchored to an ATS.",
+      "too_few": "There are fewer than {count} consecutive devices from the anchor to the rail end.",
+      "foreign_item": "An ATS or a terminal block is in the busbar's way.",
+      "gap": "There are free modules between the busbar's devices.",
+      "mixed_sides": "The busbar's devices have different input/output positions.",
+      "already_covered": "The device is already covered by another busbar."
+    },
+    "wires": {
+      "too_many": "At most {max} wires are allowed."
+    },
+    "wire": {
+      "same_ends": "The two ends of a wire must differ."
+    },
+    "bends": {
+      "too_many_per_wire": "At most {max} bends per wire are allowed.",
+      "too_many_total": "At most {max} bends per panel are allowed."
+    },
+    "endpoint": {
+      "shape": "A “{kind}” endpoint needs exactly: {fields}.",
+      "element_unknown": "Refers to a device that is not part of this panel.",
+      "block_unknown": "Refers to a terminal block that is not part of this panel.",
+      "busbar_unknown": "Refers to a busbar that is not part of this panel.",
+      "cable_wire_unknown": "Refers to a cable wire that is not part of this panel.",
+      "contact_side_row": "Must be “top” or “bottom” for a terminal-row block.",
+      "contact_side_rail": "Must be “left” or “right” for a terminal block on a rail."
+    }
+  },
+  "errors": {
+    "api": {
+      "invalid_credentials": "Incorrect email or password.",
+      "email_not_verified": "The email address is not verified.",
+      "invalid_code": "The code is incorrect or expired.",
+      "two_factor_restart": "The sign-in session has ended. Sign in again.",
+      "rate_limited": "Too many attempts. Try again later.",
+      "rate_limited_after": "Too many attempts. Try again in {seconds} s.",
+      "token_invalid": "The session has ended. Sign in again.",
+      "password_confirmation_failed": "Incorrect password.",
+      "panel_name_conflict": "A panel with this name already exists. Choose another name.",
+      "panel_version_conflict": "The panel was changed elsewhere. Reload the page.",
+      "panel_not_in_trash": "The panel is not in the trash.",
+      "panel_content_id_conflict": "Panel content identifier conflict. Reload the page.",
+      "validation": "Check the entered data.",
+      "network": "Could not connect to the server. Check your connection.",
+      "default": "Something went wrong. Try again later."
+    },
+    "unexpected": "Unexpected server response. Refresh the page.",
+    "save": {
+      "idConflict": "Identifier conflict: one of the items is already used in another panel. Your local changes are kept in the editor.",
+      "deleted": "The panel was deleted or moved to the trash. It cannot be saved.",
+      "auth": "The session has ended. Sign in again — your changes stay in the editor and can be saved after signing in.",
+      "network": "No connection to the server. Try saving again.",
+      "unknown": "Could not save: {message}"
+    }
+  }
+}

@@ -124,14 +124,34 @@ export const SPACING_RULE: DecimalRule = {
   scale: SCALE_SPACING,
 }
 
-/** Returns an error message, or null when the number satisfies the rule. */
-export function checkDecimal(value: number, rule: DecimalRule): string | null {
+/** A broken decimal rule: the backend's violation code and parameters plus its English message. */
+export interface DecimalViolation {
+  code: 'value.too_many_decimals' | 'value.out_of_range' | 'value.out_of_range_above_min'
+  parameters: Record<string, number>
+  message: string
+}
+
+/** Returns the violation, or null when the number satisfies the rule. */
+export function decimalViolation(value: number, rule: DecimalRule): DecimalViolation | null {
   if (!Number.isFinite(value) || !hasAtMostDecimals(value, rule.scale)) {
-    return `Must have at most ${rule.scale} decimal places.`
+    return {
+      code: 'value.too_many_decimals',
+      parameters: { decimals: rule.scale },
+      message: `Must have at most ${rule.scale} decimal places.`,
+    }
   }
   const rounded = roundTo(value, rule.scale)
   if (rounded < rule.min || (rule.minExclusive && rounded <= rule.min) || rounded > rule.max) {
-    return `Must be ${rule.minExclusive ? 'greater than' : 'at least'} ${rule.min} and at most ${rule.max}.`
+    return {
+      code: rule.minExclusive ? 'value.out_of_range_above_min' : 'value.out_of_range',
+      parameters: { min: rule.min, max: rule.max },
+      message: `Must be ${rule.minExclusive ? 'greater than' : 'at least'} ${rule.min} and at most ${rule.max}.`,
+    }
   }
   return null
+}
+
+/** Returns an error message, or null when the number satisfies the rule. */
+export function checkDecimal(value: number, rule: DecimalRule): string | null {
+  return decimalViolation(value, rule)?.message ?? null
 }

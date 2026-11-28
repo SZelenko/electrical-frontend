@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { updateElement } from '@/domain/commands'
 import { ATS_MIN_WIDTH, MAX_LABEL_LENGTH, MAX_MARKING_LENGTH } from '@/domain/limits'
-import { ATS_STATE_NAMES, type AtsState } from '@/domain/panelContent'
+import { atsStateName, type AtsState } from '@/domain/panelContent'
+import { t } from '@/i18n'
 import CommitField from './CommitField.vue'
 import { useCommit } from './useCommit'
 
@@ -16,34 +17,39 @@ const states: readonly AtsState[] = ['A', 'B', 'off']
 </script>
 
 <template>
-  <section v-if="found" aria-label="Властивості АВР">
-    <h3>АВР</h3>
+  <section v-if="found" :aria-label="t('props.ats.ariaLabel')">
+    <h3>{{ t('props.ats.title') }}</h3>
     <CommitField
-      label="Назва"
+      :label="t('props.name')"
       :maxlength="MAX_LABEL_LENGTH"
       :model-value="found.element.label"
       :disabled="store.readOnly"
-      @commit="(v) => ctx.run(updateElement(id, { label: v }), 'Змінити назву АВР')"
+      @commit="(v) => ctx.run(updateElement(id, { label: v }), 'editor.history.changeAtsLabel')"
     />
     <CommitField
-      label="Маркування"
+      :label="t('props.marking')"
       :maxlength="MAX_MARKING_LENGTH"
       :model-value="found.element.marking"
       :disabled="store.readOnly"
-      @commit="(v) => ctx.run(updateElement(id, { marking: v }), 'Змінити маркування')"
+      @commit="(v) => ctx.run(updateElement(id, { marking: v }), 'editor.history.changeMarking')"
     />
     <CommitField
-      label="Ширина, модулів"
+      :label="t('props.element.width')"
       type="number"
       :min="ATS_MIN_WIDTH"
       :model-value="found.element.widthModules"
       :disabled="store.readOnly"
       @commit="
-        (v) => commit(num(v), (n) => updateElement(id, { widthModules: n }), 'Змінити ширину АВР')
+        (v) =>
+          commit(
+            num(v),
+            (n) => updateElement(id, { widthModules: n }),
+            'editor.history.changeAtsWidth',
+          )
       "
     />
     <label class="field">
-      Стан
+      {{ t('props.ats.state') }}
       <select
         :value="found.element.state"
         :disabled="store.readOnly"
@@ -51,11 +57,11 @@ const states: readonly AtsState[] = ['A', 'B', 'off']
           (e) =>
             ctx.run(
               updateElement(id, { state: (e.target as HTMLSelectElement).value as AtsState }),
-              'Змінити стан АВР',
+              'editor.history.changeAtsState',
             )
         "
       >
-        <option v-for="s in states" :key="s" :value="s">{{ ATS_STATE_NAMES[s] }}</option>
+        <option v-for="s in states" :key="s" :value="s">{{ atsStateName(s, t) }}</option>
       </select>
     </label>
     <label class="check">
@@ -67,15 +73,15 @@ const states: readonly AtsState[] = ['A', 'B', 'off']
           (e) =>
             ctx.run(
               updateElement(id, { sidesSwapped: (e.target as HTMLInputElement).checked }),
-              'Поміняти входи і виходи',
+              'editor.history.swapAtsSides',
             )
         "
       />
-      Входи знизу, виходи зверху
+      {{ t('props.ats.swapped') }}
     </label>
-    <p class="hint">Входи: джерело А (L, N) і джерело Б (L, N); виходи: L, N.</p>
+    <p class="hint">{{ t('props.ats.hint') }}</p>
     <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
-      Видалити АВР
+      {{ t('props.ats.delete') }}
     </button>
   </section>
 </template>

@@ -205,18 +205,21 @@ describe('setCableSides in the editor store (one undoable command)', () => {
   })
 
   it('both kinds changed together are one history entry and one undo restores everything', () => {
-    store.apply(setCableSides({ input: 'left', output: 'right' }), 'sides')
+    store.apply(
+      setCableSides({ input: 'left', output: 'right' }),
+      'editor.history.changeCableSides',
+    )
     expect(store.content?.inputCableSide).toBe('left')
     expect(store.content?.outputCableSide).toBe('right')
     expect(store.dirty).toBe(true)
-    expect(store.undo()).toBe('sides')
+    expect(store.undo()).toBe('editor.history.changeCableSides')
     expect(store.content).toBe(world) // wires, routes and sides restored by reference
     expect(store.dirty).toBe(false)
     expect(store.canUndo).toBe(false)
   })
 
   it('redo applies the change again', () => {
-    store.apply(setCableSides({ input: 'bottom' }), 'sides')
+    store.apply(setCableSides({ input: 'bottom' }), 'editor.history.changeCableSides')
     const changed = store.content
     store.undo()
     store.redo()
@@ -224,13 +227,16 @@ describe('setCableSides in the editor store (one undoable command)', () => {
   })
 
   it('a no-op change records nothing', () => {
-    store.apply(setCableSides({ input: 'top' }), 'sides')
+    store.apply(setCableSides({ input: 'top' }), 'editor.history.changeCableSides')
     expect(store.canUndo).toBe(false)
     expect(store.dirty).toBe(false)
   })
 
   it('a rejected change records nothing', () => {
-    const outcome = store.apply(setCableSides({ input: 'nowhere' as CableSide }), 'sides')
+    const outcome = store.apply(
+      setCableSides({ input: 'nowhere' as CableSide }),
+      'editor.history.changeCableSides',
+    )
     expect(outcome.ok).toBe(false)
     expect(store.canUndo).toBe(false)
   })

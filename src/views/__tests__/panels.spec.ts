@@ -491,7 +491,7 @@ describe('PanelView', () => {
     expect(wrapper.get('h1').text()).toBe('Щит А')
     expect(wrapper.text()).not.toContain('Вхідні кабелі') // the content table is collapsed
     await buttonByText(wrapper, 'Таблиця вмісту').trigger('click')
-    expect(wrapper.text()).toContain('230 V / 50 Hz / 4 mm²')
+    expect(wrapper.text()).toContain('230 В / 50 Гц / 4 мм²')
     expect(wrapper.text()).toContain('2 проводи')
     expect(wrapper.text()).toContain('КЗ не виявлено')
     expect(wrapper.find('[role=alert]').exists()).toBe(false)
@@ -583,7 +583,7 @@ describe('PanelView', () => {
     expect(f.count('GET /panels/p1')).toBe(1)
     const { pinia, router, wrapper } = first
     const editor = usePanelEditorStore(pinia)
-    editor.apply(addRail({ id: '00000000-0000-4000-8000-0000000000aa' }), 'Додати рейку')
+    editor.apply(addRail({ id: '00000000-0000-4000-8000-0000000000aa' }), 'editor.history.addRail')
     wrapper.unmount()
     await router.push('/test') // unmounting the last app resets the router to its start location
     const again = mount(PanelView, { props: { id: 'p1' }, global: viewGlobal(pinia, router) })
@@ -759,7 +759,7 @@ describe('PanelView', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     await buttonByText(wrapper, 'Таблиця вмісту').trigger('click')
-    expect(wrapper.text()).toContain('230 V / 50 Hz / 4 mm²')
+    expect(wrapper.text()).toContain('230 В / 50 Гц / 4 мм²')
   })
 
   it('stays on the page when delete is cancelled', async () => {

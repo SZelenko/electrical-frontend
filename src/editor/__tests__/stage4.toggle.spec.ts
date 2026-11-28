@@ -6,6 +6,7 @@ import type { PanelContent } from '@/domain/panelContent'
 import { addAuto, ats, content, cw, id, inputCable, pole, rail } from '@/domain/__tests__/helpers'
 import { deviceShapes, shapeFor } from '../shapes/registry'
 import { mountEditor, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 const base: PanelContent = content({
   inputCables: [inputCable(1, [2, 3])],
@@ -35,7 +36,7 @@ describe('toggle zone keyboard', () => {
     const { wrapper, store } = await mountEditor(base)
     await toggle(wrapper, 20).trigger('keydown', { key })
     expect(on(store.content)).toBe(false)
-    expect(store.undoLabel).toBe('Перемкнути')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемкнути')
     store.undo()
     expect(store.canUndo).toBe(false)
     expect(on(store.content)).toBe(true)
@@ -111,8 +112,8 @@ describe('read-only panel has no toggle affordance', () => {
 describe('toggle zones sit above the wires', () => {
   it('in document order every toggle zone follows every wire path', async () => {
     const { wrapper, store } = await mountEditor(base)
-    store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'w')
-    store.apply(addAuto(31, cw(id(3)), pole(id(23), 2, 'input')), 'w')
+    store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'editor.history.addWire')
+    store.apply(addAuto(31, cw(id(3)), pole(id(23), 2, 'input')), 'editor.history.addWire')
     await nextTick()
     const wires = wrapper.findAll('[data-testid=wire]')
     expect(wires.length).toBe(2)
@@ -127,7 +128,7 @@ describe('toggle zones sit above the wires', () => {
 
   it('a click on a zone crossed by a wire toggles and does not select the wire', async () => {
     const { wrapper, store } = await mountEditor(base)
-    store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'w')
+    store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'editor.history.addWire')
     await nextTick()
     await toggle(wrapper, 20).trigger('pointerdown', {
       button: 0,
@@ -140,7 +141,7 @@ describe('toggle zones sit above the wires', () => {
       .trigger('pointerup', { button: 0, pointerId: 1, clientX: 5, clientY: 5 })
     expect(on(store.content)).toBe(false)
     expect(store.selection).toEqual({ kind: 'element', id: id(20) })
-    expect(store.undoLabel).toBe('Перемкнути')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемкнути')
   })
 })
 

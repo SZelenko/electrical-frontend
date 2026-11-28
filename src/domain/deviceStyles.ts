@@ -1,24 +1,36 @@
 /** Creation defaults per device style (changing the style later keeps width and poles). */
 import type { DeviceElement, DeviceStyle } from './panelContent'
+import type { MessageKey } from './translate'
 
 export interface StyleDefaults {
   widthModules: number
   /** Transit flag per pole. */
   poles: boolean[]
-  title: string
-  /** History label of the toolbar action. */
-  addLabel: string
+  /** Message key of the style's name. */
+  titleKey: MessageKey
+  /** Message key of the history label of the toolbar action. */
+  addLabelKey: MessageKey
 }
 
 export const DEVICE_STYLE_DEFAULTS: Record<DeviceStyle, StyleDefaults> = {
-  breaker: { widthModules: 1, poles: [false], title: 'Автомат', addLabel: 'Додати автомат' },
-  rcd: { widthModules: 2, poles: [false, false], title: 'ПЗВ', addLabel: 'Додати ПЗВ' },
+  breaker: {
+    widthModules: 1,
+    poles: [false],
+    titleKey: 'domain.deviceStyle.breaker',
+    addLabelKey: 'editor.history.addBreaker',
+  },
+  rcd: {
+    widthModules: 2,
+    poles: [false, false],
+    titleKey: 'domain.deviceStyle.rcd',
+    addLabelKey: 'editor.history.addRcd',
+  },
   // the second pole (neutral) passes through
   voltageRelay: {
     widthModules: 2,
     poles: [false, true],
-    title: 'Реле напруги',
-    addLabel: 'Додати реле напруги',
+    titleKey: 'domain.deviceStyle.voltageRelay',
+    addLabelKey: 'editor.history.addVoltageRelay',
   },
 }
 

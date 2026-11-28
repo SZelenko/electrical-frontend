@@ -21,6 +21,7 @@ import {
 } from '@/domain/__tests__/helpers'
 import BusbarShape from '../BusbarShape.vue'
 import { mountEditor, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 beforeEach(() => {
   stubLayout()
@@ -192,7 +193,7 @@ describe('busbar properties: colour', () => {
     const { store, colourSelect } = await open()
     await colourSelect.setValue('red')
     expect(colourOf(store.content)).toBe('red')
-    expect(store.undoLabel).toBe('Змінити колір шини')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити колір шини')
     await colourSelect.setValue('')
     expect(colourOf(store.content)).toBeNull()
     store.undo()

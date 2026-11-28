@@ -20,6 +20,7 @@ import {
 } from '@/domain/__tests__/helpers'
 import CableRow from '../CableRow.vue'
 import { mountEditor, pointer, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 type Wrapper = Awaited<ReturnType<typeof mountEditor>>['wrapper']
 const CTRL = { ctrlKey: true }
@@ -232,7 +233,7 @@ describe('PanelCanvas: cables and rows by side', () => {
 describe('dragging a block between the rows', () => {
   it('top -> bottom: the block lands at the drop offset, one history entry, wires stay attached', async () => {
     const { wrapper, store } = await mountEditor(base)
-    store.apply(addAuto(30, term(id(50), 0, 'top'), cw(id(2))), 'w')
+    store.apply(addAuto(30, term(id(50), 0, 'top'), cw(id(2))), 'editor.history.addWire')
     const from = centreOf(50, computeLayout(store.content!))
     const l = computeLayout(store.content!)
     const to = { x: from.x + 8 * 175, y: rowMid(l.bottomRowY) }
@@ -243,7 +244,7 @@ describe('dragging a block between the rows', () => {
       [id(50), 8],
     ])
     expect(store.content?.wires[0]?.start).toEqual(term(id(50), 0, 'top'))
-    expect(store.undoLabel).toBe('Перемістити клемний блок')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити клемний блок')
     expect(historyLength(store)).toBe(2) // the wire and the move
   })
 
@@ -343,7 +344,7 @@ describe('Ctrl-copy of a row block into either row', () => {
       expect(copy).toBeDefined()
       expect(copy?.id).not.toBe(id(source))
       expect(store.selection).toEqual({ kind: 'block', id: copy!.id })
-      expect(store.undoLabel).toBe('Копіювати')
+      expect(store.undoLabel && t(store.undoLabel)).toBe('Копіювати')
       expect(historyLength(store)).toBe(1)
     },
   )
@@ -365,7 +366,10 @@ describe('Ctrl-copy of a row block into either row', () => {
 
   it('a copy does not take over the wires of its source', async () => {
     const { wrapper, store } = await mountEditor(base)
-    store.apply(addAuto(30, term(id(50), 0, 'top'), pole(id(20), 0, 'input')), 'w')
+    store.apply(
+      addAuto(30, term(id(50), 0, 'top'), pole(id(20), 0, 'input')),
+      'editor.history.addWire',
+    )
     const l = computeLayout(store.content!)
     const from = centreOf(50, l)
     await drag(
@@ -418,12 +422,12 @@ describe('panel properties: cable side selects', () => {
   it('the change is one undo step and undo restores the sides and the routes', async () => {
     const wired = { ...base }
     const { wrapper, store } = await open(wired)
-    store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'w')
+    store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'editor.history.addWire')
     const before = store.content
     await select(wrapper, 'input').setValue('left')
     expect(store.content?.inputCableSide).toBe('left')
     expect(store.content?.wires[0]?.bends).not.toEqual(before?.wires[0]?.bends)
-    expect(store.undoLabel).toBe('Змінити сторону кабелів')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити сторону кабелів')
     store.undo()
     expect(store.content).toBe(before)
     await nextTick()

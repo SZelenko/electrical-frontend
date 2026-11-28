@@ -290,7 +290,13 @@ describe('validateContent: cables', () => {
     const c = w()
     c.inputCables[0]!.voltage = 0
     expect(validateContent(c)).toEqual([
-      { propertyPath: 'content.inputCables[0].voltage', message: expect.any(String), id: id(1) },
+      {
+        propertyPath: 'content.inputCables[0].voltage',
+        code: 'value.out_of_range_above_min',
+        parameters: expect.objectContaining({ min: expect.any(Number), max: expect.any(Number) }),
+        message: expect.any(String),
+        id: id(1),
+      },
     ])
   })
 })
@@ -636,6 +642,8 @@ describe('validateContent: ids', () => {
     c.rails[0]!.id = 'x'
     expect(validateContent(c)[0]).toEqual({
       propertyPath: 'content.rails[0].id',
+      code: 'id.invalid',
+      parameters: {},
       message: expect.any(String),
       id: null,
     })

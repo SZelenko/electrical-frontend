@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RailBox } from '@/domain/geometry'
+import { t } from '@/i18n'
 
 defineProps<{ rail: RailBox; selected: boolean; violation: boolean }>()
 </script>
@@ -17,7 +18,7 @@ defineProps<{ rail: RailBox; selected: boolean; violation: boolean }>()
       data-testid="rail"
       :data-id="rail.id"
     >
-      <title>Рейка {{ rail.index + 1 }}</title>
+      <title>{{ t('editor.shape.rail', { n: rail.index + 1 }) }}</title>
     </rect>
     <line
       :x1="rail.x"

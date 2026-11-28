@@ -3,6 +3,7 @@ import { nextTick } from 'vue'
 import { removeElement, updateInputCable } from '@/domain/commands'
 import { content, element, id, inputCable, rail } from '@/domain/__tests__/helpers'
 import { mountEditor, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 const base = content({
   inputCables: [inputCable(1, [2, 3])],
@@ -74,7 +75,7 @@ describe('Backspace while drawing a wire', () => {
 describe('editor keyboard shortcuts', () => {
   it('Ctrl+Z undoes, Ctrl+Shift+Z and Ctrl+Y redo (and prevent the browser default)', async () => {
     const { store } = await mountEditor(base)
-    store.apply(updateInputCable(id(1), { voltage: 400 }), 'A')
+    store.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.addRail')
     const edited = store.content
     expect(key({ key: 'z', ctrlKey: true }).defaultPrevented).toBe(true)
     expect(store.content).toBe(store.savedContent)
@@ -88,7 +89,7 @@ describe('editor keyboard shortcuts', () => {
 
   it('Cmd (meta) works like Ctrl', async () => {
     const { store } = await mountEditor(base)
-    store.apply(updateInputCable(id(1), { voltage: 400 }), 'A')
+    store.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.addRail')
     key({ key: 'z', metaKey: true })
     expect(store.dirty).toBe(false)
     key({ key: 'z', metaKey: true, shiftKey: true })
@@ -97,7 +98,7 @@ describe('editor keyboard shortcuts', () => {
 
   it('a plain Z without a modifier does nothing', async () => {
     const { store } = await mountEditor(base)
-    store.apply(updateInputCable(id(1), { voltage: 400 }), 'A')
+    store.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.addRail')
     key({ key: 'z' })
     expect(store.dirty).toBe(true)
   })
@@ -114,7 +115,7 @@ describe('editor keyboard shortcuts', () => {
     ['select', () => document.createElement('select')],
   ])('ignores the shortcuts while focus is in a %s', async (_n, make) => {
     const { store } = await mountEditor(base)
-    store.apply(updateInputCable(id(1), { voltage: 400 }), 'A')
+    store.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.addRail')
     const field = make()
     document.body.append(field)
     const undo = key({ key: 'z', ctrlKey: true }, field)
@@ -126,7 +127,7 @@ describe('editor keyboard shortcuts', () => {
 
   it('ignores redo in a text field too', async () => {
     const { store } = await mountEditor(base)
-    store.apply(updateInputCable(id(1), { voltage: 400 }), 'A')
+    store.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.addRail')
     store.undo()
     const input = document.createElement('input')
     document.body.append(input)
@@ -140,7 +141,7 @@ describe('editor keyboard shortcuts', () => {
     store.select({ kind: 'element', id: id(20) })
     key({ key: 'Delete' })
     expect(store.content?.rails[0]?.elements).toHaveLength(0)
-    expect(store.undoLabel).toBe('Видалити апарат')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Видалити апарат')
   })
 
   it('Delete without a selection does nothing', async () => {
@@ -171,7 +172,7 @@ describe('editor keyboard shortcuts', () => {
 
   it('undo through the shortcut also cancels a pending wire', async () => {
     const { store, ctx } = await mountEditor(base)
-    store.apply(removeElement(id(20)), 'x')
+    store.apply(removeElement(id(20)), 'editor.history.addRail')
     ctx.drawing.value = {
       start: { kind: 'cableWire', cableWireId: id(2) },
       bends: [],
@@ -183,7 +184,7 @@ describe('editor keyboard shortcuts', () => {
 
   it('stops listening after the editor is unmounted', async () => {
     const { store, wrapper } = await mountEditor(base)
-    store.apply(updateInputCable(id(1), { voltage: 400 }), 'A')
+    store.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.addRail')
     wrapper.unmount()
     await nextTick()
     key({ key: 'z', ctrlKey: true })

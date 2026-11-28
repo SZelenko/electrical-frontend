@@ -92,7 +92,7 @@ const button = (w: VueWrapper, name: string | RegExp) =>
     .find((b) => (typeof name === 'string' ? b.text() === name : name.test(b.text())))!
 /** Applies an edit and lets the view render the dirty state (the save button is enabled afterwards). */
 async function edit(m: Mounted, v = 400) {
-  m.editor.apply(updateInputCable(id(1), { voltage: v }), 'Змінити напругу')
+  m.editor.apply(updateInputCable(id(1), { voltage: v }), 'editor.history.changeVoltage')
   await nextTick()
 }
 const apiError = (init: ConstructorParameters<typeof ApiError>[0]) => new ApiError(init)
@@ -301,7 +301,7 @@ describe('PanelView: saving', () => {
     bad.inputCables[0]!.voltage = 0
     get.mockResolvedValue(panelOf(bad))
     const m = await mountPanel()
-    m.editor.apply(updateElement(id(20), { label: 'QF' }), 'Змінити назву апарата')
+    m.editor.apply(updateElement(id(20), { label: 'QF' }), 'editor.history.changeElementLabel')
     await nextTick()
     await button(m.wrapper, 'Зберегти').trigger('click')
     await flushPromises()
@@ -497,7 +497,8 @@ describe('AccountView: logout with unsaved editor changes', () => {
     })
     const editor = usePanelEditorStore(ctx.pinia)
     await editor.load('p1')
-    if (dirty) editor.apply(updateInputCable(id(1), { voltage: 400 }), 'v')
+    if (dirty)
+      editor.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.changeVoltage')
     const logout = vi.spyOn(useAuthStore(ctx.pinia), 'logout').mockResolvedValue()
     return { ...ctx, logout }
   }

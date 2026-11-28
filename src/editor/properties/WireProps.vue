@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { resetRoute, updateWire } from '@/domain/commands'
 import { WIRE_COLOURS, WIRE_CROSS_SECTIONS } from '@/domain/limits'
+import { t } from '@/i18n'
 import {
   colourName,
   describeEndpoint,
@@ -14,19 +15,19 @@ const props = defineProps<{ id: string }>()
 const { ctx, store } = useCommit()
 const found = computed(() => store.index?.wires.get(props.id))
 const from = computed(() =>
-  found.value && store.content ? describeEndpoint(store.content, found.value.wire.start) : '',
+  found.value && store.content ? describeEndpoint(store.content, found.value.wire.start, t) : '',
 )
 const to = computed(() =>
-  found.value && store.content ? describeEndpoint(store.content, found.value.wire.end) : '',
+  found.value && store.content ? describeEndpoint(store.content, found.value.wire.end, t) : '',
 )
 </script>
 
 <template>
-  <section v-if="found" aria-label="Властивості проводу">
-    <h3>Провід №{{ found.index + 1 }}</h3>
+  <section v-if="found" :aria-label="t('props.wire.ariaLabel')">
+    <h3>{{ t('props.wire.title', { n: found.index + 1 }) }}</h3>
     <p class="hint">{{ from }} → {{ to }}</p>
     <label class="field">
-      Колір
+      {{ t('props.colour') }}
       <select
         :value="found.wire.colour"
         :disabled="store.readOnly"
@@ -34,15 +35,15 @@ const to = computed(() =>
           (e) =>
             ctx.run(
               updateWire(id, { colour: (e.target as HTMLSelectElement).value as WireColour }),
-              'Змінити колір проводу',
+              'editor.history.changeWireColour',
             )
         "
       >
-        <option v-for="c in WIRE_COLOURS" :key="c" :value="c">{{ colourName(c) }}</option>
+        <option v-for="c in WIRE_COLOURS" :key="c" :value="c">{{ colourName(c, t) }}</option>
       </select>
     </label>
     <label class="field">
-      Переріз, мм²
+      {{ t('props.wire.crossSection') }}
       <select
         :value="found.wire.crossSection"
         :disabled="store.readOnly"
@@ -52,27 +53,24 @@ const to = computed(() =>
               updateWire(id, {
                 crossSection: (e.target as HTMLSelectElement).value as WireCrossSection,
               }),
-              'Змінити переріз проводу',
+              'editor.history.changeWireCrossSection',
             )
         "
       >
         <option v-for="s in WIRE_CROSS_SECTIONS" :key="s" :value="s">{{ s }}</option>
       </select>
     </label>
-    <p class="hint">
-      Зламів: {{ found.wire.bends.length }}. Перетягуйте білі маркери; подвійний клік по лінії додає
-      злам, по маркеру — видаляє.
-    </p>
+    <p class="hint">{{ t('props.wire.hint', { count: found.wire.bends.length }) }}</p>
     <div class="actions">
       <button
         type="button"
         :disabled="store.readOnly"
-        @click="ctx.run(resetRoute(id), 'Прокласти маршрут заново')"
+        @click="ctx.run(resetRoute(id), 'editor.history.resetRoute')"
       >
-        Прокласти маршрут заново
+        {{ t('props.wire.reroute') }}
       </button>
       <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
-        Видалити провід
+        {{ t('props.wire.delete') }}
       </button>
     </div>
   </section>

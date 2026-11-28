@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { BLOCK_GREY_HEX, terminalX, WIRE_COLOUR_HEX, type BlockBox } from '@/domain/geometry'
 import { colourName, type TerminalBlock } from '@/domain/panelContent'
+import { t } from '@/i18n'
 
 /** A terminal-row block: horizontal bar, contacts wired from the top or the bottom. */
 const props = defineProps<{
@@ -20,10 +21,15 @@ const xs = computed(() =>
   ),
 )
 const midY = computed(() => props.box.y + props.box.h / 2)
-const title = computed(
-  () =>
-    `Клемник у ряду${props.block.label ? ` ${props.block.label}` : ''}, клем: ${props.block.terminalCount}, колір: ${props.block.colour ? colourName(props.block.colour) : 'сірий'}`,
-)
+const title = computed(() => {
+  const params = {
+    count: props.block.terminalCount,
+    colour: props.block.colour ? colourName(props.block.colour, t) : t('domain.colour.grey'),
+  }
+  return props.block.label
+    ? t('editor.shape.rowBlockLabelled', { ...params, label: props.block.label })
+    : t('editor.shape.rowBlock', params)
+})
 </script>
 
 <template>

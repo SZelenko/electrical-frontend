@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { BLOCK_GREY_HEX, WIRE_COLOUR_HEX, type BusbarBox } from '@/domain/geometry'
+import { t } from '@/i18n'
 
 /**
  * A busbar: a thin bar lying against the input edge of the covered devices. `body` is drawn with the
@@ -16,8 +17,11 @@ const props = defineProps<{
 }>()
 
 const FEED_NAMES = ['L', 'N']
-const title = computed(
-  () => `Шина ${props.box.type === 'LN' ? 'L+N' : 'L'}, апаратів: ${props.box.coveredCount}`,
+const title = computed(() =>
+  t('editor.shape.busbar', {
+    type: props.box.type === 'LN' ? 'L+N' : 'L',
+    count: props.box.coveredCount,
+  }),
 )
 const fill = computed(() => (props.box.colour ? WIRE_COLOUR_HEX[props.box.colour] : BLOCK_GREY_HEX))
 const handleX = computed(() => props.box.x + props.box.w)
@@ -74,7 +78,7 @@ const handleY = computed(() => props.box.y + props.box.h / 2)
         :data-ep-a="box.id"
         :data-ep-b="i"
       >
-        <title>Вивід {{ FEED_NAMES[i] }} шини</title>
+        <title>{{ t('editor.shape.busbarFeed', { feed: FEED_NAMES[i] ?? '' }) }}</title>
       </circle>
     </template>
     <rect
@@ -89,7 +93,7 @@ const handleY = computed(() => props.box.y + props.box.h / 2)
       data-testid="busbar-edge"
       :data-id="box.id"
     >
-      <title>Потягніть, щоб змінити кількість апаратів шини</title>
+      <title>{{ t('editor.shape.busbarHandle') }}</title>
     </rect>
   </g>
 </template>

@@ -17,6 +17,7 @@ import {
   addAuto,
 } from '@/domain/__tests__/helpers'
 import { mountEditor, panelOf, pointer, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 /** C1 (id2, id3); R1 id10 24 modules: E1 id20 [0,2) 2 poles, E2 id21 [4,5) 1 pole, B1 id40 [8,10) 2 terminals; R2 id11 empty. */
 const base: PanelContent = content({
@@ -62,7 +63,7 @@ describe('PanelCanvas: dragging devices', () => {
     await svg.trigger('pointerup', pointer(wrapper, { x: from.x + 350, y: from.y }))
     expect(store.content?.rails[0]?.elements.find((e) => e.id === id(21))?.offsetModules).toBe(6)
     expect(store.dirty).toBe(true)
-    expect(store.undoLabel).toBe('Перемістити апарат')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити апарат')
     expect(historyLength(store)).toBe(1)
     expect(store.content).toBe(store.savedContent)
   })
@@ -161,7 +162,7 @@ describe('PanelCanvas: dragging devices', () => {
       .trigger('pointermove', pointer(wrapper, { x: from.x + 350, y: from.y }))
     await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x + 350, y: from.y }))
     expect(store.content?.rails[0]?.terminalBlocks[0]?.offsetModules).toBe(10)
-    expect(store.undoLabel).toBe('Перемістити клемний блок')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити клемний блок')
   })
 
   it('a pointercancel abandons the drag without committing', async () => {
@@ -215,7 +216,7 @@ describe('PanelCanvas: drawing a wire', () => {
     expect(wire.bends).toEqual([{ x: 288, y: 450 }]) // no clicks in between: exactly one elbow
     expect(store.selection).toEqual({ kind: 'wire', id: wire.id })
     expect(ctx.drawing.value).toBeNull()
-    expect(store.undoLabel).toBe('Додати провід')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати провід')
     expect(historyLength(store)).toBe(1)
     expect(wrapper.find('.hint').exists()).toBe(false)
   })
@@ -296,7 +297,7 @@ describe('PanelCanvas: drawing a wire', () => {
 
   it('undo while drawing cancels the pending wire', async () => {
     const { wrapper, ctx, store } = await mountEditor(base)
-    store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'x')
+    store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'editor.history.addRail')
     await wrapper
       .get(`[data-ep-kind=cableWire][data-ep-a="${id(2)}"]`)
       .trigger('pointerdown', { button: 0, pointerId: 1 })
@@ -335,7 +336,7 @@ describe('PanelCanvas: bend editing', () => {
       { x: 300, y: 900 }, // x locked by the cable wire terminal
       { x: 288, y: 900 },
     ])
-    expect(store.undoLabel).toBe('Перемістити злам')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити злам')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -358,7 +359,7 @@ describe('PanelCanvas: bend editing', () => {
     const bends = store.content!.wires[0]!.bends
     expect(bends).toHaveLength(3)
     expect(bends[1]).toEqual({ x: 294, y: 1250 })
-    expect(store.undoLabel).toBe('Додати злам')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати злам')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -376,7 +377,7 @@ describe('PanelCanvas: bend editing', () => {
       { x: 300, y: 1250 },
       { x: 288, y: 1250 },
     ])
-    expect(store.undoLabel).toBe('Видалити злам')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Видалити злам')
     const l = computeLayout(store.content!)
     const w = store.content!.wires[0]!
     const pts = [endpointPoint(l, w.start)!, ...w.bends, endpointPoint(l, w.end)!]
@@ -475,7 +476,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       { x: 700, y: 900 },
       { x: 288, y: 900 }, // the single elbow in front of the contact
     ])
-    expect(store.undoLabel).toBe('Додати провід')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати провід')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -590,7 +591,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       expect(store.content!.wires).toHaveLength(1)
       expect(store.content!.wires[0]!.bends).toEqual(aligned)
       expect(ctx.drawing.value).toBeNull()
-      expect(store.undoLabel).toBe('Додати провід')
+      expect(store.undoLabel && t(store.undoLabel)).toBe('Додати провід')
     })
   })
 
@@ -731,7 +732,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       await wrapper
         .get('[data-testid=wire]')
         .trigger('dblclick', pointer(wrapper, { x: 294, y: 1250 }))
-      expect(store.undoLabel).toBe('Додати злам')
+      expect(store.undoLabel && t(store.undoLabel)).toBe('Додати злам')
     })
   })
 
@@ -739,7 +740,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     it('a command applied elsewhere (the properties panel) clears it', async () => {
       const { wrapper, ctx, store } = await mountEditor(base)
       await start(wrapper)
-      store.apply(updateInputCable(id(1), { voltage: 400 }), 'Змінити')
+      store.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.changeVoltage')
       await nextTick()
       expect(ctx.drawing.value).toBeNull()
       expect(wrapper.find('.hint').exists()).toBe(false)
@@ -747,7 +748,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
 
     it('an undo of the store (history outside the canvas) clears it', async () => {
       const { wrapper, ctx, store } = await mountEditor(base)
-      store.apply(updateInputCable(id(1), { voltage: 400 }), 'Змінити')
+      store.apply(updateInputCable(id(1), { voltage: 400 }), 'editor.history.changeVoltage')
       await start(wrapper)
       store.undo()
       await nextTick()
@@ -814,7 +815,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
 
     it('Ctrl+Z and the toolbar button remove the last bend, then cancel; history stays untouched', async () => {
       const { wrapper, ctx, store } = await mountEditor(base, { toolbar: true })
-      store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'Раніше')
+      store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'editor.history.addWire')
       await nextTick() // let the content watcher settle before drawing starts
       const before = store.content
       await start(wrapper)
@@ -826,12 +827,12 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       expect(ctx.drawing.value?.bends).toEqual([])
       expect(ctx.drawing.value).not.toBeNull()
       expect(store.content).toBe(before)
-      expect(store.undoLabel).toBe('Раніше')
+      expect(store.undoLabel && t(store.undoLabel)).toBe('Додати провід')
       expect(store.canRedo).toBe(false)
       ctrl('z') // nothing left to step back: cancel
       expect(ctx.drawing.value).toBeNull()
       expect(store.content).toBe(before)
-      expect(store.undoLabel).toBe('Раніше')
+      expect(store.undoLabel && t(store.undoLabel)).toBe('Додати провід')
       ctrl('z') // not drawing any more: the real undo
       expect(store.content).not.toBe(before)
     })
@@ -846,7 +847,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
 
     it('redo (Ctrl+Y, Ctrl+Shift+Z, the toolbar button) is ignored while drawing', async () => {
       const { wrapper, ctx, store } = await mountEditor(base, { toolbar: true })
-      store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'Раніше')
+      store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'editor.history.addWire')
       store.undo()
       await nextTick()
       const before = store.content
@@ -863,7 +864,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
 
     it('redo works again once drawing is over (control)', async () => {
       const { wrapper, store } = await mountEditor(base, { toolbar: true })
-      store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'Раніше')
+      store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'editor.history.addWire')
       store.undo()
       await nextTick() // the toolbar button is enabled after the re-render
       await redoButton(wrapper).trigger('click')
@@ -893,7 +894,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
 
     it('with bends the title says "remove the last bend"; redo is disabled even with a redo stack', async () => {
       const { wrapper, store } = await mountEditor(base, { toolbar: true })
-      store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'Раніше')
+      store.apply(addAuto(31, cw(id(3)), pole(id(21), 0, 'input')), 'editor.history.addWire')
       store.undo()
       await nextTick()
       expect(store.canRedo).toBe(true)

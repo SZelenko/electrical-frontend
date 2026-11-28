@@ -5,6 +5,7 @@ import FormField from '@/components/FormField.vue'
 import { useAsyncForm } from '@/composables/useAsyncForm'
 import { useCountdown } from '@/composables/useCountdown'
 import { isCompleteCode, normalizeCode, RESEND_COOLDOWN_SECONDS } from '@/domain/authCode'
+import { t } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -41,19 +42,19 @@ async function resendCode() {
 
 <template>
   <main>
-    <h1>Підтвердження пошти</h1>
-    <p>Ми надіслали 8-символьний код на вашу пошту.</p>
+    <h1>{{ t('auth.verifyEmail.title') }}</h1>
+    <p>{{ t('auth.verifyEmail.intro') }}</p>
     <form @submit.prevent="submit">
       <FormField
         v-model="email"
-        label="Електронна пошта"
+        :label="t('common.email')"
         type="email"
         autocomplete="email"
         :errors="verify.fieldErrors.value.email"
       />
       <FormField
         v-model="code"
-        label="Код підтвердження"
+        :label="t('auth.verifyEmail.code')"
         autocomplete="one-time-code"
         :errors="verify.fieldErrors.value.code"
         :normalize="normalizeCode"
@@ -61,7 +62,7 @@ async function resendCode() {
       <p v-if="verify.message.value" class="form-error" role="alert">{{ verify.message.value }}</p>
       <div class="actions">
         <button type="submit" :disabled="verify.pending.value || !isCompleteCode(code)">
-          Підтвердити
+          {{ t('common.confirm') }}
         </button>
         <button
           type="button"
@@ -70,13 +71,13 @@ async function resendCode() {
         >
           {{
             countdown.active.value
-              ? `Надіслати код ще раз (${countdown.remaining.value} с)`
-              : 'Надіслати код ще раз'
+              ? t('auth.resendIn', { seconds: countdown.remaining.value })
+              : t('auth.resend')
           }}
         </button>
       </div>
       <p v-if="resend.message.value" class="form-error" role="alert">{{ resend.message.value }}</p>
-      <p v-else-if="resent" class="form-info" role="status">Новий код надіслано.</p>
+      <p v-else-if="resent" class="form-info" role="status">{{ t('auth.resent') }}</p>
     </form>
   </main>
 </template>

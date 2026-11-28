@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { t } from '@/i18n'
 import { describeError } from '../errorMessages'
 import { ApiError, type ApiErrorType } from '../problem'
 
@@ -25,23 +26,23 @@ const TYPES: ApiErrorType[] = [
 
 describe('describeError', () => {
   it.each(TYPES)('returns a non-empty message for %s', (type) => {
-    expect(describeError(make(type)).length).toBeGreaterThan(0)
+    expect(describeError(make(type), t).length).toBeGreaterThan(0)
   })
 
   it('gives each type a distinct message (rate_limited without seconds)', () => {
-    const messages = TYPES.map((t) => describeError(make(t)))
+    const messages = TYPES.map((ty) => describeError(make(ty), t))
     expect(new Set(messages).size).toBe(TYPES.length)
   })
 
   it('mentions the wait time for rate_limited with seconds', () => {
-    expect(describeError(make('rate_limited', 42))).toContain('42')
+    expect(describeError(make('rate_limited', 42), t)).toContain('42')
   })
 
   it('omits a number for rate_limited without seconds', () => {
-    expect(describeError(make('rate_limited'))).not.toMatch(/\d/)
+    expect(describeError(make('rate_limited'), t)).not.toMatch(/\d/)
   })
 
   it('includes 0 seconds when the header says 0', () => {
-    expect(describeError(make('rate_limited', 0))).toContain('0')
+    expect(describeError(make('rate_limited', 0), t)).toContain('0')
   })
 })

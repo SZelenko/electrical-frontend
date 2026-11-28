@@ -9,6 +9,7 @@ import {
   type ElementBox,
 } from '@/domain/geometry'
 import type { PanelElement, TerminalBlock } from '@/domain/panelContent'
+import { t } from '@/i18n'
 import ToggleZone from './shapes/ToggleZone.vue'
 import { toggleZone } from './shapes/toggleZones'
 
@@ -24,7 +25,7 @@ const props = defineProps<{
 }>()
 
 const zone = computed(() =>
-  props.element ? toggleZone(props.element, props.box as ElementBox) : null,
+  props.element ? toggleZone(props.element, props.box as ElementBox, t) : null,
 )
 
 interface Spot {
@@ -36,8 +37,11 @@ interface Spot {
   attrs: Record<string, string | number>
 }
 
-const ATS_INPUT_NAMES = ['А L', 'А N', 'Б L', 'Б N']
 const ATS_OUTPUT_NAMES = ['L', 'N']
+
+/** "A L", "A N", "B L", "B N" (source letter in the current language). */
+const atsInputName = (i: number) =>
+  `${t(i < 2 ? 'domain.ats.sourceA' : 'domain.ats.sourceB')} ${i % 2 === 0 ? 'L' : 'N'}`
 
 const spots = computed<Spot[]>(() => {
   const { box, element, block } = props
@@ -59,8 +63,10 @@ const spots = computed<Spot[]>(() => {
           // never wider than half the pitch, so neighbouring poles stay pickable
           r: Math.min(isAts ? 34 : 38, Math.floor(b.w / count / 2)),
           title: isAts
-            ? `${side === 'input' ? 'Вхід' : 'Вихід'} ${(side === 'input' ? ATS_INPUT_NAMES : ATS_OUTPUT_NAMES)[i]}`
-            : `Полюс ${i + 1} (${side === 'input' ? 'вхід' : 'вихід'})`,
+            ? t(side === 'input' ? 'editor.contact.atsInput' : 'editor.contact.atsOutput', {
+                name: side === 'input' ? atsInputName(i) : (ATS_OUTPUT_NAMES[i] ?? ''),
+              })
+            : t('editor.contact.pole', { n: i + 1, side: t(`domain.side.${side}`) }),
           attrs: {
             'data-ep-kind': 'pole',
             'data-ep-a': element.id,
@@ -84,7 +90,7 @@ const spots = computed<Spot[]>(() => {
               : b.x + MODULE - VBLOCK_INSET,
           y: row ? (side === 'top' ? b.y : b.y + b.h) : railContactY(b, i),
           r: row ? 38 : 30,
-          title: `Клема ${i + 1}`,
+          title: t('editor.contact.terminal', { n: i + 1 }),
           attrs: {
             'data-ep-kind': 'terminal',
             'data-ep-a': block.id,

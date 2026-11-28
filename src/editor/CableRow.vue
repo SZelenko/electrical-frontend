@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { t } from '@/i18n'
 import { fitText } from './shapes/fitText'
 import {
   CABLE_LABEL_INSET,
@@ -91,7 +92,11 @@ const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) 
       text-anchor="middle"
       pointer-events="none"
     >
-      {{ box.kind === 'input' ? 'Вх' : 'Вих' }} {{ box.index + 1 }}
+      {{
+        box.kind === 'input'
+          ? t('editor.canvas.inputCaption', { n: box.index + 1 })
+          : t('editor.canvas.outputCaption', { n: box.index + 1 })
+      }}
     </text>
     <text
       v-if="layer === 'body' && box.label"

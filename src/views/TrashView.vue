@@ -4,10 +4,13 @@ import { RouterLink } from 'vue-router'
 import PanelNameForm from '@/components/PanelNameForm.vue'
 import PanelPagination from '@/components/PanelPagination.vue'
 import { useAsyncForm } from '@/composables/useAsyncForm'
+import { useLocale } from '@/composables/useLocale'
 import { formatDateTime } from '@/domain/panelContent'
+import { t } from '@/i18n'
 import { usePanelsStore } from '@/stores/panels'
 
 const panels = usePanelsStore()
+const { locale } = useLocale()
 const { pending, error, message, run } = useAsyncForm()
 const loaded = ref(false)
 const renamingId = ref<string | null>(null)
@@ -34,33 +37,35 @@ function restore(id: string) {
 }
 
 function removePermanently(id: string, name: string) {
-  if (!window.confirm(`Видалити щит «${name}» назавжди? Цю дію не можна скасувати.`)) return
+  if (!window.confirm(t('panels.trash.deleteForeverConfirm', { name }))) return
   return afterMutation(() => panels.deletePermanently(id))
 }
 </script>
 
 <template>
   <main class="wide">
-    <h1>Кошик</h1>
-    <nav class="actions" aria-label="Навігація">
-      <RouterLink :to="{ name: 'home' }">Мої щити</RouterLink>
+    <h1>{{ t('panels.trash.title') }}</h1>
+    <nav class="actions" :aria-label="t('common.navigation')">
+      <RouterLink :to="{ name: 'home' }">{{ t('panels.myPanels') }}</RouterLink>
     </nav>
 
     <p v-if="message" class="form-error" role="alert">
       {{ message }}
       <template v-if="error?.type === 'panel_name_conflict'">
-        Перейменуйте щит у кошику й відновіть його знову.</template
+        {{ t('panels.trash.renameHint') }}</template
       >
     </p>
 
-    <p v-if="!loaded && pending">Завантаження…</p>
-    <p v-else-if="loaded && panels.trashItems.length === 0 && !message">Кошик порожній.</p>
+    <p v-if="!loaded && pending">{{ t('common.loading') }}</p>
+    <p v-else-if="loaded && panels.trashItems.length === 0 && !message">
+      {{ t('panels.trash.empty') }}
+    </p>
     <ul v-else class="panel-list">
       <li v-for="panel in panels.trashItems" :key="panel.id">
         <PanelNameForm
           v-if="renamingId === panel.id"
-          label="Нова назва"
-          submit-label="Зберегти"
+          :label="t('panels.newName')"
+          :submit-label="t('common.save')"
           :initial="panel.name"
           :action="(name: string) => panels.rename(panel.id, name)"
           cancellable
@@ -69,16 +74,22 @@ function removePermanently(id: string, name: string) {
         />
         <template v-else>
           <strong>{{ panel.name }}</strong>
-          <small v-if="panel.deletedAt">Видалено: {{ formatDateTime(panel.deletedAt) }}</small>
+          <small v-if="panel.deletedAt">{{
+            t('panels.trash.deleted', { date: formatDateTime(panel.deletedAt, locale) })
+          }}</small>
           <span class="actions">
-            <button type="button" :disabled="pending" @click="restore(panel.id)">Відновити</button>
-            <button type="button" @click="renamingId = panel.id">Перейменувати</button>
+            <button type="button" :disabled="pending" @click="restore(panel.id)">
+              {{ t('panels.trash.restore') }}
+            </button>
+            <button type="button" @click="renamingId = panel.id">
+              {{ t('common.rename') }}
+            </button>
             <button
               type="button"
               :disabled="pending"
               @click="removePermanently(panel.id, panel.name)"
             >
-              Видалити назавжди
+              {{ t('panels.trash.deleteForever') }}
             </button>
           </span>
         </template>

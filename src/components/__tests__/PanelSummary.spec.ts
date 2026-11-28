@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { panelContentJson } from '@/test/http'
 import type { PanelContent } from '@/domain/panelContent'
+import { applyLocale } from '@/i18n'
 import PanelSummary from '../PanelSummary.vue'
 
 const content = () => panelContentJson() as PanelContent
@@ -81,8 +82,8 @@ describe('PanelSummary wires', () => {
 
   it('describes a wire as "№N colour, section мм², from → to" with readable endpoints', () => {
     expect(lines()).toEqual([
-      '№1 коричневий, 2.5 мм², вхідний кабель 1, провід 1 (коричневий) → апарат QF1, полюс 1 (вхід)',
-      '№2 синій, 1.5 мм², клемний блок №1, клема 2 (ліворуч) → вихідний кабель 1, провід 1 (чорний)',
+      '№1 коричневий, 2,5 мм², вхідний кабель 1, провід 1 (коричневий) → апарат QF1, полюс 1 (вхід)',
+      '№2 синій, 1,5 мм², клемний блок №1, клема 2 (ліворуч) → вихідний кабель 1, провід 1 (чорний)',
     ])
   })
 
@@ -178,5 +179,25 @@ describe('PanelSummary cable sides and terminal rows', () => {
       { id: 'b', offsetModules: 0, widthModules: 1, terminalCount: 2, colour: null, label: '' },
     ]
     expect(section(c, 'sum-row-bottom').text()).toContain('Клемник: 1 мод., клем: 2')
+  })
+})
+
+describe('PanelSummary number formatting by locale', () => {
+  const withCrossSection = () => {
+    const c = content()
+    c.inputCables[0]!.crossSection = 2.5
+    return c
+  }
+
+  it('shows the rating with Ukrainian units and a decimal comma', () => {
+    expect(render(withCrossSection()).text()).toContain('230 В / 50 Гц / 2,5 мм²')
+  })
+
+  it('shows the rating with Latin units and a decimal point after the switch to English', async () => {
+    const w = render(withCrossSection())
+    applyLocale('en')
+    await w.vm.$nextTick()
+    expect(w.text()).toContain('230 V / 50 Hz / 2.5 mm²')
+    expect(w.text()).not.toContain('2,5')
   })
 })

@@ -9,6 +9,7 @@ import {
   type BlockBox,
 } from '@/domain/geometry'
 import { colourName, type TerminalBlock } from '@/domain/panelContent'
+import { t } from '@/i18n'
 
 /** A rail terminal block: one module wide, contacts in a column, wired from the left or the right. */
 const props = defineProps<{
@@ -27,10 +28,15 @@ const ys = computed(() =>
 )
 const first = computed(() => ys.value[0] ?? props.box.y)
 const last = computed(() => ys.value[ys.value.length - 1] ?? props.box.y)
-const title = computed(
-  () =>
-    `Клемний блок${props.block.label ? ` ${props.block.label}` : ''}, клем: ${props.block.terminalCount}, колір: ${props.block.colour ? colourName(props.block.colour) : 'сірий'}`,
-)
+const title = computed(() => {
+  const params = {
+    count: props.block.terminalCount,
+    colour: props.block.colour ? colourName(props.block.colour, t) : t('domain.colour.grey'),
+  }
+  return props.block.label
+    ? t('editor.shape.railBlockLabelled', { ...params, label: props.block.label })
+    : t('editor.shape.railBlock', params)
+})
 </script>
 
 <template>

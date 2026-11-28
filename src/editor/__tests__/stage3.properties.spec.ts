@@ -16,6 +16,7 @@ import {
   term,
 } from '@/domain/__tests__/helpers'
 import { mountEditor, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 const base: PanelContent = content({
   inputCables: [inputCable(1, [2, 3], ['brown', 'blue'])],
@@ -89,14 +90,14 @@ describe('ATS properties', () => {
     const { wrapper, store } = await open(c, 'element', id(21))
     await section(wrapper, S).get('select').setValue(value)
     expect(store.content?.rails[0]?.elements[0]).toMatchObject({ state: expected })
-    expect(store.undoLabel).toBe('Змінити стан АВР')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити стан АВР')
   })
 
   it('the swap checkbox turns the sides', async () => {
     const { wrapper, store } = await open(base, 'element', id(21))
     await section(wrapper, S).get('input[type=checkbox]').setValue(true)
     expect(store.content?.rails[0]?.elements[0]).toMatchObject({ sidesSwapped: true })
-    expect(store.undoLabel).toBe('Поміняти входи і виходи')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Поміняти входи і виходи')
   })
 
   it('label and marking commit on blur', async () => {
@@ -184,7 +185,7 @@ describe('terminal block properties', () => {
     const select = section(wrapper, 'Властивості клемника в ряду').get('select')
     await select.setValue('red')
     expect(store.content?.terminalRow[0]?.colour).toBe('red')
-    expect(store.undoLabel).toBe('Змінити колір клемника')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити колір клемника')
     await select.setValue('')
     expect(store.content?.terminalRow[0]?.colour).toBeNull()
   })
@@ -286,7 +287,7 @@ describe('toolbar: ATS and terminal-row blocks', () => {
     expect(added).toMatchObject({ kind: 'ats', widthModules: 2, state: 'A', on: null, poles: null })
     expect(added.offsetModules).toBe(2)
     expect(store.selection).toEqual({ kind: 'element', id: added.id })
-    expect(store.undoLabel).toBe('Додати АВР')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати АВР')
   })
 
   it('"Додати АВР" is disabled without a rail', async () => {
@@ -316,7 +317,7 @@ describe('toolbar: ATS and terminal-row blocks', () => {
         label: '',
       })
       expect(store.selection).toEqual({ kind: 'block', id: added.id })
-      expect(store.undoLabel).toBe(`Додати клемник у ${word} ряд`)
+      expect(store.undoLabel && t(store.undoLabel)).toBe(`Додати клемник у ${word} ряд`)
     },
   )
 

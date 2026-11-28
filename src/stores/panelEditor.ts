@@ -8,6 +8,8 @@ import type { Command, CommandOutcome } from '@/domain/commands'
 import { computeLayout, type Layout } from '@/domain/geometry'
 import type { PanelContent, ShortCircuit } from '@/domain/panelContent'
 import { checkShortCircuits, shortCircuitWireIds } from '@/domain/shortCircuit'
+import type { MessageKey } from '@/domain/translate'
+import type { ViolationInfo } from '@/domain/violation'
 import { resolveViolationItem, validateContent, type ItemRef } from '@/domain/validateContent'
 import { useAuthStore } from '@/stores/auth'
 
@@ -15,7 +17,8 @@ import { useAuthStore } from '@/stores/auth'
 export const HISTORY_LIMIT = 200
 
 export interface HistoryEntry {
-  label: string
+  /** Message key of the action's name; translated where it is shown, so it follows the language. */
+  label: MessageKey
   before: PanelContent
   after: PanelContent
 }
@@ -23,7 +26,8 @@ export interface HistoryEntry {
 /** A 422 violation resolved against the payload that was sent (E9). */
 export interface ResolvedViolation {
   propertyPath: string
-  messages: string[]
+  /** The same violations with code and parameters, for translation (`violationText`). */
+  details: ViolationInfo[]
   item: ItemRef | null
 }
 
@@ -77,13 +81,19 @@ function classify(error: unknown, sent: PanelContent): SaveError {
   if (error.status === 401) return { kind: 'auth' }
   if (error.type === 'network') return { kind: 'network' }
   if (error.status === 422) {
-    const violations = Object.entries(error.violations).map(([propertyPath, messages]) => ({
-      propertyPath,
-      messages,
-      item: resolveViolationItem(sent, propertyPath),
-    }))
+    const violations: ResolvedViolation[] = Object.entries(error.violationDetails).map(
+      ([propertyPath, details]) => ({
+        propertyPath,
+        details,
+        item: resolveViolationItem(sent, propertyPath),
+      }),
+    )
     if (violations.length === 0) {
-      violations.push({ propertyPath: '', messages: [error.message], item: null })
+      violations.push({
+        propertyPath: '',
+        details: [{ code: '', message: error.message }],
+        item: null,
+      })
     }
     return { kind: 'validation', violations }
   }
@@ -254,7 +264,7 @@ export const usePanelEditorStore = defineStore('panelEditor', () => {
   }
 
   /** Runs a command; one history entry per applied command. Rejected or no-op commands record nothing. */
-  function apply(command: Command, label: string): CommandOutcome {
+  function apply(command: Command, label: MessageKey): CommandOutcome {
     const before = content.value
     if (before === null || readOnly.value) return { ok: false, reason: 'readOnly' }
     const outcome = command(before)
@@ -305,11 +315,12 @@ export const usePanelEditorStore = defineStore('panelEditor', () => {
       const grouped = new Map<string, ResolvedViolation>()
       for (const v of local) {
         const existing = grouped.get(v.propertyPath)
-        if (existing) existing.messages.push(v.message)
-        else {
+        if (existing) {
+          existing.details.push(v)
+        } else {
           grouped.set(v.propertyPath, {
             propertyPath: v.propertyPath,
-            messages: [v.message],
+            details: [v],
             item: resolveViolationItem(snapshot, v.propertyPath),
           })
         }

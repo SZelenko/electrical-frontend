@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { t } from '@/i18n'
 import { usePanelEditorStore } from '@/stores/panelEditor'
 import AtsProps from './properties/AtsProps.vue'
 import BlockProps from './properties/BlockProps.vue'
@@ -36,7 +37,7 @@ const elementKind = computed(() =>
 </script>
 
 <template>
-  <aside class="properties" aria-label="Властивості вибраного">
+  <aside class="properties" :aria-label="t('props.ariaLabel')">
     <RailProps v-if="target?.kind === 'rail'" :key="target.id" :id="target.id" />
     <AtsProps
       v-else-if="target?.kind === 'element' && elementKind === 'ats'"

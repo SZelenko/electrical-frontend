@@ -6,6 +6,7 @@ import { useAsyncForm } from '@/composables/useAsyncForm'
 import { useCountdown } from '@/composables/useCountdown'
 import { isCompleteCode, normalizeCode, RESEND_COOLDOWN_SECONDS } from '@/domain/authCode'
 import { safeRedirect } from '@/router/redirect'
+import { t } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -38,23 +39,25 @@ async function resendCode() {
 
 <template>
   <main>
-    <h1>Двофакторна автентифікація</h1>
-    <p>Введіть 8-символьний код, надісланий на вашу пошту.</p>
+    <h1>{{ t('auth.twoFactor.title') }}</h1>
+    <p>{{ t('auth.twoFactor.intro') }}</p>
     <form @submit.prevent="submit">
       <FormField
         v-model="code"
-        label="Код"
+        :label="t('auth.twoFactor.code')"
         autocomplete="one-time-code"
         :errors="verify.fieldErrors.value.code"
         :normalize="normalizeCode"
       />
       <p v-if="verify.message.value" class="form-error" role="alert">{{ verify.message.value }}</p>
       <div v-if="verify.error.value?.type === 'two_factor_restart'" class="actions">
-        <RouterLink :to="{ name: 'login', query: route.query }">Повернутися до входу</RouterLink>
+        <RouterLink :to="{ name: 'login', query: route.query }">{{
+          t('auth.twoFactor.backToLogin')
+        }}</RouterLink>
       </div>
       <div v-else class="actions">
         <button type="submit" :disabled="verify.pending.value || !isCompleteCode(code)">
-          Підтвердити
+          {{ t('common.confirm') }}
         </button>
         <button
           type="button"
@@ -63,14 +66,16 @@ async function resendCode() {
         >
           {{
             countdown.active.value
-              ? `Надіслати код ще раз (${countdown.remaining.value} с)`
-              : 'Надіслати код ще раз'
+              ? t('auth.resendIn', { seconds: countdown.remaining.value })
+              : t('auth.resend')
           }}
         </button>
-        <RouterLink :to="{ name: 'login', query: route.query }">Назад до входу</RouterLink>
+        <RouterLink :to="{ name: 'login', query: route.query }">{{
+          t('auth.twoFactor.back')
+        }}</RouterLink>
       </div>
       <p v-if="resend.message.value" class="form-error" role="alert">{{ resend.message.value }}</p>
-      <p v-else-if="resent" class="form-info" role="status">Новий код надіслано.</p>
+      <p v-else-if="resent" class="form-info" role="status">{{ t('auth.resent') }}</p>
     </form>
   </main>
 </template>

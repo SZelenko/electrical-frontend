@@ -3,6 +3,7 @@
  * paths (`content.rails[2].elements[0].widthModules`) and the offending item id where there is one.
  */
 import { busbarIssues, railItems } from './busbars'
+import type { ViolationParameters } from './violation'
 import {
   ATS_INPUTS,
   ATS_MIN_WIDTH,
@@ -10,7 +11,7 @@ import {
   BLOCK_COLOURS,
   CABLE_CROSS_SECTION_RULE,
   DEVICE_STYLES,
-  checkDecimal,
+  decimalViolation,
   codePointLength,
   FREQUENCY_RULE,
   isValidId,
@@ -51,6 +52,10 @@ import {
 
 export interface Violation {
   propertyPath: string
+  /** Stable code and parameters, identical to the backend's (`panel-domain`, "Violation codes"). */
+  code: string
+  parameters: ViolationParameters
+  /** English message, as the backend sends it. */
   message: string
   id: string | null
 }
@@ -68,26 +73,37 @@ class Run {
   readonly list: Violation[] = []
   private readonly claimed = new Set<string>()
 
-  add(propertyPath: string, message: string, id: string | null = null): void {
-    if (this.list.length < MAX_VIOLATIONS) this.list.push({ propertyPath, message, id })
+  add(
+    propertyPath: string,
+    code: string,
+    parameters: ViolationParameters,
+    message: string,
+    id: string | null = null,
+  ): void {
+    if (this.list.length < MAX_VIOLATIONS) {
+      this.list.push({ propertyPath, code, parameters, message, id })
+    }
   }
 
   claimId(id: string, path: string): void {
-    if (!isValidId(id)) this.add(path, 'Must be a lowercase RFC 4122 UUID.')
-    else if (this.claimed.has(id)) this.add(path, 'Duplicate id within the payload.', id)
-    else this.claimed.add(id)
+    if (!isValidId(id)) this.add(path, 'id.invalid', {}, 'Must be a lowercase RFC 4122 UUID.')
+    else if (this.claimed.has(id)) {
+      this.add(path, 'id.duplicate', {}, 'Duplicate id within the payload.', id)
+    } else this.claimed.add(id)
   }
 
   intRange(value: number, min: number, max: number, path: string, id: string | null): boolean {
     if (!Number.isInteger(value) || value < min || value > max) {
-      this.add(path, `Must be between ${min} and ${max}.`, id)
+      this.add(path, 'value.out_of_range', { min, max }, `Must be between ${min} and ${max}.`, id)
       return false
     }
     return true
   }
 
   maxLength(value: string, max: number, path: string, id: string | null): void {
-    if (codePointLength(value) > max) this.add(path, `Must be at most ${max} characters long.`, id)
+    if (codePointLength(value) > max) {
+      this.add(path, 'value.too_long', { max }, `Must be at most ${max} characters long.`, id)
+    }
   }
 }
 
@@ -111,13 +127,28 @@ export function validateContent(content: PanelContent): Violation[] {
 
   // cables
   if (content.inputCables.length < 1)
-    run.add('content.inputCables', 'At least one input cable is required.')
+    run.add(
+      'content.inputCables',
+      'input_cables.required',
+      {},
+      'At least one input cable is required.',
+    )
   else if (content.inputCables.length > MAX_INPUT_CABLES) {
-    run.add('content.inputCables', `At most ${MAX_INPUT_CABLES} input cables are allowed.`)
+    run.add(
+      'content.inputCables',
+      'input_cables.too_many',
+      { max: MAX_INPUT_CABLES },
+      `At most ${MAX_INPUT_CABLES} input cables are allowed.`,
+    )
   }
   const wires = (list: CableWire[], path: string) => {
     if (list.length < 1 || list.length > MAX_CABLE_WIRES) {
-      run.add(`${path}.wires`, `A cable has 1 to ${MAX_CABLE_WIRES} wires.`)
+      run.add(
+        `${path}.wires`,
+        'cable.wire_count',
+        { min: 1, max: MAX_CABLE_WIRES },
+        `A cable has 1 to ${MAX_CABLE_WIRES} wires.`,
+      )
     }
     list.forEach((w, j) => {
       run.claimId(w.id, `${path}.wires[${j}].id`)
@@ -133,13 +164,26 @@ export function validateContent(content: PanelContent): Violation[] {
       [cable.frequency, FREQUENCY_RULE, 'frequency'],
       [cable.crossSection, CABLE_CROSS_SECTION_RULE, 'crossSection'],
     ] as const) {
-      const message = checkDecimal(value, rule)
-      if (message) run.add(`${path}.${field}`, message, cable.id)
+      const violation = decimalViolation(value, rule)
+      if (violation) {
+        run.add(
+          `${path}.${field}`,
+          violation.code,
+          violation.parameters,
+          violation.message,
+          cable.id,
+        )
+      }
     }
     wires(cable.wires, path)
   })
   if (content.outputCables.length > MAX_OUTPUT_CABLES) {
-    run.add('content.outputCables', `At most ${MAX_OUTPUT_CABLES} output cables are allowed.`)
+    run.add(
+      'content.outputCables',
+      'output_cables.too_many',
+      { max: MAX_OUTPUT_CABLES },
+      `At most ${MAX_OUTPUT_CABLES} output cables are allowed.`,
+    )
   }
   content.outputCables.forEach((cable, i) => {
     const path = `content.outputCables[${i}]`
@@ -151,7 +195,12 @@ export function validateContent(content: PanelContent): Violation[] {
 
   for (const field of ['inputCableSide', 'outputCableSide'] as const) {
     if (!CABLE_SIDES.includes(content[field])) {
-      run.add(`content.${field}`, `Must be one of ${CABLE_SIDES.join(', ')}.`)
+      run.add(
+        `content.${field}`,
+        'value.invalid_type',
+        {},
+        `Must be one of ${CABLE_SIDES.join(', ')}.`,
+      )
     }
   }
 
@@ -165,7 +214,13 @@ export function validateContent(content: PanelContent): Violation[] {
     run.claimId(b.id, `${itemPath}.id`)
     run.maxLength(b.label, MAX_LABEL_LENGTH, `${itemPath}.label`, b.id)
     if (!BLOCK_COLOURS.includes(b.colour)) {
-      run.add(`${itemPath}.colour`, 'Must be one of the wire colours or null.', b.id)
+      run.add(
+        `${itemPath}.colour`,
+        'value.invalid_type',
+        {},
+        'Must be one of the wire colours or null.',
+        b.id,
+      )
     }
     const max = row ? MAX_ROW_BLOCK_TERMINALS : MAX_RAIL_BLOCK_TERMINALS
     run.intRange(b.terminalCount, 1, max, `${itemPath}.terminalCount`, b.id)
@@ -183,16 +238,18 @@ export function validateContent(content: PanelContent): Violation[] {
     let valid = true
     const before = run.list.length
     if (offset < 0) {
-      run.add(`${itemPath}.offsetModules`, 'Must not be negative.', id)
+      run.add(`${itemPath}.offsetModules`, 'value.negative', {}, 'Must not be negative.', id)
       valid = false
     }
     if (width < 1) {
-      run.add(`${itemPath}.widthModules`, 'Must be at least 1.', id)
+      run.add(`${itemPath}.widthModules`, 'value.too_small', { min: 1 }, 'Must be at least 1.', id)
       valid = false
     }
     if (valid && limit !== null && offset + width > limit) {
       run.add(
         `${itemPath}.offsetModules`,
+        zone === 'rail' ? 'rail.does_not_fit' : 'row.does_not_fit',
+        zone === 'rail' ? {} : { row: zone },
         zone === 'rail'
           ? 'Does not fit within the rail width.'
           : `Does not fit within the ${zone} terminal row (rail width).`,
@@ -210,6 +267,8 @@ export function validateContent(content: PanelContent): Violation[] {
         spanBad++
         run.add(
           `${s.path}.offsetModules`,
+          zone === 'rail' ? 'rail.overlap' : 'row.overlap',
+          zone === 'rail' ? {} : { row: zone },
           zone === 'rail'
             ? 'Overlaps another item on the rail.'
             : `Overlaps another block in the ${zone} terminal row.`,
@@ -226,6 +285,8 @@ export function validateContent(content: PanelContent): Violation[] {
     if (content[key].length > MAX_ROW_BLOCKS) {
       run.add(
         `content.${key}`,
+        'row.too_many_blocks',
+        { max: MAX_ROW_BLOCKS, row },
         `At most ${MAX_ROW_BLOCKS} terminal blocks are allowed in the ${row} terminal row.`,
       )
     }
@@ -241,6 +302,8 @@ export function validateContent(content: PanelContent): Violation[] {
       ) {
         run.add(
           `${itemPath}.widthModules`,
+          'row.block_width_mismatch',
+          { expected: rowBlockWidth(b.terminalCount) },
           `Must be ${rowBlockWidth(b.terminalCount)} (half of the terminal count, rounded up).`,
           b.id,
         )
@@ -252,12 +315,19 @@ export function validateContent(content: PanelContent): Violation[] {
 
   // rails
   if (content.rails.length > MAX_RAILS)
-    run.add('content.rails', `At most ${MAX_RAILS} rails are allowed.`)
+    run.add(
+      'content.rails',
+      'rails.too_many',
+      { max: MAX_RAILS },
+      `At most ${MAX_RAILS} rails are allowed.`,
+    )
   content.rails.forEach((rail, i) => {
     const path = `content.rails[${i}]`
     run.claimId(rail.id, `${path}.id`)
-    const spacing = checkDecimal(rail.spacingMm, SPACING_RULE)
-    if (spacing) run.add(`${path}.spacingMm`, spacing, rail.id)
+    const spacing = decimalViolation(rail.spacingMm, SPACING_RULE)
+    if (spacing) {
+      run.add(`${path}.spacingMm`, spacing.code, spacing.parameters, spacing.message, rail.id)
+    }
 
     const spans: Span[] = []
     const spanBadBefore = spanBad
@@ -279,12 +349,20 @@ export function validateContent(content: PanelContent): Violation[] {
       run.maxLength(el.label, MAX_LABEL_LENGTH, `${itemPath}.label`, el.id)
       run.maxLength(el.marking, MAX_MARKING_LENGTH, `${itemPath}.marking`, el.id)
       if (el.kind === 'ats') {
-        if (sent.style !== null) run.add(`${itemPath}.style`, 'Must be null for an ATS.', el.id)
-        if (sent.on !== null) run.add(`${itemPath}.on`, 'An ATS has no on/off flag.', el.id)
-        if (sent.poles !== null) run.add(`${itemPath}.poles`, 'An ATS has no poles.', el.id)
+        if (sent.style !== null) {
+          run.add(`${itemPath}.style`, 'ats.style_forbidden', {}, 'Must be null for an ATS.', el.id)
+        }
+        if (sent.on !== null) {
+          run.add(`${itemPath}.on`, 'ats.on_forbidden', {}, 'An ATS has no on/off flag.', el.id)
+        }
+        if (sent.poles !== null) {
+          run.add(`${itemPath}.poles`, 'ats.poles_forbidden', {}, 'An ATS has no poles.', el.id)
+        }
         if (el.widthModules >= 1 && el.widthModules < ATS_MIN_WIDTH) {
           run.add(
             `${itemPath}.widthModules`,
+            'ats.too_narrow',
+            { min: ATS_MIN_WIDTH },
             `An ATS is at least ${ATS_MIN_WIDTH} modules wide.`,
             el.id,
           )
@@ -292,9 +370,17 @@ export function validateContent(content: PanelContent): Violation[] {
         poleCounts.set(el.id, { inputs: ATS_INPUTS, outputs: ATS_OUTPUTS })
       } else {
         if (!DEVICE_STYLES.includes(el.style)) {
-          run.add(`${itemPath}.style`, 'Required for a device.', el.id)
+          run.add(`${itemPath}.style`, 'device.style_required', {}, 'Required for a device.', el.id)
         }
-        if (sent.state !== null) run.add(`${itemPath}.state`, 'Only an ATS has a state.', el.id)
+        if (sent.state !== null) {
+          run.add(
+            `${itemPath}.state`,
+            'device.state_forbidden',
+            {},
+            'Only an ATS has a state.',
+            el.id,
+          )
+        }
         const maxPoles = Math.max(
           1,
           Math.min(el.widthModules, MAX_RAIL_WIDTH) * MAX_POLES_PER_MODULE,
@@ -302,6 +388,8 @@ export function validateContent(content: PanelContent): Violation[] {
         if (el.poles.length < 1 || el.poles.length > maxPoles) {
           run.add(
             `${itemPath}.poles`,
+            'device.pole_count',
+            { max: maxPoles, perModule: MAX_POLES_PER_MODULE },
             `An element has 1 to ${maxPoles} poles (at most ${MAX_POLES_PER_MODULE} per module of width).`,
             el.id,
           )
@@ -316,6 +404,8 @@ export function validateContent(content: PanelContent): Violation[] {
       if (b.widthModules > 1) {
         run.add(
           `${itemPath}.widthModules`,
+          'rail_block.width',
+          {},
           'A terminal block on a rail is exactly 1 module wide.',
           b.id,
         )
@@ -328,7 +418,12 @@ export function validateContent(content: PanelContent): Violation[] {
 
     // busbars
     if (rail.busbars.length > MAX_BUSBARS_PER_RAIL) {
-      run.add(`${path}.busbars`, `At most ${MAX_BUSBARS_PER_RAIL} busbars per rail are allowed.`)
+      run.add(
+        `${path}.busbars`,
+        'busbars.too_many',
+        { max: MAX_BUSBARS_PER_RAIL },
+        `At most ${MAX_BUSBARS_PER_RAIL} busbars per rail are allowed.`,
+      )
     }
     const items = railSane ? railItems(rail) : null
     const covered = new Set<string>()
@@ -337,11 +432,19 @@ export function validateContent(content: PanelContent): Violation[] {
       run.claimId(busbar.id, `${busbarPath}.id`)
       busbarFeeds.set(busbar.id, busbar.type === 'LN' ? 2 : 1)
       if (!BLOCK_COLOURS.includes(busbar.colour)) {
-        run.add(`${busbarPath}.colour`, 'Must be one of the wire colours or null.', busbar.id)
+        run.add(
+          `${busbarPath}.colour`,
+          'value.invalid_type',
+          {},
+          'Must be one of the wire colours or null.',
+          busbar.id,
+        )
       }
       for (const issue of busbarIssues(rail, busbar, items, covered)) {
         run.add(
           issue.field === 'busbar' ? busbarPath : `${busbarPath}.${issue.field}`,
+          issue.code,
+          issue.parameters,
           issue.message,
           busbar.id,
         )
@@ -351,18 +454,35 @@ export function validateContent(content: PanelContent): Violation[] {
 
   // wires
   if (content.wires.length > MAX_WIRES)
-    run.add('content.wires', `At most ${MAX_WIRES} wires are allowed.`)
+    run.add(
+      'content.wires',
+      'wires.too_many',
+      { max: MAX_WIRES },
+      `At most ${MAX_WIRES} wires are allowed.`,
+    )
   const endpointOk = (e: Endpoint, path: string, wireId: string): boolean => {
     switch (e.kind) {
       case 'pole': {
         const poles = poleCounts.get(e.elementId)
         if (poles === undefined) {
-          run.add(path, 'Refers to an element that is not part of this content.', wireId)
+          run.add(
+            path,
+            'endpoint.element_unknown',
+            {},
+            'Refers to an element that is not part of this content.',
+            wireId,
+          )
           return false
         }
         const count = e.side === 'input' ? poles.inputs : poles.outputs
         if (e.poleIndex < 0 || e.poleIndex >= count) {
-          run.add(`${path}.poleIndex`, `Must be between 0 and ${count - 1}.`, wireId)
+          run.add(
+            `${path}.poleIndex`,
+            'value.out_of_range',
+            { min: 0, max: count - 1 },
+            `Must be between 0 and ${count - 1}.`,
+            wireId,
+          )
           return false
         }
         return true
@@ -370,18 +490,32 @@ export function validateContent(content: PanelContent): Violation[] {
       case 'terminal': {
         const block = blocks.get(e.terminalBlockId)
         if (block === undefined) {
-          run.add(path, 'Refers to a terminal block that is not part of this content.', wireId)
+          run.add(
+            path,
+            'endpoint.block_unknown',
+            {},
+            'Refers to a terminal block that is not part of this content.',
+            wireId,
+          )
           return false
         }
         let ok = true
         if (e.terminalIndex < 0 || e.terminalIndex >= block.count) {
-          run.add(`${path}.terminalIndex`, `Must be between 0 and ${block.count - 1}.`, wireId)
+          run.add(
+            `${path}.terminalIndex`,
+            'value.out_of_range',
+            { min: 0, max: block.count - 1 },
+            `Must be between 0 and ${block.count - 1}.`,
+            wireId,
+          )
           ok = false
         }
         const sides = block.row ? ['top', 'bottom'] : ['left', 'right']
         if (!sides.includes(e.contactSide)) {
           run.add(
             `${path}.contactSide`,
+            block.row ? 'endpoint.contact_side_row' : 'endpoint.contact_side_rail',
+            {},
             `Must be ${sides.join(' or ')} for a ${block.row ? 'terminal-row' : 'rail'} block.`,
             wireId,
           )
@@ -392,18 +526,36 @@ export function validateContent(content: PanelContent): Violation[] {
       case 'busbar': {
         const feeds = busbarFeeds.get(e.busbarId)
         if (feeds === undefined) {
-          run.add(path, 'Refers to a busbar that is not part of this content.', wireId)
+          run.add(
+            path,
+            'endpoint.busbar_unknown',
+            {},
+            'Refers to a busbar that is not part of this content.',
+            wireId,
+          )
           return false
         }
         if (!Number.isInteger(e.feedIndex) || e.feedIndex < 0 || e.feedIndex >= feeds) {
-          run.add(`${path}.feedIndex`, `Must be between 0 and ${feeds - 1}.`, wireId)
+          run.add(
+            `${path}.feedIndex`,
+            'value.out_of_range',
+            { min: 0, max: feeds - 1 },
+            `Must be between 0 and ${feeds - 1}.`,
+            wireId,
+          )
           return false
         }
         return true
       }
       case 'cableWire':
         if (!cableWires.has(e.cableWireId)) {
-          run.add(path, 'Refers to a cable wire that is not part of this content.', wireId)
+          run.add(
+            path,
+            'endpoint.cable_wire_unknown',
+            {},
+            'Refers to a cable wire that is not part of this content.',
+            wireId,
+          )
           return false
         }
         return true
@@ -416,19 +568,33 @@ export function validateContent(content: PanelContent): Violation[] {
     const startOk = endpointOk(wire.start, `${path}.start`, wire.id)
     const endOk = endpointOk(wire.end, `${path}.end`, wire.id)
     if (startOk && endOk && endpointKey(wire.start) === endpointKey(wire.end)) {
-      run.add(`${path}.end`, 'The two ends of a wire must differ.', wire.id)
+      run.add(`${path}.end`, 'wire.same_ends', {}, 'The two ends of a wire must differ.', wire.id)
     }
     if (wire.bends.length > MAX_BENDS_PER_WIRE) {
-      run.add(`${path}.bends`, `At most ${MAX_BENDS_PER_WIRE} bends per wire are allowed.`, wire.id)
+      run.add(
+        `${path}.bends`,
+        'bends.too_many_per_wire',
+        { max: MAX_BENDS_PER_WIRE },
+        `At most ${MAX_BENDS_PER_WIRE} bends per wire are allowed.`,
+        wire.id,
+      )
     }
     wire.bends.forEach((b, k) => {
       for (const axis of ['x', 'y'] as const) {
         const v = b[axis]
         if (!Number.isInteger(v))
-          run.add(`${path}.bends[${k}].${axis}`, 'Must have at most 1 decimal places.', wire.id)
+          run.add(
+            `${path}.bends[${k}].${axis}`,
+            'value.too_many_decimals',
+            { decimals: 1 },
+            'Must have at most 1 decimal places.',
+            wire.id,
+          )
         else if (v < 0 || v > MAX_COORD_U) {
           run.add(
             `${path}.bends[${k}].${axis}`,
+            'value.out_of_range',
+            { min: 0, max: MAX_COORD_U / 10 },
             `Must be at least 0 and at most ${MAX_COORD_U / 10}.`,
             wire.id,
           )
@@ -438,7 +604,12 @@ export function validateContent(content: PanelContent): Violation[] {
     totalBends += wire.bends.length
   })
   if (totalBends > MAX_TOTAL_BENDS) {
-    run.add('content.wires', `At most ${MAX_TOTAL_BENDS} bends per panel are allowed.`)
+    run.add(
+      'content.wires',
+      'bends.too_many_total',
+      { max: MAX_TOTAL_BENDS },
+      `At most ${MAX_TOTAL_BENDS} bends per panel are allowed.`,
+    )
   }
   return run.list
 }

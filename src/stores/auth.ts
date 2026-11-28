@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { authApi, type Me } from '@/api/auth'
 import { ApiError } from '@/api/problem'
 import { configureApi, refreshSession } from '@/api/client'
+import { applyLocale, isLocale, type Locale } from '@/i18n'
 
 /**
  * unknown: bootstrap not finished; anonymous: no session; authenticated: token in memory;
@@ -40,6 +41,8 @@ export const useAuthStore = defineStore('auth', () => {
     const { data } = await authApi.me()
     user.value = data
     status.value = 'authenticated'
+    // The profile language wins when it is set; null keeps the current one (it is not saved here).
+    if (isLocale(data.locale)) applyLocale(data.locale)
   }
 
   /** Loads /me right after a login; on failure no half session (token without user) is kept. */
@@ -142,6 +145,12 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = data
   }
 
+  /** Saves the interface language to the profile (the UI language is changed by the caller). */
+  async function saveLocale(locale: Locale) {
+    const { data } = await authApi.setLocale({ locale })
+    if (user.value) user.value = data
+  }
+
   return {
     user,
     status,
@@ -157,5 +166,6 @@ export const useAuthStore = defineStore('auth', () => {
     submitTwoFactor,
     logout,
     setTwoFactor,
+    saveLocale,
   }
 })

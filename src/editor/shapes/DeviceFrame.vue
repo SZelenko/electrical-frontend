@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { terminalX, type ElementBox } from '@/domain/geometry'
 import { describeElement, type DeviceElement } from '@/domain/panelContent'
+import { t } from '@/i18n'
 import { fitText } from './fitText'
 import ScrewHead from './ScrewHead.vue'
 
@@ -38,7 +39,7 @@ const transit = computed(() =>
       : [],
   ),
 )
-const title = computed(() => describeElement(props.element))
+const title = computed(() => describeElement(props.element, t))
 /** Screw and transit-mark size follow the pole pitch so neighbours never overlap. */
 const pitch = computed(() => props.box.w / props.element.poles.length)
 const screwR = computed(() => Math.min(30, pitch.value * 0.4))

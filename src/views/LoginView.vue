@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import FormField from '@/components/FormField.vue'
 import { useAsyncForm } from '@/composables/useAsyncForm'
+import { t } from '@/i18n'
 import { safeRedirect } from '@/router/redirect'
 import { useAuthStore } from '@/stores/auth'
 
@@ -27,29 +28,31 @@ async function submit() {
 
 <template>
   <main>
-    <h1>Вхід</h1>
+    <h1>{{ t('auth.login.title') }}</h1>
     <p v-if="auth.status === 'reloginNeeded'" role="status">
-      Сеанс завершився. Увійдіть знову, щоб продовжити.
+      {{ t('auth.login.relogin') }}
     </p>
     <form @submit.prevent="submit">
       <FormField
         v-model="email"
-        label="Електронна пошта"
+        :label="t('common.email')"
         type="email"
         autocomplete="email"
         :errors="fieldErrors.email"
       />
       <FormField
         v-model="password"
-        label="Пароль"
+        :label="t('common.password')"
         type="password"
         autocomplete="current-password"
         :errors="fieldErrors.password"
       />
       <p v-if="message" class="form-error" role="alert">{{ message }}</p>
       <div class="actions">
-        <button type="submit" :disabled="pending">Увійти</button>
-        <RouterLink :to="{ name: 'register' }">Створити акаунт</RouterLink>
+        <button type="submit" :disabled="pending">
+          {{ t('auth.login.submit') }}
+        </button>
+        <RouterLink :to="{ name: 'register' }">{{ t('auth.login.createAccount') }}</RouterLink>
       </div>
     </form>
   </main>

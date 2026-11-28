@@ -58,6 +58,7 @@ import RailShape from './RailShape.vue'
 import RowBlockShape from './RowBlockShape.vue'
 import TerminalBlockShape from './TerminalBlockShape.vue'
 import WirePath from './WirePath.vue'
+import { t } from '@/i18n'
 import { rejectionText } from './messages'
 import { newId } from './newId'
 import { useEditorContext } from './useEditor'
@@ -191,18 +192,20 @@ const rowBlockList = computed(() =>
   content.value ? ROW_IDS.flatMap((row) => rowBlocks(content.value as PanelContent, row)) : [],
 )
 
-const ROW_BANDS: readonly { id: RowId; label: string; testid: string }[] = [
-  { id: 'top', label: 'Верхній ряд клемників', testid: 'terminal-row' },
-  { id: 'bottom', label: 'Нижній ряд клемників', testid: 'terminal-row-bottom' },
+const ROW_BANDS: readonly { id: RowId; testid: string }[] = [
+  { id: 'top', testid: 'terminal-row' },
+  { id: 'bottom', testid: 'terminal-row-bottom' },
 ]
 const rowY = (l: Layout, row: RowId) => (row === 'top' ? l.topRowY : l.bottomRowY)
 
 const cableTitles = computed(() => {
   const titles: Record<string, string> = {}
   for (const c of content.value?.inputCables ?? [])
-    titles[c.id] = `Вхідний кабель: ${formatInputCableLabel(c)}`
+    titles[c.id] = t('editor.canvas.inputCableTitle', { rating: formatInputCableLabel(c, t) })
   for (const c of content.value?.outputCables ?? [])
-    titles[c.id] = `Вихідний кабель${c.description ? `: ${c.description}` : ''}`
+    titles[c.id] = c.description
+      ? t('editor.canvas.outputCableTitleDescribed', { description: c.description })
+      : t('editor.canvas.outputCableTitle')
   return titles
 })
 
@@ -285,7 +288,7 @@ function onTerminal(el: SVGElement, e: PointerEvent) {
     if (lastFinish && lastFinish.key === drawingKey(ep) && e.timeStamp - lastFinish.time < 500)
       return
     if (store.content.wires.length >= MAX_WIRES) {
-      ctx.say(rejectionText('limit', 'wires'), 'error')
+      ctx.say(rejectionText('limit', t, 'wires'), 'error')
       return
     }
     pointer.value = null
@@ -313,7 +316,7 @@ function onTerminal(el: SVGElement, e: PointerEvent) {
   )
   const total = totalBends(store.content) + bends.length
   if (bends.length > MAX_BENDS_PER_WIRE || total > MAX_TOTAL_BENDS) {
-    ctx.say('Забагато зламів: вирівняйте останній злам із виводом або приберіть злам.', 'error')
+    ctx.say(t('editor.canvas.tooManyBends'), 'error')
     return
   }
   const outcome = ctx.run(
@@ -325,7 +328,7 @@ function onTerminal(el: SVGElement, e: PointerEvent) {
       crossSection: ctx.wireCrossSection.value,
       bends,
     }),
-    'Додати провід',
+    'editor.history.addWire',
   )
   // a rejected wire keeps the drawing so the user can fix the route
   if (!outcome.ok) return
@@ -341,10 +344,7 @@ function addDrawnBend(u: Pt) {
   const l = store.layout
   if (!d || !l) return
   if (d.bends.length >= MAX_BENDS_PER_WIRE) {
-    ctx.say(
-      `Досягнуто ліміт зламів проводу (${MAX_BENDS_PER_WIRE}). Завершіть провід на виводі.`,
-      'error',
-    )
+    ctx.say(t('editor.canvas.bendLimit', { max: MAX_BENDS_PER_WIRE }), 'error')
     return
   }
   const startPt = endpointPoint(l, d.start)
@@ -585,11 +585,11 @@ function dragItem(g: Extract<Gesture, { type: 'item' }>, u: Pt, copy: boolean) {
       target: null,
       error: !target
         ? g.row
-          ? 'Перетягніть у ряд клемників'
-          : 'Перетягніть на рейку'
+          ? t('editor.canvas.dragToRow')
+          : t('editor.canvas.dragToRail')
         : g.row
-          ? 'Клемник ряду не можна перенести на рейку'
-          : 'Елемент рейки не можна перенести в ряд клемників',
+          ? t('editor.canvas.rowBlockToRail')
+          : t('editor.canvas.railItemToRow'),
       preview: null,
       ghost: pointerGhost,
     }
@@ -617,7 +617,7 @@ function dragItem(g: Extract<Gesture, { type: 'item' }>, u: Pt, copy: boolean) {
     moved: true,
     copy,
     target,
-    error: outcome.ok ? null : rejectionText(outcome.reason, outcome.detail),
+    error: outcome.ok ? null : rejectionText(outcome.reason, t, outcome.detail),
     // a copy leaves the original in place: only a move previews the item at its new position
     preview: outcome.ok && !copy && outcome.content !== c ? outcome.content : null,
     ghost: !outcome.ok || copy ? { ...spot, copy: outcome.ok && copy } : null,
@@ -650,11 +650,11 @@ function onPointerUp(e: PointerEvent) {
     if (u) addDrawnBend(u)
   } else if (g.type === 'item' && !g.moved) {
     if (g.toggle && !store.readOnly && !(e.ctrlKey || e.metaKey)) {
-      ctx.run(toggleElement(g.id), 'Перемкнути')
+      ctx.run(toggleElement(g.id), 'editor.history.toggle')
     }
   } else if (g.type === 'busbarEdge') {
     if (g.moved && g.preview)
-      ctx.run(updateBusbar(g.id, { count: g.count }), 'Змінити довжину шини')
+      ctx.run(updateBusbar(g.id, { count: g.count }), 'editor.history.changeBusbarLength')
   } else if (g.type === 'item' && g.moved && translucent.value) {
     // no move or copy in translucent mode
   } else if (g.type === 'item' && g.moved) {
@@ -664,20 +664,27 @@ function onPointerUp(e: PointerEvent) {
     const check = g.target && content ? dropCommand(g, g.target, copy)(content) : null
     if (!g.target || !check || !check.ok) {
       const reason =
-        g.error ?? (check && !check.ok ? rejectionText(check.reason, check.detail) : 'Не вдалося')
+        g.error ??
+        (check && !check.ok
+          ? rejectionText(check.reason, t, check.detail)
+          : t('editor.canvas.failed'))
       ctx.say(
-        copy ? `${reason}. Копію не створено.` : `${reason}. Елемент повернено на місце.`,
+        copy ? t('editor.canvas.notCopied', { reason }) : t('editor.canvas.movedBack', { reason }),
         'error',
       )
       return
     }
     const outcome = ctx.run(
       dropCommand(g, g.target, copy),
-      copy ? 'Копіювати' : g.kind === 'element' ? 'Перемістити апарат' : 'Перемістити клемний блок',
+      copy
+        ? 'editor.history.copy'
+        : g.kind === 'element'
+          ? 'editor.history.moveElement'
+          : 'editor.history.moveBlock',
     )
     if (outcome.ok && copy) store.select({ kind: g.kind, id: g.copyId })
   } else if (g.type === 'bend' && g.moved) {
-    ctx.run(moveBend(g.wireId, g.k, g.to), 'Перемістити злам')
+    ctx.run(moveBend(g.wireId, g.k, g.to), 'editor.history.moveBend')
   }
 }
 
@@ -689,7 +696,7 @@ function onKeydown(e: KeyboardEvent) {
   const id = hit?.dataset.id
   if (!id || store.readOnly || ctx.drawing.value) return
   e.preventDefault()
-  ctx.run(toggleElement(id), 'Перемкнути')
+  ctx.run(toggleElement(id), 'editor.history.toggle')
 }
 
 function onModifierKey(e: KeyboardEvent) {
@@ -715,7 +722,7 @@ function onDblClick(e: MouseEvent) {
   const hit = hitOf(e)
   if (!hit || store.readOnly || ctx.drawing.value) return
   if (hit.dataset.kind === 'bend' && hit.dataset.wireId) {
-    ctx.run(removeBend(hit.dataset.wireId, Number(hit.dataset.index)), 'Видалити злам')
+    ctx.run(removeBend(hit.dataset.wireId, Number(hit.dataset.index)), 'editor.history.removeBend')
   } else if (hit.dataset.kind === 'wire' && hit.dataset.id) {
     const u = units(e)
     const l = store.layout
@@ -725,7 +732,7 @@ function onDblClick(e: MouseEvent) {
     const b = endpointPoint(l, wire.end)
     if (!a || !b) return
     const segment = nearestSegment({ start: a, end: b, bends: wire.bends }, u)
-    ctx.run(insertBend(wire.id, segment, u), 'Додати злам')
+    ctx.run(insertBend(wire.id, segment, u), 'editor.history.insertBend')
   }
 }
 
@@ -741,11 +748,7 @@ function zoomButton(factor: number) {
   zoomAt(el, r.left + r.width / 2, r.top + r.height / 2, factor)
 }
 
-const drawingHint = computed(() =>
-  ctx.drawing.value
-    ? 'Клацайте на полі, щоб додати злам, і на виводі, щоб завершити провід. Backspace або Ctrl+Z — прибрати останній злам, Esc — скасувати.'
-    : null,
-)
+const drawingHint = computed(() => (ctx.drawing.value ? t('editor.canvas.drawingHint') : null))
 const dragHint = computed(() => {
   const g = gesture.value
   return g?.type === 'item' && g.error ? g.error : null
@@ -760,7 +763,7 @@ const dragHint = computed(() => {
       :class="{ drawing: ctx.drawing.value }"
       :viewBox="`${view.x} ${view.y} ${view.w} ${view.h}`"
       role="application"
-      aria-label="Схема щита"
+      :aria-label="t('editor.canvas.ariaLabel')"
       data-testid="panel-canvas"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
@@ -795,7 +798,7 @@ const dragHint = computed(() => {
             class="row-band-rect"
           />
           <text :x="layout.railsLeft + 20" :y="rowY(layout, row.id) - 20" class="row-band-label">
-            {{ row.label }}
+            {{ t(`domain.rowTitle.${row.id}`) }}
           </text>
         </g>
         <!-- wires lie under the device bodies; contacts, feeds and handles come above them -->
@@ -953,10 +956,16 @@ const dragHint = computed(() => {
         />
       </g>
     </svg>
-    <div class="zoom" role="group" aria-label="Масштаб">
-      <button type="button" aria-label="Збільшити" @click="zoomButton(0.8)">+</button>
-      <button type="button" aria-label="Зменшити" @click="zoomButton(1.25)">−</button>
-      <button type="button" aria-label="Вписати схему у вікно" @click="fitView">Вписати</button>
+    <div class="zoom" role="group" :aria-label="t('editor.canvas.zoom')">
+      <button type="button" :aria-label="t('editor.canvas.zoomIn')" @click="zoomButton(0.8)">
+        +
+      </button>
+      <button type="button" :aria-label="t('editor.canvas.zoomOut')" @click="zoomButton(1.25)">
+        −
+      </button>
+      <button type="button" :aria-label="t('editor.canvas.fitLabel')" @click="fitView">
+        {{ t('editor.canvas.fit') }}
+      </button>
     </div>
     <p v-if="drawingHint || dragHint" class="hint" role="status">{{ drawingHint ?? dragHint }}</p>
   </div>

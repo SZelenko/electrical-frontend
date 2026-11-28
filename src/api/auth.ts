@@ -49,6 +49,9 @@ export const authApi = {
 
   me: () => apiRequest<Me>('/me'),
 
+  setLocale: (body: Schemas['Me.LocaleSettings']) =>
+    apiRequest<Me>('/me/locale', { method: 'PUT', body }),
+
   setTwoFactor: (body: Schemas['Me.TwoFactorSettings.jsonMergePatch']) =>
     apiRequest<Me>('/me/two-factor', {
       method: 'PATCH',

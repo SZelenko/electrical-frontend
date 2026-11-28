@@ -10,6 +10,8 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://electrical-app:5173',
     trace: 'on-first-retry',
+    // the app picks its language from the browser: the specs assert Ukrainian text
+    locale: 'uk-UA',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 })

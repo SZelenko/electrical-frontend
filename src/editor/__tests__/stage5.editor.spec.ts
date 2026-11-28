@@ -20,6 +20,7 @@ import {
   run,
 } from '@/domain/__tests__/helpers'
 import { mountEditor, pointer, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 const dev = (n: number, offset: number, poles = 2) => element(n, offset, 1, poles)
 
@@ -85,7 +86,7 @@ describe('panel properties: rail width', () => {
     await input.setValue('30')
     await input.trigger('blur')
     expect(store.content?.railWidthModules).toBe(30)
-    expect(store.undoLabel).toBe('Змінити ширину рейок')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити ширину рейок')
     expect(store.layout?.rails[0]?.w).toBe(30 * 175)
     store.undo()
     expect(store.content?.railWidthModules).toBe(24)
@@ -154,7 +155,7 @@ describe('busbar properties', () => {
     await section(wrapper, S).get('select').setValue('L')
     expect(store.content?.rails[0]?.busbars[0]?.type).toBe('L')
     expect(store.content?.wires.map((w) => w.id)).toEqual([id(30)])
-    expect(store.undoLabel).toBe('Змінити тип шини')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити тип шини')
     store.undo()
     expect(store.content?.rails[0]?.busbars[0]?.type).toBe('LN')
     expect(store.content?.wires.map((w) => w.id)).toEqual([id(30), id(31)])
@@ -169,7 +170,7 @@ describe('busbar properties', () => {
     await input.setValue('4')
     await input.trigger('blur')
     expect(store.content?.rails[0]?.busbars[0]?.count).toBe(4)
-    expect(store.undoLabel).toBe('Змінити довжину шини')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити довжину шини')
   })
 
   it('a count beyond the free devices or below 2 is rejected', async () => {
@@ -236,7 +237,7 @@ describe('toolbar: add busbar', () => {
     await button(wrapper, 'Додати шину L+N').trigger('click')
     const bar = store.content!.rails[0]!.busbars[0]!
     expect(bar).toMatchObject({ type: 'LN', firstElementId: id(20), count: 4 })
-    expect(store.undoLabel).toBe('Додати шину L+N')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати шину L+N')
     expect(wrapper.find('[data-testid=busbar]').exists()).toBe(true)
     store.undo()
     expect(store.content?.rails[0]?.busbars).toEqual([])
@@ -370,7 +371,7 @@ describe('translucent mode', () => {
       .get(`[data-ep-kind=pole][data-ep-a="${id(20)}"][data-ep-b="0"][data-ep-side=input]`)
       .trigger('pointerdown', { button: 0, pointerId: 1 })
     expect(store.content?.wires).toHaveLength(1)
-    expect(store.undoLabel).toBe('Додати провід')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати провід')
   })
 })
 
@@ -487,7 +488,7 @@ describe('busbar edge drag', () => {
     const m = await open()
     await drag(m, [edgeX(22) + 20, edgeX(23) - 30])
     expect(count(m)).toBe(4)
-    expect(m.store.undoLabel).toBe('Змінити довжину шини')
+    expect(m.store.undoLabel && t(m.store.undoLabel)).toBe('Змінити довжину шини')
     m.store.undo()
     expect(count(m)).toBe(3)
     expect(m.store.canUndo).toBe(false)
@@ -497,7 +498,7 @@ describe('busbar edge drag', () => {
     const m = await open()
     await drag(m, [edgeX(21) + 10])
     expect(count(m)).toBe(2)
-    expect(m.store.undoLabel).toBe('Змінити довжину шини')
+    expect(m.store.undoLabel && t(m.store.undoLabel)).toBe('Змінити довжину шини')
   })
 
   it('dragging past the free devices clamps to the last free device', async () => {
@@ -625,7 +626,7 @@ describe('translucent wire-hit layer', () => {
       .get('[data-testid=wire]')
       .trigger('dblclick', pointer(wrapper, { x: bend.x - 6, y: bend.y }))
     expect(store.content!.wires[0]!.bends.length).toBe(before + 1)
-    expect(store.undoLabel).toBe('Додати злам')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати злам')
     store.undo()
     expect(store.content!.wires[0]!.bends.length).toBe(before)
     expect(store.canUndo).toBe(false)
@@ -642,7 +643,7 @@ describe('translucent wire-hit layer', () => {
       .trigger('pointerdown', pointer(wrapper, from))
     await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x, y: from.y - 60 }))
     await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x, y: from.y - 60 }))
-    expect(store.undoLabel).toBe('Перемістити злам')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити злам')
     expect(store.content!.wires[0]!.bends[0]!.y).toBe(from.y - 60)
     store.undo()
     expect(store.canUndo).toBe(false)

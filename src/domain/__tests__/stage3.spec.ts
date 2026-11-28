@@ -1,5 +1,6 @@
 /** Stage 3: ATS, terminal-row blocks, rail blocks with side contacts, copy. Success + Error per behaviour. */
 import { describe, expect, it } from 'vitest'
+import { t } from '@/i18n'
 import { autoRoute } from '../autoRoute'
 import {
   addBlock,
@@ -28,11 +29,12 @@ import {
 import { checkElementWidth, checkRowPlacement, firstFreeRowOffset, inRowBand } from '../placement'
 import { autoRouteFor, finishDrawnRoute } from '../routes'
 import {
-  ATS_STATE_NAMES,
+  atsStateName,
   describeElement,
   describeEndpoint,
   drawingKey,
   endpointKey,
+  type AtsState,
   type PanelContent,
   type PanelElement,
 } from '../panelContent'
@@ -1119,22 +1121,24 @@ describe('descriptions of the new kinds', () => {
     [term(id(40), 1, 'left'), 'клемний блок PE, клема 2 (ліворуч)'],
     [term(id(41), 0, 'right'), 'клемний блок №2, клема 1 (праворуч)'],
   ])('%j reads "%s"', (endpoint, text) => {
-    expect(describeEndpoint(c, endpoint)).toBe(text)
+    expect(describeEndpoint(c, endpoint, t)).toBe(text)
   })
 
   it('an unknown ATS or block does not throw (error)', () => {
-    expect(describeEndpoint(c, term(id(99), 0, 'left'))).toBe('клемний блок №?, клема 1 (ліворуч)')
-    expect(describeEndpoint(c, pole(id(99), 0, 'input'))).toBe('апарат ?, полюс 1 (вхід)')
+    expect(describeEndpoint(c, term(id(99), 0, 'left'), t)).toBe(
+      'клемний блок №?, клема 1 (ліворуч)',
+    )
+    expect(describeEndpoint(c, pole(id(99), 0, 'input'), t)).toBe('апарат ?, полюс 1 (вхід)')
   })
 
   it('describes an ATS element with its state', () => {
-    expect(describeElement(ats(21, 0, 2, { label: 'QA1', state: 'B' }))).toBe(
+    expect(describeElement(ats(21, 0, 2, { label: 'QA1', state: 'B' }), t)).toBe(
       'QA1, 2 мод., стан: Б',
     )
-    expect(describeElement(ats(21, 0, 3, { marking: 'M', state: 'off' }))).toBe(
+    expect(describeElement(ats(21, 0, 3, { marking: 'M', state: 'off' }), t)).toBe(
       'АВР (M), 3 мод., стан: 0',
     )
-    expect(ATS_STATE_NAMES).toEqual({ A: 'А', B: 'Б', off: '0' })
+    expect(['A', 'B', 'off'].map((s) => atsStateName(s as AtsState, t))).toEqual(['А', 'Б', '0'])
   })
 })
 

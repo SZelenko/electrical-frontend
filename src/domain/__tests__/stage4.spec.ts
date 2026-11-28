@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { InvalidPayloadError, contentToPayload, normalizeContent } from '@/api/panels'
 import { copyItem, toggleElement, updateElement } from '../commands'
+import { t } from '@/i18n'
 import { DEVICE_STYLE_DEFAULTS, newDevice } from '../deviceStyles'
 import type { AtsState, DeviceStyle, PanelContent } from '../panelContent'
 import { checkShortCircuits } from '../shortCircuit'
@@ -42,7 +43,7 @@ describe('newDevice defaults per style', () => {
       poles: transit.map((t) => ({ transit: t })),
       state: null,
     })
-    expect(DEVICE_STYLE_DEFAULTS[style].title).toBe(title)
+    expect(t(DEVICE_STYLE_DEFAULTS[style].titleKey)).toBe(title)
   })
 
   it('every default satisfies the 4-poles-per-module rule and the client validator', () => {

@@ -60,11 +60,15 @@ describe('cable label (<= 16 code points)', () => {
     expect(validateContent(c)).toEqual([
       {
         propertyPath: 'content.inputCables[0].label',
+        code: 'value.too_long',
+        parameters: { max: 16 },
         message: 'Must be at most 16 characters long.',
         id: id(1),
       },
       {
         propertyPath: 'content.outputCables[0].label',
+        code: 'value.too_long',
+        parameters: { max: 16 },
         message: 'Must be at most 16 characters long.',
         id: id(4),
       },

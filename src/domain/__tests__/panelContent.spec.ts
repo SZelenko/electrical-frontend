@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
+import { t } from '@/i18n'
 import {
   cableWireLabel,
   colourName,
@@ -7,7 +8,6 @@ import {
   formatDateTime,
   formatInputCableLabel,
   panelWireLabel,
-  pluralUk,
   type PanelContent,
 } from '../panelContent'
 
@@ -96,33 +96,6 @@ const content: PanelContent = {
   ],
 }
 
-describe('pluralUk', () => {
-  it.each([
-    [0, 'many'],
-    [1, 'one'],
-    [2, 'few'],
-    [4, 'few'],
-    [5, 'many'],
-    [10, 'many'],
-    [11, 'many'],
-    [12, 'many'],
-    [14, 'many'],
-    [15, 'many'],
-    [21, 'one'],
-    [22, 'few'],
-    [25, 'many'],
-    [101, 'one'],
-    [111, 'many'],
-    [112, 'many'],
-    [122, 'few'],
-    [-1, 'one'],
-    [-3, 'few'],
-  ])('%i -> %s', (n, form) => {
-    const forms = { one: 'провід', few: 'проводи', many: 'проводів' }
-    expect(pluralUk(n, forms.one, forms.few, forms.many)).toBe(forms[form as keyof typeof forms])
-  })
-})
-
 describe('colourName', () => {
   it.each([
     ['black', 'чорний'],
@@ -130,62 +103,62 @@ describe('colourName', () => {
     ['red', 'червоний'],
     ['blue', 'синій'],
     ['green-yellow', 'жовто-зелений'],
-  ])('names %s', (colour, name) => expect(colourName(colour)).toBe(name))
+  ])('names %s', (colour, name) => expect(colourName(colour, t)).toBe(name))
 
   it('returns an unknown colour as is, including Object prototype keys', () => {
-    expect(colourName('purple')).toBe('purple')
-    expect(colourName('toString')).toBe('toString')
+    expect(colourName('purple', t)).toBe('purple')
+    expect(colourName('toString', t)).toBe('toString')
   })
 
   it.each(['toString', '__proto__', 'constructor', 'hasOwnProperty', 'valueOf'])(
     'does not resolve the prototype key %s to an inherited member',
     (key) => {
-      expect(colourName(key)).toBe(key)
-      expect(typeof colourName(key)).toBe('string')
+      expect(colourName(key, t)).toBe(key)
+      expect(typeof colourName(key, t)).toBe('string')
     },
   )
 
   it('still resolves every own colour next to the prototype guard', () => {
-    expect(colourName('green-yellow')).toBe('жовто-зелений')
+    expect(colourName('green-yellow', t)).toBe('жовто-зелений')
   })
 })
 
 describe('formatting', () => {
   it('formats an input cable label', () => {
-    expect(formatInputCableLabel({ voltage: 230, frequency: 50, crossSection: 1.5 })).toBe(
-      '230 V / 50 Hz / 1.5 mm²',
+    expect(formatInputCableLabel({ voltage: 230, frequency: 50, crossSection: 1.5 }, t)).toBe(
+      '230 В / 50 Гц / 1,5 мм²',
     )
   })
 
   it('formats a valid date and returns an invalid one unchanged', () => {
-    expect(formatDateTime('2026-01-02T10:00:00+00:00')).toMatch(/2026/)
-    expect(formatDateTime('not a date')).toBe('not a date')
+    expect(formatDateTime('2026-01-02T10:00:00+00:00', 'uk')).toMatch(/2026/)
+    expect(formatDateTime('not a date', 'uk')).toBe('not a date')
   })
 })
 
 describe('labels and short circuits', () => {
   it('labels cable and panel wires, null when unknown', () => {
-    expect(cableWireLabel(content, 'w2')).toBe('вхідний кабель 1, провід 2 (синій)')
-    expect(cableWireLabel(content, 'w3')).toBe('вхідний кабель 2, провід 1 (червоний)')
-    expect(cableWireLabel(content, 'zzz')).toBeNull()
-    expect(panelWireLabel(content, 'pw2')).toBe('провід №2')
-    expect(panelWireLabel(content, 'zzz')).toBeNull()
+    expect(cableWireLabel(content, 'w2', t)).toBe('вхідний кабель 1, провід 2 (синій)')
+    expect(cableWireLabel(content, 'w3', t)).toBe('вхідний кабель 2, провід 1 (червоний)')
+    expect(cableWireLabel(content, 'zzz', t)).toBeNull()
+    expect(panelWireLabel(content, 'pw2', t)).toBe('провід №2')
+    expect(panelWireLabel(content, 'zzz', t)).toBeNull()
   })
 
   it('describes a short circuit group, falling back to raw ids', () => {
     expect(
-      describeShortCircuit(content, { sources: ['w1', 'w3'], wireIds: ['pw1'], terminals: [] }),
+      describeShortCircuit(content, { sources: ['w1', 'w3'], wireIds: ['pw1'], terminals: [] }, t),
     ).toEqual({
       sources: ['вхідний кабель 1, провід 1 (коричневий)', 'вхідний кабель 2, провід 1 (червоний)'],
       wires: ['провід №1'],
     })
     expect(
-      describeShortCircuit(content, { sources: ['x'], wireIds: ['y'], terminals: [] }),
+      describeShortCircuit(content, { sources: ['x'], wireIds: ['y'], terminals: [] }, t),
     ).toEqual({
       sources: ['x'],
       wires: ['y'],
     })
-    expect(describeShortCircuit(content, { sources: [], wireIds: [], terminals: [] })).toEqual({
+    expect(describeShortCircuit(content, { sources: [], wireIds: [], terminals: [] }, t)).toEqual({
       sources: [],
       wires: [],
     })

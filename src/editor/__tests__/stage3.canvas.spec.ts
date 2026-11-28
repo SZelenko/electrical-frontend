@@ -19,6 +19,7 @@ import {
   term,
 } from '@/domain/__tests__/helpers'
 import { mountEditor, pointer, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 /**
  * C1 (id2 brown, id3 blue); row: id50 [0,2) 3 contacts, id51 [6,7) 2 contacts;
@@ -79,7 +80,7 @@ describe('rendering of the new kinds', () => {
 
   it.each(['A', 'B', 'off'] as const)('the state indicator follows the state %s', async (state) => {
     const { wrapper, store } = await mountEditor(base)
-    store.apply(updateElement(id(21), { state }), 'x')
+    store.apply(updateElement(id(21), { state }), 'editor.history.addRail')
     await nextTick()
     expect(wrapper.get('[data-testid=ats-state]').attributes('data-state')).toBe(state)
   })
@@ -113,7 +114,7 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     const from = centreOf(id(21))
     await drag(wrapper, itemSel(21), from, { x: from.x + 6 * 175, y: from.y })
     expect(store.content?.rails[0]?.elements.find((e) => e.id === id(21))?.offsetModules).toBe(6)
-    expect(store.undoLabel).toBe('Перемістити апарат')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити апарат')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -123,7 +124,7 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     await drag(wrapper, blockSel(50), from, { x: from.x + 2 * 175, y: from.y })
     const moved = store.content?.terminalRow.find((b) => b.id === id(50))
     expect(moved).toMatchObject({ offsetModules: 2, terminalCount: 3 })
-    expect(store.undoLabel).toBe('Перемістити клемний блок')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити клемний блок')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -194,7 +195,7 @@ describe('copy by Ctrl/Cmd + drag', () => {
     expect(copies[0]!.id).not.toBe(id(20))
     expect(copies[0]).toMatchObject({ kind: 'device', widthModules: 2, offsetModules: 4 })
     expect(store.selection).toEqual({ kind: 'element', id: copies[0]!.id })
-    expect(store.undoLabel).toBe('Копіювати')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Копіювати')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -209,13 +210,13 @@ describe('copy by Ctrl/Cmd + drag', () => {
       { up: { metaKey: true } },
     )
     expect(store.content?.rails[1]?.elements).toHaveLength(1)
-    expect(store.undoLabel).toBe('Копіювати')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Копіювати')
   })
 
   it('does not copy the wires of the original', async () => {
     const wired = { ...base, wires: [] as PanelContent['wires'] }
     const { wrapper, store } = await mountEditor(wired)
-    store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'w')
+    store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'editor.history.addWire')
     const from = centreOf(id(20))
     await drag(wrapper, itemSel(20), from, { x: from.x, y: layout.rails[1]!.cy }, { up: CTRL })
     expect(store.content?.wires).toHaveLength(1)
@@ -224,7 +225,7 @@ describe('copy by Ctrl/Cmd + drag', () => {
 
   it('copies an ATS keeping its state, label and width', async () => {
     const { wrapper, store } = await mountEditor(base)
-    store.apply(updateElement(id(21), { state: 'B', label: 'QA1' }), 'x')
+    store.apply(updateElement(id(21), { state: 'B', label: 'QA1' }), 'editor.history.addRail')
     const from = centreOf(id(21))
     await drag(wrapper, itemSel(21), from, { x: from.x, y: layout.rails[1]!.cy }, { up: CTRL })
     expect(store.content?.rails[1]?.elements[0]).toMatchObject({
@@ -254,7 +255,7 @@ describe('copy by Ctrl/Cmd + drag', () => {
     expect(copy).toMatchObject({ terminalCount: 3, widthModules: 2 })
     expect(copy.id).not.toBe(id(50))
     expect(store.selection).toEqual({ kind: 'block', id: copy.id })
-    expect(store.undoLabel).toBe('Копіювати')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Копіювати')
     expect(historyLength(store)).toBe(1)
   })
 
@@ -272,7 +273,7 @@ describe('copy by Ctrl/Cmd + drag', () => {
     await drag(wrapper, itemSel(20), from, { x: from.x, y: layout.rails[1]!.cy }, { move: CTRL })
     expect(store.content?.rails[0]?.elements.map((e) => e.id)).not.toContain(id(20))
     expect(store.content?.rails[1]?.elements.map((e) => e.id)).toEqual([id(20)])
-    expect(store.undoLabel).toBe('Перемістити апарат')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити апарат')
   })
 
   it('Ctrl held at pointermove shows the copy ghost and leaves the original in place (no preview)', async () => {
@@ -391,7 +392,7 @@ describe('drawing from side contacts', () => {
     const wire = store.content!.wires[0]!
     expect(wire.start).toEqual(term(id(40), 1, 'right'))
     expect(wire.end).toEqual(pole(id(21), 3, 'input'))
-    expect(store.undoLabel).toBe('Додати провід')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Додати провід')
   })
 
   it('a wire ending on a left contact arrives horizontally (the single elbow is level with the contact)', async () => {

@@ -4,6 +4,7 @@ import { setPoleTransit, updateElement } from '@/domain/commands'
 import { DEVICE_STYLE_DEFAULTS } from '@/domain/deviceStyles'
 import { DEVICE_STYLES, MAX_LABEL_LENGTH, MAX_MARKING_LENGTH } from '@/domain/limits'
 import type { DeviceStyle } from '@/domain/panelContent'
+import { t } from '@/i18n'
 import CommitField from './CommitField.vue'
 import { useCommit } from './useCommit'
 
@@ -17,10 +18,10 @@ const found = computed(() => {
 </script>
 
 <template>
-  <section v-if="found" aria-label="Властивості апарата">
-    <h3>Апарат</h3>
+  <section v-if="found" :aria-label="t('props.element.ariaLabel')">
+    <h3>{{ t('props.element.title') }}</h3>
     <div class="field">
-      <label :for="styleId">Стиль</label>
+      <label :for="styleId">{{ t('props.element.style') }}</label>
       <select
         :id="styleId"
         :value="found.element.style"
@@ -29,49 +30,57 @@ const found = computed(() => {
           (e) =>
             ctx.run(
               updateElement(id, { style: (e.target as HTMLSelectElement).value as DeviceStyle }),
-              'Змінити стиль апарата',
+              'editor.history.changeElementStyle',
             )
         "
       >
         <option v-for="s in DEVICE_STYLES" :key="s" :value="s">
-          {{ DEVICE_STYLE_DEFAULTS[s].title }}
+          {{ t(DEVICE_STYLE_DEFAULTS[s].titleKey) }}
         </option>
       </select>
     </div>
     <CommitField
-      label="Назва"
+      :label="t('props.name')"
       :maxlength="MAX_LABEL_LENGTH"
       :model-value="found.element.label"
       :disabled="store.readOnly"
-      @commit="(v) => ctx.run(updateElement(id, { label: v }), 'Змінити назву апарата')"
+      @commit="(v) => ctx.run(updateElement(id, { label: v }), 'editor.history.changeElementLabel')"
     />
     <CommitField
-      label="Маркування"
+      :label="t('props.marking')"
       :maxlength="MAX_MARKING_LENGTH"
       :model-value="found.element.marking"
       :disabled="store.readOnly"
-      @commit="(v) => ctx.run(updateElement(id, { marking: v }), 'Змінити маркування')"
+      @commit="(v) => ctx.run(updateElement(id, { marking: v }), 'editor.history.changeMarking')"
     />
     <CommitField
-      label="Ширина, модулів"
+      :label="t('props.element.width')"
       type="number"
       :min="1"
       :model-value="found.element.widthModules"
       :disabled="store.readOnly"
       @commit="
         (v) =>
-          commit(num(v), (n) => updateElement(id, { widthModules: n }), 'Змінити ширину апарата')
+          commit(
+            num(v),
+            (n) => updateElement(id, { widthModules: n }),
+            'editor.history.changeElementWidth',
+          )
       "
     />
     <CommitField
-      label="Кількість полюсів"
+      :label="t('props.element.poleCount')"
       type="number"
       :min="1"
       :model-value="found.element.poles.length"
       :disabled="store.readOnly"
       @commit="
         (v) =>
-          commit(num(v), (n) => updateElement(id, { poleCount: n }), 'Змінити кількість полюсів')
+          commit(
+            num(v),
+            (n) => updateElement(id, { poleCount: n }),
+            'editor.history.changePoleCount',
+          )
       "
     />
     <label class="check">
@@ -83,11 +92,11 @@ const found = computed(() => {
           (e) =>
             ctx.run(
               updateElement(id, { on: (e.target as HTMLInputElement).checked }),
-              'Перемкнути апарат',
+              'editor.history.toggleElement',
             )
         "
       />
-      Увімкнено
+      {{ t('props.element.on') }}
     </label>
     <label class="check">
       <input
@@ -98,14 +107,14 @@ const found = computed(() => {
           (e) =>
             ctx.run(
               updateElement(id, { sidesSwapped: (e.target as HTMLInputElement).checked }),
-              'Поміняти вхід і вихід',
+              'editor.history.swapSides',
             )
         "
       />
-      Вхід знизу, вихід зверху
+      {{ t('props.element.swapped') }}
     </label>
     <fieldset>
-      <legend>Транзитні полюси</legend>
+      <legend>{{ t('props.element.transit') }}</legend>
       <label v-for="(pole, i) in found.element.poles" :key="i" class="check">
         <input
           type="checkbox"
@@ -115,15 +124,15 @@ const found = computed(() => {
             (e) =>
               ctx.run(
                 setPoleTransit(id, i, (e.target as HTMLInputElement).checked),
-                'Транзитний полюс',
+                'editor.history.transitPole',
               )
           "
         />
-        Полюс {{ i + 1 }}
+        {{ t('props.element.pole', { n: i + 1 }) }}
       </label>
     </fieldset>
     <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
-      Видалити апарат
+      {{ t('props.element.delete') }}
     </button>
   </section>
 </template>

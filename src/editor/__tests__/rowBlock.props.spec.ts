@@ -5,6 +5,7 @@ import type { PanelContent } from '@/domain/panelContent'
 import { MAX_ROW_BLOCKS } from '@/domain/limits'
 import { block, content, id, inputCable, rail, rowBlock } from '@/domain/__tests__/helpers'
 import { mountEditor, stubLayout } from './harness'
+import { t } from '@/i18n'
 
 beforeEach(() => stubLayout())
 afterEach(() => {
@@ -58,7 +59,7 @@ describe('block properties: move to the other row', () => {
       [id(51), 6],
     ])
     expect(store.selection).toEqual({ kind: 'block', id: id(51) })
-    expect(store.undoLabel).toBe('Перенести клемник в інший ряд')
+    expect(store.undoLabel && t(store.undoLabel)).toBe('Перенести клемник в інший ряд')
     await nextTick()
     expect(row(wrapper)).toBe('Нижній ряд клемників')
     store.undo()

@@ -150,6 +150,9 @@ export interface BusbarIssue {
   /** Property of the busbar the violation is reported on; `busbar` = the busbar itself. */
   field: 'type' | 'firstElementId' | 'count' | 'busbar'
   kind: BusbarIssueKind
+  /** The backend's violation code and parameters (see `panel-domain`, "Violation codes"). */
+  code: string
+  parameters: Record<string, number>
   /** The backend's message (English, as in the 422 violations). */
   message: string
 }
@@ -166,22 +169,46 @@ export function busbarIssues(
   covered: Set<string>,
 ): BusbarIssue[] {
   const issues: BusbarIssue[] = []
-  const add = (field: BusbarIssue['field'], kind: BusbarIssueKind, message: string) =>
-    issues.push({ field, kind, message })
+  const add = (
+    field: BusbarIssue['field'],
+    kind: BusbarIssueKind,
+    code: string,
+    parameters: Record<string, number>,
+    message: string,
+  ) => issues.push({ field, kind, code, parameters, message })
   if (!BUSBAR_TYPES.includes(busbar.type)) {
-    add('type', 'type', `Must be one of ${BUSBAR_TYPES.join(', ')}.`)
+    add('type', 'type', 'value.invalid_type', {}, `Must be one of ${BUSBAR_TYPES.join(', ')}.`)
   }
   const countOk =
     Number.isInteger(busbar.count) &&
     busbar.count >= MIN_BUSBAR_COUNT &&
     busbar.count <= MAX_BUSBAR_COUNT
   if (!countOk) {
-    add('count', 'count', `Must be between ${MIN_BUSBAR_COUNT} and ${MAX_BUSBAR_COUNT}.`)
+    add(
+      'count',
+      'count',
+      'value.out_of_range',
+      { min: MIN_BUSBAR_COUNT, max: MAX_BUSBAR_COUNT },
+      `Must be between ${MIN_BUSBAR_COUNT} and ${MAX_BUSBAR_COUNT}.`,
+    )
   }
   const anchor = rail.elements.find((e) => e.id === busbar.firstElementId)
-  if (!anchor) add('firstElementId', 'anchorMissing', 'Must refer to a device on the same rail.')
-  else if (anchor.kind !== 'device') {
-    add('firstElementId', 'anchorAts', 'Must refer to a device, not an ATS.')
+  if (!anchor) {
+    add(
+      'firstElementId',
+      'anchorMissing',
+      'busbar.anchor_missing',
+      {},
+      'Must refer to a device on the same rail.',
+    )
+  } else if (anchor.kind !== 'device') {
+    add(
+      'firstElementId',
+      'anchorAts',
+      'busbar.anchor_not_device',
+      {},
+      'Must refer to a device, not an ATS.',
+    )
   }
   if (anchor?.kind !== 'device' || !countOk || items === null) return issues
 
@@ -192,6 +219,8 @@ export function busbarIssues(
       add(
         'count',
         'tooFew',
+        'busbar.too_few',
+        { count: busbar.count },
         `Fewer than ${busbar.count} consecutive devices from the anchor to the rail end.`,
       )
       break
@@ -199,14 +228,28 @@ export function busbarIssues(
       add(
         'count',
         'notDevice',
+        'busbar.foreign_item',
+        {},
         'The covered items must all be devices (an ATS or a terminal block is in the way).',
       )
       break
     case 'gap':
-      add('count', 'gap', 'The covered devices must be adjacent (no free modules between them).')
+      add(
+        'count',
+        'gap',
+        'busbar.gap',
+        {},
+        'The covered devices must be adjacent (no free modules between them).',
+      )
       break
     case 'mixedSwap':
-      add('busbar', 'mixedSwap', 'All covered devices must have the same sidesSwapped.')
+      add(
+        'busbar',
+        'mixedSwap',
+        'busbar.mixed_sides',
+        {},
+        'All covered devices must have the same sidesSwapped.',
+      )
       break
     case null:
       break
@@ -224,7 +267,13 @@ export function busbarIssues(
     covered.add(d.id)
   }
   if (clash) {
-    add('firstElementId', 'overlap', 'Covers a device that another busbar already covers.')
+    add(
+      'firstElementId',
+      'overlap',
+      'busbar.already_covered',
+      {},
+      'Covers a device that another busbar already covers.',
+    )
   }
   return issues
 }

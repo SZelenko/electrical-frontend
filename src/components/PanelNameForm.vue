@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import FormField from '@/components/FormField.vue'
 import { useAsyncForm } from '@/composables/useAsyncForm'
+import { t } from '@/i18n'
 
 const props = defineProps<{
   label: string
@@ -31,7 +32,9 @@ async function submit() {
     <p v-if="message" class="form-error" role="alert">{{ message }}</p>
     <div class="actions">
       <button type="submit" :disabled="pending">{{ submitLabel }}</button>
-      <button v-if="cancellable" type="button" @click="emit('cancel')">Скасувати</button>
+      <button v-if="cancellable" type="button" @click="emit('cancel')">
+        {{ t('common.cancel') }}
+      </button>
     </div>
   </form>
 </template>

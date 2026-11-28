@@ -16,6 +16,7 @@ import {
   WIRE_COLOURS,
 } from '@/domain/limits'
 import { colourName, type WireColour } from '@/domain/panelContent'
+import { t } from '@/i18n'
 import { newId } from '../newId'
 import CommitField from './CommitField.vue'
 import { useCommit } from './useCommit'
@@ -36,7 +37,9 @@ const index = computed(() => input.value?.index ?? output.value?.index ?? 0)
 function removeCable() {
   ctx.run(
     props.kind === 'inputCable' ? removeInputCable(props.id) : removeOutputCable(props.id),
-    props.kind === 'inputCable' ? 'Видалити вхідний кабель' : 'Видалити вихідний кабель',
+    props.kind === 'inputCable'
+      ? 'editor.history.removeInputCable'
+      : 'editor.history.removeOutputCable',
   )
 }
 </script>
@@ -45,12 +48,15 @@ function removeCable() {
   <section
     v-if="cable"
     :aria-label="
-      kind === 'inputCable' ? 'Властивості вхідного кабелю' : 'Властивості вихідного кабелю'
+      kind === 'inputCable' ? t('props.cable.ariaLabelInput') : t('props.cable.ariaLabelOutput')
     "
   >
-    <h3>{{ kind === 'inputCable' ? 'Вхідний кабель' : 'Вихідний кабель' }} {{ index + 1 }}</h3>
+    <h3>
+      {{ kind === 'inputCable' ? t('props.cable.titleInput') : t('props.cable.titleOutput') }}
+      {{ index + 1 }}
+    </h3>
     <CommitField
-      label="Позначення (малюється біля кабелю)"
+      :label="t('props.cable.mark')"
       :maxlength="MAX_CABLE_LABEL_LENGTH"
       :model-value="cable.label"
       :disabled="store.readOnly"
@@ -60,33 +66,43 @@ function removeCable() {
             kind === 'inputCable'
               ? updateInputCable(id, { label: v })
               : updateOutputCable(id, { label: v }),
-            'Змінити позначення кабелю',
+            'editor.history.changeCableLabel',
           )
       "
     />
     <template v-if="input">
       <CommitField
-        label="Напруга, В"
+        :label="t('props.cable.voltage')"
         type="number"
         step="0.1"
         :model-value="input.cable.voltage"
         :disabled="store.readOnly"
         @commit="
-          (v) => commit(num(v), (n) => updateInputCable(id, { voltage: n }), 'Змінити напругу')
+          (v) =>
+            commit(
+              num(v),
+              (n) => updateInputCable(id, { voltage: n }),
+              'editor.history.changeVoltage',
+            )
         "
       />
       <CommitField
-        label="Частота, Гц"
+        :label="t('props.cable.frequency')"
         type="number"
         step="0.01"
         :model-value="input.cable.frequency"
         :disabled="store.readOnly"
         @commit="
-          (v) => commit(num(v), (n) => updateInputCable(id, { frequency: n }), 'Змінити частоту')
+          (v) =>
+            commit(
+              num(v),
+              (n) => updateInputCable(id, { frequency: n }),
+              'editor.history.changeFrequency',
+            )
         "
       />
       <CommitField
-        label="Переріз, мм²"
+        :label="t('props.cable.crossSection')"
         type="number"
         step="0.01"
         :model-value="input.cable.crossSection"
@@ -96,24 +112,30 @@ function removeCable() {
             commit(
               num(v),
               (n) => updateInputCable(id, { crossSection: n }),
-              'Змінити переріз кабелю',
+              'editor.history.changeCableCrossSection',
             )
         "
       />
     </template>
     <CommitField
       v-else-if="output"
-      label="Опис"
+      :label="t('props.cable.description')"
       :maxlength="MAX_DESCRIPTION_LENGTH"
       :model-value="output.cable.description"
       :disabled="store.readOnly"
-      @commit="(v) => ctx.run(updateOutputCable(id, { description: v }), 'Змінити опис кабелю')"
+      @commit="
+        (v) =>
+          ctx.run(
+            updateOutputCable(id, { description: v }),
+            'editor.history.changeCableDescription',
+          )
+      "
     />
     <fieldset>
-      <legend>Проводи кабелю</legend>
+      <legend>{{ t('props.cable.wires') }}</legend>
       <div v-for="(wire, i) in cable.wires" :key="wire.id" class="row">
         <label>
-          Колір проводу {{ i + 1 }}
+          {{ t('props.cable.wireColour', { n: i + 1 }) }}
           <select
             :value="wire.colour"
             :disabled="store.readOnly"
@@ -123,25 +145,23 @@ function removeCable() {
                   updateCableWire(wire.id, {
                     colour: (e.target as HTMLSelectElement).value as WireColour,
                   }),
-                  'Змінити колір проводу кабелю',
+                  'editor.history.changeCableWireColour',
                 )
             "
           >
-            <option v-for="c in WIRE_COLOURS" :key="c" :value="c">{{ colourName(c) }}</option>
+            <option v-for="c in WIRE_COLOURS" :key="c" :value="c">{{ colourName(c, t) }}</option>
           </select>
         </label>
         <button
           type="button"
           :disabled="store.readOnly || cable.wires.length <= 1"
           :title="
-            cable.wires.length <= 1
-              ? 'Не можна видалити останній провід кабелю'
-              : 'Видалити провід кабелю'
+            cable.wires.length <= 1 ? t('props.cable.deleteWireLast') : t('props.cable.deleteWire')
           "
-          :aria-label="`Видалити провід ${i + 1} кабелю`"
-          @click="ctx.run(removeCableWire(wire.id), 'Видалити провід кабелю')"
+          :aria-label="t('props.cable.deleteWireLabel', { n: i + 1 })"
+          @click="ctx.run(removeCableWire(wire.id), 'editor.history.removeCableWire')"
         >
-          Видалити
+          {{ t('common.delete') }}
         </button>
       </div>
       <button
@@ -149,27 +169,25 @@ function removeCable() {
         :disabled="store.readOnly || cable.wires.length >= MAX_CABLE_WIRES"
         :title="
           cable.wires.length >= MAX_CABLE_WIRES
-            ? 'Кабель може мати не більше 4 проводів'
-            : 'Додати провід до кабелю'
+            ? t('props.cable.addWireLimit', { max: MAX_CABLE_WIRES })
+            : t('props.cable.addWireTitle')
         "
         @click="
-          ctx.run(addCableWire(id, { id: newId(), colour: 'blue' }), 'Додати провід до кабелю')
+          ctx.run(addCableWire(id, { id: newId(), colour: 'blue' }), 'editor.history.addCableWire')
         "
       >
-        Додати провід кабелю
+        {{ t('props.cable.addWire') }}
       </button>
     </fieldset>
     <button
       type="button"
       :disabled="store.readOnly || (kind === 'inputCable' && inputCount <= 1)"
       :title="
-        kind === 'inputCable' && inputCount <= 1
-          ? 'Не можна видалити останній вхідний кабель'
-          : undefined
+        kind === 'inputCable' && inputCount <= 1 ? t('props.cable.deleteLastInput') : undefined
       "
       @click="removeCable"
     >
-      Видалити кабель
+      {{ t('props.cable.delete') }}
     </button>
   </section>
 </template>

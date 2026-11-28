@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue'
 import { describeError } from '@/api/errorMessages'
 import { ApiError } from '@/api/problem'
-
-const UNEXPECTED_MESSAGE = 'Неочікувана відповідь сервера. Оновіть сторінку.'
+import { violationText } from '@/domain/violation'
+import { t } from '@/i18n'
 
 /** Submit state for a form: in-flight flag, API error, field errors and a generic message. */
 export function useAsyncForm(fields: readonly string[] = []) {
@@ -10,18 +10,27 @@ export function useAsyncForm(fields: readonly string[] = []) {
   const error = ref<ApiError | null>(null)
   const unexpected = ref(false)
 
-  const fieldErrors = computed<Record<string, string[]>>(() => error.value?.violations ?? {})
+  /** Violation texts per field, translated by code (the English message for an unknown code). */
+  const fieldErrors = computed<Record<string, string[]>>(() => {
+    const current = error.value
+    if (current === null) return {}
+    const result: Record<string, string[]> = {}
+    for (const [path, details] of Object.entries(current.violationDetails)) {
+      result[path] = details.map((d) => violationText(d, t))
+    }
+    return result
+  })
   const message = computed(() => {
-    if (unexpected.value) return UNEXPECTED_MESSAGE
+    if (unexpected.value) return t('errors.unexpected')
     const current = error.value
     if (current === null) return ''
     // Validation errors are shown inline, unless some violation has no field to render it.
     if (
       current.type === 'validation' &&
-      Object.keys(current.violations).every((k) => fields.includes(k))
+      Object.keys(current.violationDetails).every((k) => fields.includes(k))
     )
       return ''
-    return describeError(current)
+    return describeError(current, t)
   })
 
   /**

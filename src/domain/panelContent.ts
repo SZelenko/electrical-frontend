@@ -3,6 +3,7 @@
  * Bend coordinates are integer tenths of a millimetre (the API carries mm with one decimal; the API layer
  * converts both ways). Elements and terminal blocks of a rail are ordered by offset.
  */
+import type { Translate } from './translate'
 
 export type WireColour = 'black' | 'brown' | 'red' | 'blue' | 'green-yellow'
 
@@ -201,55 +202,54 @@ export function endpointKey(e: Endpoint | NodeEndpoint): string {
   }
 }
 
-const COLOUR_NAMES: Record<WireColour, string> = {
-  black: 'чорний',
-  brown: 'коричневий',
-  red: 'червоний',
-  blue: 'синій',
-  'green-yellow': 'жовто-зелений',
+/** Translated name of a wire colour; an unknown colour is returned as it is. */
+export function colourName(colour: string, t: Translate): string {
+  return isWireColour(colour) ? t(`domain.colour.${colour}`) : colour
 }
 
-export function colourName(colour: string): string {
-  return Object.prototype.hasOwnProperty.call(COLOUR_NAMES, colour)
-    ? COLOUR_NAMES[colour as WireColour]
-    : colour
+function isWireColour(colour: string): colour is WireColour {
+  return (
+    colour === 'black' ||
+    colour === 'brown' ||
+    colour === 'red' ||
+    colour === 'blue' ||
+    colour === 'green-yellow'
+  )
 }
 
 /** Rating text of an input cable ("230 V / 50 Hz / 4 mm²"); not the cable's free-form `label`. */
 export function formatInputCableLabel(
   cable: Pick<InputCable, 'voltage' | 'frequency' | 'crossSection'>,
+  t: Translate,
 ): string {
-  return `${String(cable.voltage)} V / ${String(cable.frequency)} Hz / ${String(cable.crossSection)} mm²`
+  return t('domain.units.rating', { v: cable.voltage, f: cable.frequency, s: cable.crossSection })
 }
 
-export function formatDateTime(iso: string): string {
+/** Medium date + short time in `locale` (a BCP 47 tag, e.g. the current UI language). */
+export function formatDateTime(iso: string, locale: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return new Intl.DateTimeFormat('uk-UA', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
-}
-
-/** Ukrainian plural form: one (1, 21), few (2-4, 22-24), many (the rest, 11-14). */
-export function pluralUk(n: number, one: string, few: string, many: string): string {
-  const abs = Math.abs(n)
-  const mod10 = abs % 10
-  const mod100 = abs % 100
-  if (mod10 === 1 && mod100 !== 11) return one
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
-  return many
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 
 /** "провід №2" (1-based position in the panel's wire list) for a panel wire id, or null if unknown. */
-export function panelWireLabel(content: PanelContent, wireId: string): string | null {
+export function panelWireLabel(content: PanelContent, wireId: string, t: Translate): string | null {
   const index = content.wires.findIndex((w) => w.id === wireId)
-  return index === -1 ? null : `провід №${index + 1}`
+  return index === -1 ? null : t('domain.panelWire.short', { n: index + 1 })
 }
 
 /** "вхідний кабель 1, провід 2 (коричневий)" for a cable wire id, or null if unknown. */
-export function cableWireLabel(content: PanelContent, wireId: string): string | null {
+export function cableWireLabel(content: PanelContent, wireId: string, t: Translate): string | null {
   for (const [i, cable] of content.inputCables.entries()) {
     const j = cable.wires.findIndex((w) => w.id === wireId)
     const wire = cable.wires[j]
-    if (wire) return `вхідний кабель ${i + 1}, провід ${j + 1} (${colourName(wire.colour)})`
+    if (wire) {
+      return t('domain.cableWire.input', {
+        cable: i + 1,
+        wire: j + 1,
+        colour: colourName(wire.colour, t),
+      })
+    }
   }
   return null
 }
@@ -259,96 +259,137 @@ export interface ShortCircuitView {
   wires: string[]
 }
 
-export function describeShortCircuit(content: PanelContent, group: ShortCircuit): ShortCircuitView {
+export function describeShortCircuit(
+  content: PanelContent,
+  group: ShortCircuit,
+  t: Translate,
+): ShortCircuitView {
   return {
-    sources: group.sources.map((id) => cableWireLabel(content, id) ?? id),
-    wires: group.wireIds.map((id) => panelWireLabel(content, id) ?? id),
+    sources: group.sources.map((id) => cableWireLabel(content, id, t) ?? id),
+    wires: group.wireIds.map((id) => panelWireLabel(content, id, t) ?? id),
   }
+}
+
+/** Translated A / B / 0 name of an ATS state. */
+export function atsStateName(state: AtsState, t: Translate): string {
+  return t(`domain.ats.state.${state}`)
 }
 
 /** "Автомат (QF1), 2 мод., полюсів: 2, увімкнено, транзитні полюси: 2". */
-export const ATS_STATE_NAMES: Record<AtsState, string> = { A: 'А', B: 'Б', off: '0' }
-
-export function describeElement(element: PanelElement): string {
-  const name = element.label || (element.kind === 'ats' ? 'АВР' : 'Без назви')
+export function describeElement(element: PanelElement, t: Translate): string {
+  const name =
+    element.label || (element.kind === 'ats' ? t('domain.ats.name') : t('domain.element.noName'))
   const title = element.marking ? `${name} (${element.marking})` : name
   if (element.kind === 'ats') {
-    return `${title}, ${element.widthModules} мод., стан: ${ATS_STATE_NAMES[element.state]}`
+    return t('domain.element.atsSummary', {
+      title,
+      width: element.widthModules,
+      state: atsStateName(element.state, t),
+    })
   }
   const parts = [
     title,
-    `${element.widthModules} мод.`,
-    `полюсів: ${element.poles.length}`,
-    element.on ? 'увімкнено' : 'вимкнено',
+    t('domain.element.modules', { n: element.widthModules }),
+    t('domain.element.poles', { n: element.poles.length }),
+    element.on ? t('domain.element.on') : t('domain.element.off'),
   ]
   const transit = element.poles.flatMap((p, i) => (p.transit ? [i + 1] : []))
-  if (transit.length > 0) parts.push(`транзитні полюси: ${transit.join(', ')}`)
+  if (transit.length > 0) parts.push(t('domain.element.transit', { list: transit.join(', ') }))
   return parts.join(', ')
 }
 
-function cableWireDescription(content: PanelContent, id: string): string | null {
-  const input = cableWireLabel(content, id)
+function cableWireDescription(content: PanelContent, id: string, t: Translate): string | null {
+  const input = cableWireLabel(content, id, t)
   if (input !== null) return input
   for (const [i, cable] of content.outputCables.entries()) {
     const j = cable.wires.findIndex((w) => w.id === id)
     const wire = cable.wires[j]
-    if (wire) return `вихідний кабель ${i + 1}, провід ${j + 1} (${colourName(wire.colour)})`
+    if (wire) {
+      return t('domain.cableWire.output', {
+        cable: i + 1,
+        wire: j + 1,
+        colour: colourName(wire.colour, t),
+      })
+    }
   }
   return null
 }
 
-const CONTACT_SIDE_NAMES: Record<ContactSide, string> = {
-  top: 'зверху',
-  bottom: 'знизу',
-  left: 'ліворуч',
-  right: 'праворуч',
-}
-
 /** Human-readable endpoint, e.g. "апарат QF1, полюс 2 (вхід)"; a cable wire falls back to its raw id, an unknown element or terminal block to `?` / `№?`. */
-export function describeEndpoint(content: PanelContent, endpoint: Endpoint): string {
+export function describeEndpoint(content: PanelContent, endpoint: Endpoint, t: Translate): string {
   switch (endpoint.kind) {
     case 'cableWire':
-      return cableWireDescription(content, endpoint.cableWireId) ?? endpoint.cableWireId
+      return cableWireDescription(content, endpoint.cableWireId, t) ?? endpoint.cableWireId
     case 'pole': {
       const all = content.rails.flatMap((r) => r.elements)
       const index = all.findIndex((e) => e.id === endpoint.elementId)
       const element = all[index]
-      const name = element ? element.marking || element.label || `№${index + 1}` : '?'
+      const name = element
+        ? element.marking || element.label || t('domain.ordinal', { n: index + 1 })
+        : '?'
       if (element?.kind === 'ats') {
         return endpoint.side === 'input'
-          ? `АВР ${name}, вхід ${endpoint.poleIndex < 2 ? 'А' : 'Б'} ${endpoint.poleIndex % 2 === 0 ? 'L' : 'N'}`
-          : `АВР ${name}, вихід ${endpoint.poleIndex === 0 ? 'L' : 'N'}`
+          ? t('domain.endpoint.atsInput', {
+              name,
+              source: t(endpoint.poleIndex < 2 ? 'domain.ats.sourceA' : 'domain.ats.sourceB'),
+              line: endpoint.poleIndex % 2 === 0 ? 'L' : 'N',
+            })
+          : t('domain.endpoint.atsOutput', { name, line: endpoint.poleIndex === 0 ? 'L' : 'N' })
       }
-      const side = endpoint.side === 'input' ? 'вхід' : 'вихід'
-      return `апарат ${name}, полюс ${endpoint.poleIndex + 1} (${side})`
+      return t('domain.endpoint.device', {
+        name,
+        pole: endpoint.poleIndex + 1,
+        side: t(`domain.side.${endpoint.side}`),
+      })
     }
     case 'busbar': {
       const all = content.rails.flatMap((r) => r.busbars)
       const index = all.findIndex((b) => b.id === endpoint.busbarId)
       const busbar = all[index]
-      const feed = endpoint.feedIndex === 0 ? 'L' : 'N'
-      return `шина ${busbar ? busbar.type : '?'} №${index === -1 ? '?' : index + 1}, вивід ${feed}`
+      return t('domain.endpoint.busbar', {
+        type: busbar ? busbar.type : '?',
+        n: index === -1 ? '?' : index + 1,
+        feed: endpoint.feedIndex === 0 ? 'L' : 'N',
+      })
     }
     case 'terminal': {
-      const sideName = CONTACT_SIDE_NAMES[endpoint.contactSide]
+      const sideName = t(`domain.contactSide.${endpoint.contactSide}`)
       for (const row of ROW_IDS) {
         const blocks = rowBlocks(content, row)
         const rowIndex = blocks.findIndex((b) => b.id === endpoint.terminalBlockId)
         if (rowIndex === -1) continue
         const block = blocks[rowIndex] as TerminalBlock
-        const rowName = row === 'top' ? 'верхньому' : 'нижньому'
-        return `клемник у ${rowName} ряду ${block.label || `№${rowIndex + 1}`}, клема ${endpoint.terminalIndex + 1} (${sideName})`
+        return t('domain.endpoint.rowBlock', {
+          row: t(`domain.rowIn.${row}`),
+          name: block.label || t('domain.ordinal', { n: rowIndex + 1 }),
+          terminal: endpoint.terminalIndex + 1,
+          side: sideName,
+        })
       }
       const all = content.rails.flatMap((r) => r.terminalBlocks)
       const index = all.findIndex((b) => b.id === endpoint.terminalBlockId)
       const block = all[index]
-      const name = block?.label || `№${index === -1 ? '?' : index + 1}`
-      return `клемний блок ${name}, клема ${endpoint.terminalIndex + 1} (${sideName})`
+      return t('domain.endpoint.railBlock', {
+        name: block?.label || t('domain.ordinal', { n: index === -1 ? '?' : index + 1 }),
+        terminal: endpoint.terminalIndex + 1,
+        side: sideName,
+      })
     }
   }
 }
 
 /** "№1 коричневий, 2.5 мм², від → до". */
-export function describePanelWire(content: PanelContent, wire: PanelWire, index: number): string {
-  return `№${index + 1} ${colourName(wire.colour)}, ${wire.crossSection} мм², ${describeEndpoint(content, wire.start)} → ${describeEndpoint(content, wire.end)}`
+export function describePanelWire(
+  content: PanelContent,
+  wire: PanelWire,
+  index: number,
+  t: Translate,
+): string {
+  return t('domain.panelWire.full', {
+    n: index + 1,
+    colour: colourName(wire.colour, t),
+    crossSection: Number(wire.crossSection),
+    from: describeEndpoint(content, wire.start, t),
+    to: describeEndpoint(content, wire.end, t),
+  })
 }

@@ -6,10 +6,12 @@ import PanelSummary from '@/components/PanelSummary.vue'
 import { useAsyncForm } from '@/composables/useAsyncForm'
 import { ApiError } from '@/api/problem'
 import { panelsApi } from '@/api/panels'
-import { describeShortCircuit, pluralUk } from '@/domain/panelContent'
+import { describeShortCircuit } from '@/domain/panelContent'
+import { violationText } from '@/domain/violation'
 import EditorToolbar from '@/editor/EditorToolbar.vue'
 import PanelCanvas from '@/editor/PanelCanvas.vue'
 import PropertiesPanel from '@/editor/PropertiesPanel.vue'
+import { t } from '@/i18n'
 import { provideEditorContext } from '@/editor/useEditor'
 import { useEditorShortcuts } from '@/editor/useEditorShortcuts'
 import { useAuthStore } from '@/stores/auth'
@@ -69,7 +71,7 @@ onUnmounted(() => {
 
 function confirmLeave(): boolean {
   if (!editor.dirty || deleted.value || auth.status === 'reloginNeeded') return true
-  return window.confirm('Є незбережені зміни. Залишити сторінку без збереження?')
+  return window.confirm(t('panels.view.leaveConfirm'))
 }
 onBeforeRouteLeave(confirmLeave)
 onBeforeRouteUpdate((to) => (to.params.id === props.id ? true : confirmLeave()))
@@ -90,8 +92,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload)
 
 async function remove() {
   if (!hasPanel.value) return
-  const unsaved = editor.dirty ? ' Незбережені зміни буде втрачено.' : ''
-  if (!window.confirm(`Перемістити щит «${editor.name}» до кошика?${unsaved}`)) return
+  const unsaved = editor.dirty ? ` ${t('panels.unsavedLost')}` : ''
+  const question = t('panels.moveToTrashConfirm', { name: editor.name })
+  if (!window.confirm(`${question}${unsaved}`)) return
   const done = await run(async () => {
     await panels.moveToTrash(props.id)
     return true
@@ -113,7 +116,7 @@ async function save() {
     conflictAcknowledged.value = false
     const n = editor.shortCircuits.length
     ctx.say(
-      n > 0 ? `Збережено. Увага: виявлено коротких замикань: ${n}.` : 'Збережено.',
+      n > 0 ? t('panels.view.savedWithShortCircuits', { n }) : t('panels.view.saved'),
       n > 0 ? 'error' : 'info',
     )
   }
@@ -136,7 +139,7 @@ const circuits = computed(() =>
   editor.content
     ? editor.shortCircuits.map((group) => ({
         group,
-        view: describeShortCircuit(editor.content!, group),
+        view: describeShortCircuit(editor.content!, group, t),
       }))
     : [],
 )
@@ -152,38 +155,37 @@ const errorText = computed(() => {
   const e = editor.saveError
   switch (e?.kind) {
     case 'idConflict':
-      return 'Конфлікт ідентифікаторів: один з елементів уже використовується в іншому щиті. Локальні зміни збережено в редакторі.'
+      return t('errors.save.idConflict')
     case 'deleted':
-      return 'Щит видалено або переміщено в кошик. Збереження неможливе.'
+      return t('errors.save.deleted')
     case 'auth':
-      return 'Сесія завершилась. Увійдіть знову — зміни залишаються в редакторі, після входу їх можна зберегти.'
+      return t('errors.save.auth')
     case 'network':
-      return 'Немає зв’язку з сервером. Спробуйте зберегти ще раз.'
+      return t('errors.save.network')
     case 'unknown':
-      return `Не вдалося зберегти: ${e.message}`
+      return t('errors.save.unknown', { message: e.message })
     default:
       return null
   }
 })
-const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', 'проводів')
 </script>
 
 <template>
   <main class="wide editor-page">
-    <nav class="actions" aria-label="Навігація">
-      <RouterLink :to="{ name: 'home' }">Мої щити</RouterLink>
+    <nav class="actions" :aria-label="t('common.navigation')">
+      <RouterLink :to="{ name: 'home' }">{{ t('panels.myPanels') }}</RouterLink>
     </nav>
 
-    <p v-if="loading">Завантаження…</p>
-    <p v-else-if="notFound" role="alert">Щит не знайдено.</p>
+    <p v-if="loading">{{ t('common.loading') }}</p>
+    <p v-else-if="notFound" role="alert">{{ t('panels.view.notFound') }}</p>
     <template v-else-if="hasPanel || deleted">
       <p v-if="editor.deletedAt" class="form-info">
-        Щит знаходиться в кошику. Редагування вимкнено.
+        {{ t('panels.view.inTrash') }}
       </p>
       <PanelNameForm
         v-if="renaming"
-        label="Нова назва"
-        submit-label="Зберегти"
+        :label="t('panels.newName')"
+        :submit-label="t('common.save')"
         :initial="name"
         :action="renameAction"
         cancellable
@@ -193,26 +195,24 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
       <template v-else>
         <h1>{{ name }}</h1>
         <div class="actions">
-          <button type="button" @click="renaming = true">Перейменувати</button>
+          <button type="button" @click="renaming = true">
+            {{ t('common.rename') }}
+          </button>
           <button v-if="!editor.deletedAt" type="button" :disabled="pending" @click="remove">
-            Видалити
+            {{ t('common.delete') }}
           </button>
           <button
             v-if="!editor.deletedAt"
             type="button"
             class="save"
             :disabled="!editor.canSave"
-            :title="
-              editor.conflict
-                ? 'Щит змінено в іншому місці: збереження вимкнено до перезавантаження'
-                : undefined
-            "
+            :title="editor.conflict ? t('panels.view.conflictSaveTitle') : undefined"
             @click="save"
           >
-            {{ editor.saving ? 'Збереження…' : 'Зберегти' }}
+            {{ editor.saving ? t('panels.view.saving') : t('common.save') }}
           </button>
           <span v-if="!editor.deletedAt" class="dirty" :class="{ on: editor.dirty }" role="status">
-            {{ editor.dirty ? '● Є незбережені зміни' : 'Усі зміни збережено' }}
+            {{ editor.dirty ? t('panels.view.dirty') : t('panels.view.clean') }}
           </span>
         </div>
       </template>
@@ -228,17 +228,17 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
           class="form-error conflict-banner"
           role="alert"
         >
-          Щит змінено в іншому місці. Збереження вимкнено.
+          {{ t('panels.view.conflictBanner') }}
           <button type="button" :disabled="reloading" @click="reloadDiscard">
-            Завантажити останню версію (відкинути мої зміни)
+            {{ t('panels.view.reloadDiscard') }}
           </button>
         </div>
         <p v-if="errorText" class="form-error" role="alert">{{ errorText }}</p>
         <div v-if="editor.generalViolations.length" class="form-error" role="alert">
-          Сервер відхилив зміни:
+          {{ t('panels.view.serverRejected') }}
           <ul>
-            <li v-for="v in editor.generalViolations" :key="v.propertyPath + v.messages.join()">
-              {{ v.propertyPath }} — {{ v.messages.join('; ') }}
+            <li v-for="v in editor.generalViolations" :key="v.propertyPath">
+              {{ v.propertyPath }} — {{ v.details.map((d) => violationText(d, t)).join('; ') }}
             </li>
           </ul>
         </div>
@@ -247,7 +247,7 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
           class="form-error"
           role="alert"
         >
-          Елементи з помилками підсвічено на схемі.
+          {{ t('panels.view.violationsHighlighted') }}
         </p>
 
         <EditorToolbar v-if="!editor.deletedAt" />
@@ -257,25 +257,30 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
           <PropertiesPanel />
         </div>
 
-        <section class="short-circuits" aria-label="Короткі замикання">
+        <section class="short-circuits" :aria-label="t('panels.view.shortCircuitsLabel')">
           <div v-if="circuits.length" role="alert">
-            <h2>Короткі замикання: {{ circuits.length }}</h2>
+            <h2>{{ t('panels.view.shortCircuitsHeading', { n: circuits.length }) }}</h2>
             <ul>
               <li v-for="(c, i) in circuits" :key="i">
                 <button type="button" @click="focusGroup(c.group.wireIds)">
-                  Показати на схемі
+                  {{ t('panels.view.showOnDiagram') }}
                 </button>
-                Джерела: {{ c.view.sources.join('; ') }}. {{ wireWord(c.view.wires.length) }}:
-                {{ c.view.wires.join(', ') }}
+                {{
+                  t('panels.view.shortCircuitGroup', {
+                    sources: c.view.sources.join('; '),
+                    n: c.view.wires.length,
+                    wires: c.view.wires.join(', '),
+                  })
+                }}
               </li>
             </ul>
           </div>
-          <p v-else class="form-info">КЗ не виявлено.</p>
+          <p v-else class="form-info">{{ t('panels.view.noShortCircuits') }}</p>
         </section>
 
         <section>
           <button type="button" :aria-expanded="showTable" @click="showTable = !showTable">
-            {{ showTable ? 'Сховати таблицю вмісту' : 'Таблиця вмісту' }}
+            {{ showTable ? t('panels.view.hideTable') : t('panels.view.showTable') }}
           </button>
           <PanelSummary
             v-if="showTable && editor.content"
@@ -285,7 +290,9 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
         </section>
       </template>
     </template>
-    <p v-else-if="loadFailed" class="form-error" role="alert">Не вдалося завантажити щит.</p>
+    <p v-else-if="loadFailed" class="form-error" role="alert">
+      {{ t('panels.view.loadFailed') }}
+    </p>
 
     <div
       v-if="showConflictDialog"
@@ -295,18 +302,17 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
       aria-labelledby="conflict-title"
     >
       <div class="dialog">
-        <h2 id="conflict-title">Щит змінено в іншому місці</h2>
-        <p>
-          Збережена версія щита новіша за ту, яку ви редагуєте. Ваші зміни не записано, щоб нічого
-          не перезаписати.
+        <h2 id="conflict-title">{{ t('panels.view.conflictTitle') }}</h2>
+        <p>{{ t('panels.view.conflictBody') }}</p>
+        <p v-if="reloadFailed" class="form-error" role="alert">
+          {{ t('panels.view.loadFailed') }}
         </p>
-        <p v-if="reloadFailed" class="form-error" role="alert">Не вдалося завантажити щит.</p>
         <div class="actions">
           <button type="button" :disabled="reloading" @click="reloadDiscard">
-            Завантажити останню версію (відкинути мої зміни)
+            {{ t('panels.view.reloadDiscard') }}
           </button>
           <button type="button" @click="conflictAcknowledged = true">
-            Продовжити редагування (збереження вимкнено)
+            {{ t('panels.view.continueEditing') }}
           </button>
         </div>
       </div>
@@ -349,6 +355,7 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
 }
 .backdrop {
   position: fixed;
+  z-index: 20;
   inset: 0;
   display: grid;
   place-items: center;

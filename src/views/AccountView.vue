@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FormField from '@/components/FormField.vue'
 import { useAsyncForm } from '@/composables/useAsyncForm'
+import { t } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { usePanelEditorStore } from '@/stores/panelEditor'
 
@@ -25,7 +26,7 @@ async function toggleTwoFactor() {
 }
 
 async function logout() {
-  if (editor.dirty && !window.confirm('Є незбережені зміни щита, їх буде втрачено. Вийти?')) return
+  if (editor.dirty && !window.confirm(t('auth.account.logoutConfirm'))) return
   loggingOut.value = true
   try {
     await auth.logout()
@@ -38,36 +39,40 @@ async function logout() {
 
 <template>
   <main>
-    <h1>Акаунт</h1>
+    <h1>{{ t('auth.account.title') }}</h1>
     <p>
-      Електронна пошта: <strong>{{ auth.user?.email }}</strong>
+      {{ t('auth.account.email') }} <strong>{{ auth.user?.email }}</strong>
     </p>
 
     <section aria-labelledby="two-factor-heading">
-      <h2 id="two-factor-heading">Двофакторна автентифікація</h2>
+      <h2 id="two-factor-heading">{{ t('auth.account.twoFactorHeading') }}</h2>
       <p>
-        Двофакторна автентифікація:
-        <strong>{{ auth.user?.twoFactorEnabled ? 'увімкнена' : 'вимкнена' }}</strong>
+        {{ t('auth.account.twoFactorStatus') }}
+        <strong>{{
+          auth.user?.twoFactorEnabled ? t('auth.account.enabled') : t('auth.account.disabled')
+        }}</strong>
       </p>
       <form @submit.prevent="toggleTwoFactor">
         <FormField
           v-model="password"
-          label="Пароль для підтвердження"
+          :label="t('auth.account.confirmPassword')"
           type="password"
           autocomplete="current-password"
           :errors="fieldErrors.password"
         />
         <p v-if="message" class="form-error" role="alert">{{ message }}</p>
-        <p v-else-if="saved" class="form-info" role="status">Зміни збережено.</p>
+        <p v-else-if="saved" class="form-info" role="status">{{ t('auth.account.saved') }}</p>
         <button type="submit" :disabled="pending">
-          {{ auth.user?.twoFactorEnabled ? 'Вимкнути 2FA' : 'Увімкнути 2FA' }}
+          {{ auth.user?.twoFactorEnabled ? t('auth.account.disable') : t('auth.account.enable') }}
         </button>
       </form>
     </section>
 
     <p class="actions">
-      <RouterLink :to="{ name: 'home' }">До моїх щитів</RouterLink>
-      <button type="button" :disabled="loggingOut" @click="logout">Вийти</button>
+      <RouterLink :to="{ name: 'home' }">{{ t('auth.account.toPanels') }}</RouterLink>
+      <button type="button" :disabled="loggingOut" @click="logout">
+        {{ t('auth.account.logout') }}
+      </button>
     </p>
   </main>
 </template>

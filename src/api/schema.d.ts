@@ -161,6 +161,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/me/locale': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /**
+     * Sets the interface language of the current user (`uk` or `en`).
+     * @description Sets the interface language of the current user (`uk` or `en`).
+     */
+    put: operations['api_melocale_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/me/two-factor': {
     parameters: {
       query?: never
@@ -195,8 +215,8 @@ export interface paths {
     get: operations['api_panels_get_collection']
     put?: never
     /**
-     * Creates a panel with one default input cable (3 wires, 230 V, 50 Hz, 4 mm²).
-     * @description Creates a panel with one default input cable (3 wires, 230 V, 50 Hz, 4 mm²).
+     * Creates a panel with one default input cable (2 wires: brown and blue, 230 V, 50 Hz, 4 mm²).
+     * @description Creates a panel with one default input cable (2 wires: brown and blue, 230 V, 50 Hz, 4 mm²).
      */
     post: operations['api_panels_post']
     delete?: never
@@ -671,6 +691,11 @@ export interface components {
       email?: string
       emailVerified?: boolean
       twoFactorEnabled?: boolean
+      locale?: string | null
+    }
+    'Me.LocaleSettings': {
+      /** @enum {string} */
+      locale: 'uk' | 'en'
     }
     'Me.TwoFactorSettings.jsonMergePatch': {
       enabled?: boolean
@@ -1012,6 +1037,28 @@ export interface components {
       status: number
       detail: string
     }
+    /** @description The 422 validation problem. Every violation has a stable `code` (`<area>.<rule>`, never renamed) and flat named `parameters` used by its English `message`; clients translate by code and fall back to `message`. Replaces the Symfony error UUID that API Platform puts into `code`. */
+    ViolationProblem: {
+      /** @example 422 */
+      status: number
+      violations: {
+        propertyPath: string
+        /** @example value.out_of_range */
+        code: string
+        message: string
+        /**
+         * @example {
+         *       "min": 1,
+         *       "max": 4
+         *     }
+         */
+        parameters: {
+          [key: string]: string | number | boolean
+        }
+        /** @description Id of the offending panel item, if it has one (panel content only). */
+        id?: string
+      }[]
+    }
   }
   responses: never
   parameters: never
@@ -1073,9 +1120,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
       /** @description `rate_limited`: Too many requests. */
@@ -1163,9 +1208,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
       /** @description `rate_limited`: Too many requests. */
@@ -1246,9 +1289,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
       /** @description `rate_limited`: Too many requests. */
@@ -1300,9 +1341,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
       /** @description `rate_limited`: Too many requests. */
@@ -1354,9 +1393,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
       /** @description `rate_limited`: Too many requests. */
@@ -1448,6 +1485,71 @@ export interface operations {
       }
     }
   }
+  api_melocale_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** @description The updated Me resource */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Me.LocaleSettings']
+      }
+    }
+    responses: {
+      /** @description Me resource updated */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Me']
+        }
+      }
+      /** @description Invalid input */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/ld+json': components['schemas']['Error.jsonld']
+          'application/problem+json': components['schemas']['Error']
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description `token_invalid`: Missing, expired or invalid token. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['AuthProblem']
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/ld+json': components['schemas']['Error.jsonld']
+          'application/problem+json': components['schemas']['Error']
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description An error occurred */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ViolationProblem']
+        }
+      }
+    }
+  }
   'api_metwo-factor_patch': {
     parameters: {
       query?: never
@@ -1509,9 +1611,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
       /** @description `rate_limited`: Too many requests. */
@@ -1617,9 +1717,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
     }
@@ -1818,9 +1916,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
     }
@@ -1892,9 +1988,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
     }
@@ -1992,9 +2086,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/ld+json': components['schemas']['ConstraintViolation.jsonld']
-          'application/problem+json': components['schemas']['ConstraintViolation']
-          'application/json': components['schemas']['ConstraintViolation']
+          'application/problem+json': components['schemas']['ViolationProblem']
         }
       }
     }
