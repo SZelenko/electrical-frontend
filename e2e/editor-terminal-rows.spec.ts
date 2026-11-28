@@ -219,7 +219,13 @@ test('output cables on the right and inputs on the same side share one column', 
     page,
     panelContent({
       outputCables: [
-        { id: id(4), label: '', description: '', wires: [{ id: id(5), colour: 'brown' }] },
+        {
+          id: id(4),
+          label: '',
+          description: '',
+          load: 'socket',
+          wires: [{ id: id(5), colour: 'brown' }],
+        },
       ],
     }),
   )

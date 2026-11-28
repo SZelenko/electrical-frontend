@@ -2,7 +2,10 @@ import { apiRequest } from './client'
 import type { components } from './schema'
 import {
   CABLE_SIDES,
+  OUTPUT_LOADS,
+  type OutputLoad,
   type CableSide,
+  type LayoutVersion,
   type CableWire,
   type Endpoint,
   type NodeEndpoint,
@@ -94,6 +97,19 @@ function normalizeListItem(raw: PanelListItem): PanelListItem {
     updatedAt: req(raw.updatedAt, 'updatedAt'),
     deletedAt: nullable(raw.deletedAt, 'deletedAt'),
   }
+}
+
+/** A layout version of the payload: 1 or 2, anything else is an invalid payload. */
+function layoutVersion(value: number | undefined): LayoutVersion {
+  if (value === 1 || value === 2) return value
+  throw new InvalidPayloadError('layoutVersion')
+}
+
+/** An output cable load: one of the allowed values, anything else is an invalid payload. */
+function outputLoad(value: unknown): OutputLoad {
+  const load = OUTPUT_LOADS.find((l) => l === value)
+  if (!load) throw new InvalidPayloadError('output cable load')
+  return load
 }
 
 function normalizeCableWires(raw: Schemas['CableWireDto'][] | undefined): CableWire[] {
@@ -214,6 +230,7 @@ function normalizeRail(raw: Schemas['RailDto']): Rail {
 /** Payload (mm, one decimal) to the editor model (bends in integer tenths of a millimetre). */
 export function normalizeContent(content: Schemas['PanelContent']): PanelContent {
   return {
+    layoutVersion: layoutVersion(content.layoutVersion),
     railWidthModules: req(content.railWidthModules, 'railWidthModules'),
     inputCableSide: cableSide(content.inputCableSide, 'inputCableSide'),
     outputCableSide: cableSide(content.outputCableSide, 'outputCableSide'),
@@ -229,6 +246,7 @@ export function normalizeContent(content: Schemas['PanelContent']): PanelContent
       id: req(c.id, 'output cable id'),
       label: req(c.label, 'output cable label'),
       description: req(c.description, 'output cable description'),
+      load: outputLoad(c.load),
       wires: normalizeCableWires(c.wires),
     })),
     terminalRow: list(content.terminalRow, 'terminalRow').map(normalizeBlock),
@@ -308,6 +326,7 @@ function elementPayload(e: PanelElement): PayloadElement {
 /** Editor model to the PUT payload; bends are always sent (mm, one decimal). */
 export function contentToPayload(content: PanelContent): Schemas['PanelContent'] {
   const payload: Schemas['PanelContent'] = {
+    layoutVersion: content.layoutVersion,
     railWidthModules: content.railWidthModules,
     inputCableSide: content.inputCableSide,
     outputCableSide: content.outputCableSide,

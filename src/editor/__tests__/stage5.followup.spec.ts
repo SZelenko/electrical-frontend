@@ -2,12 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
-import {
-  CABLE_LABEL_INSET,
-  cableTextOffsets,
-  WIRE_COLOUR_HEX,
-  computeLayout,
-} from '@/domain/geometry'
+import { WIRE_COLOUR_HEX, computeLayout } from '@/domain/geometry'
 import type { PanelContent, WireColour } from '@/domain/panelContent'
 import {
   busbar,
@@ -58,46 +53,67 @@ const world = (
 }
 
 describe('cable label inside the box', () => {
-  it('input: centred at boxY + 130, under the caption at boxY + 80', async () => {
+  it('input: centred at +170 from the top edge, under the caption at +120', async () => {
     const { wrapper } = await mountEditor(world())
     const l = computeLayout(world())
     const box = l.inputBoxes[0]!
     const mark = wrapper.findAll('[data-testid=cable-mark]')[0]!
-    expect(mark.attributes('y')).toBe(String(box.y + cableTextOffsets('top').label))
+    expect(mark.attributes('y')).toBe(String(box.y + 170))
     expect(mark.attributes('x')).toBe(String(box.x + box.w / 2))
     expect(mark.attributes('text-anchor')).toBe('middle')
     const caption = wrapper.findAll('text.cable-label')[0]!
-    expect(caption.attributes('y')).toBe(String(box.y + 80))
+    expect(caption.attributes('y')).toBe(String(box.y + 120))
     expect(Number(mark.attributes('y'))).toBeGreaterThan(Number(caption.attributes('y')))
     expect(Number(mark.attributes('y'))).toBeLessThan(box.y + box.h)
   })
 
-  it('output: label at boxY + 140 above the caption at boxY + 190, inside the box', async () => {
+  it('output: label at +170 above the caption at +120 from the bottom edge, inside the box', async () => {
     const { wrapper } = await mountEditor(world())
     const box = computeLayout(world()).outputBoxes[0]!
     const mark = wrapper.findAll('[data-testid=cable-mark]')[1]!
-    expect(mark.attributes('y')).toBe(String(box.y + cableTextOffsets('bottom').label))
+    expect(mark.attributes('y')).toBe(String(box.y + box.h - 170))
     const caption = wrapper.findAll('text.cable-label')[1]!
-    expect(caption.attributes('y')).toBe(String(box.y + 190))
+    expect(caption.attributes('y')).toBe(String(box.y + box.h - 120))
     expect(Number(mark.attributes('y'))).toBeLessThan(Number(caption.attributes('y')))
     expect(Number(mark.attributes('y'))).toBeGreaterThan(box.y)
   })
 
   it('a short label is not squeezed', async () => {
-    const { wrapper } = await mountEditor(world())
-    expect(wrapper.findAll('[data-testid=cable-mark]')[0]!.attributes('textLength')).toBeUndefined()
+    const { wrapper } = await mountEditor(world(null, 'Ввід', ''))
+    expect(wrapper.findAll('[data-testid=cable-mark]')[0]!.attributes('font-size')).toBe('35')
   })
 
-  it('a long label shrinks to the box width minus the inset (both kinds)', async () => {
+  it('a long label is scaled down to 1.8 mm, then truncated with an ellipsis; the full text is in a tooltip', async () => {
     const long = 'Щ'.repeat(16)
-    const c = world(null, long, long)
-    const { wrapper } = await mountEditor(c)
-    const l = computeLayout(c)
+    const { wrapper } = await mountEditor(world(null, long, long))
     const marks = wrapper.findAll('[data-testid=cable-mark]')
     expect(marks).toHaveLength(2)
-    expect(Number(marks[0]!.attributes('textLength'))).toBe(l.inputBoxes[0]!.w - CABLE_LABEL_INSET)
-    expect(Number(marks[1]!.attributes('textLength'))).toBe(l.outputBoxes[0]!.w - CABLE_LABEL_INSET)
-    expect(marks[0]!.attributes('lengthAdjust')).toBe('spacingAndGlyphs')
+    // the drawn text only (the <title> child holds the full text)
+    const drawn = (m: (typeof marks)[number]) =>
+      [...m.element.childNodes]
+        .filter((n) => n.nodeType === Node.TEXT_NODE)
+        .map((n) => n.textContent?.trim())
+        .join('')
+    for (const mark of marks) {
+      expect(mark.attributes('font-size')).toBe('18')
+      expect(mark.find('title').exists()).toBe(false)
+    }
+    // the full caption and label are in the box tooltip
+    const tips = wrapper.findAll('rect.cable-box title').map((x) => x.text())
+    expect(tips[0]).toBe(`Вх 1 · ${long} — Вхідний кабель: 230 В / 50 Гц / 4 мм²`)
+    expect(tips[1]).toBe(`Вих 1 · ${long} — Вихідний кабель`)
+    // room = box length - 2 * CABLE_LABEL_INSET: 120 on the 2-wire input box, 70 on the 1-wire output box
+    expect(drawn(marks[0]!)).toBe('Щ'.repeat(10) + '…')
+    expect(drawn(marks[1]!)).toBe('Щ'.repeat(5) + '…')
+  })
+
+  it('a label that only needs a smaller font is scaled, not cut', async () => {
+    const { wrapper } = await mountEditor(world(null, 'Щ'.repeat(8), ''))
+    const mark = wrapper.findAll('[data-testid=cable-mark]')[0]!
+    expect(mark.text()).toBe('Щ'.repeat(8))
+    expect(Number(mark.attributes('font-size'))).toBeLessThan(35)
+    expect(Number(mark.attributes('font-size'))).toBeGreaterThanOrEqual(18)
+    expect(mark.find('title').exists()).toBe(false)
   })
 
   it('an empty label draws no mark (error-free empty case)', async () => {

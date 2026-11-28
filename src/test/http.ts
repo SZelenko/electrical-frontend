@@ -88,8 +88,15 @@ export function panelContentJson() {
       },
     ],
     outputCables: [
-      { id: 'o1', label: '', description: 'Розетки', wires: [{ id: 'ow1', colour: 'black' }] },
+      {
+        id: 'o1',
+        label: '',
+        description: 'Розетки',
+        load: 'socket',
+        wires: [{ id: 'ow1', colour: 'black' }],
+      },
     ],
+    layoutVersion: 2,
     inputCableSide: 'top',
     outputCableSide: 'bottom',
     terminalRow: [],

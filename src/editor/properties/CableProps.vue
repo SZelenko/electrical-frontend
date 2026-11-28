@@ -5,6 +5,7 @@ import {
   removeCableWire,
   removeInputCable,
   removeOutputCable,
+  setOutputLoad,
   updateCableWire,
   updateInputCable,
   updateOutputCable,
@@ -15,7 +16,7 @@ import {
   MAX_DESCRIPTION_LENGTH,
   WIRE_COLOURS,
 } from '@/domain/limits'
-import { colourName } from '@/domain/panelContent'
+import { colourName, OUTPUT_LOADS, type OutputLoad } from '@/domain/panelContent'
 import { t } from '@/i18n'
 import { newId } from '../newId'
 import CommitField from './CommitField.vue'
@@ -25,6 +26,9 @@ import { useCommit } from './useCommit'
 const props = defineProps<{ kind: 'inputCable' | 'outputCable'; id: string }>()
 const { ctx, store, num, commit } = useCommit()
 const colourItems = computed(() => WIRE_COLOURS.map((c) => ({ title: colourName(c, t), value: c })))
+const loadItems = computed(() =>
+  OUTPUT_LOADS.map((l) => ({ title: t(`domain.load.${l}`), value: l })),
+)
 const inputCount = computed(() => store.content?.inputCables.length ?? 0)
 
 const input = computed(() =>
@@ -131,6 +135,16 @@ function removeCable() {
             updateOutputCable(id, { description: v }),
             'editor.history.changeCableDescription',
           )
+      "
+    />
+    <SelectField
+      v-if="output"
+      :label="t('props.cable.load')"
+      :items="loadItems"
+      :model-value="output.cable.load"
+      :disabled="store.readOnly"
+      @update:model-value="
+        (v: OutputLoad) => ctx.run(setOutputLoad(id, v), 'editor.history.changeOutputLoad')
       "
     />
     <fieldset class="wires">

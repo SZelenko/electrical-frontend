@@ -27,14 +27,14 @@ const p = (x: number, y: number): Pt => ({ x, y })
 const world = buildWorld()
 
 describe('addWire validates the drawn route', () => {
-  const start = cw(id(2)) // (300,450)
-  const end = pole(id(20), 0, 'input') // (288,2050)
+  const start = cw(id(2)) // (100,300)
+  const end = pole(id(20), 0, 'input') // (288,1900)
   const add = (bends: Pt[], base: PanelContent = world) =>
     addWire(newWire(60, start, end, bends))(base)
 
   it('stores the bends exactly as drawn (no auto route)', () => {
-    const out = run(world, addWire(newWire(60, start, end, [p(300, 800), p(288, 800)]))).content
-    expect(out.wires[4]?.bends).toEqual([p(300, 800), p(288, 800)])
+    const out = run(world, addWire(newWire(60, start, end, [p(100, 800), p(288, 800)]))).content
+    expect(out.wires[4]?.bends).toEqual([p(100, 800), p(288, 800)])
   })
 
   it('accepts a straight wire between aligned contacts with no bends', () => {
@@ -43,13 +43,13 @@ describe('addWire validates the drawn route', () => {
   })
 
   it('accepts a route that goes around (orthogonal with backtracking)', () => {
-    expect(rejection(add([p(300, 300), p(900, 300), p(900, 2050)]))).toBeNull()
+    expect(rejection(add([p(100, 200), p(900, 200), p(900, 1900)]))).toBeNull()
   })
 
   it.each([
-    ['a diagonal first segment', [p(310, 1050), p(288, 1050)]],
-    ['a diagonal last segment', [p(300, 1050)]],
-    ['a diagonal middle segment', [p(300, 800), p(400, 900), p(288, 900)]],
+    ['a diagonal first segment', [p(110, 1050), p(288, 1050)]],
+    ['a diagonal last segment', [p(100, 1050)]],
+    ['a diagonal middle segment', [p(100, 800), p(200, 900), p(288, 900)]],
     ['no bends between misaligned contacts', []],
   ])('rejects %s as not orthogonal', (_n, bends) => {
     const out = add(bends)
@@ -57,8 +57,8 @@ describe('addWire validates the drawn route', () => {
   })
 
   it.each([
-    ['a fractional x', [p(300.5, 1050), p(288, 1050)]],
-    ['a fractional y', [p(300, 1050.5), p(288, 1050.5)]],
+    ['a fractional x', [p(100.5, 1050), p(288, 1050)]],
+    ['a fractional y', [p(100, 1050.5), p(288, 1050.5)]],
     ['NaN', [p(Number.NaN, 1050), p(288, 1050)]],
   ])('rejects %s', (_n, bends) => {
     expect(add(bends)).toMatchObject({ ok: false, reason: 'invalid', detail: 'bends' })
@@ -66,12 +66,12 @@ describe('addWire validates the drawn route', () => {
 
   it('accepts exactly 50 bends and rejects 51', () => {
     const fifty = [
-      ...Array.from({ length: 49 }, (_, i) => p(300, 500 + i)),
-      p(300, 2050), // aligned with the pole input row
+      ...Array.from({ length: 49 }, (_, i) => p(100, 500 + i)),
+      p(100, 1900), // aligned with the pole input row
     ]
     expect(fifty).toHaveLength(50)
     expect(rejection(add(fifty))).toBeNull()
-    const fiftyOne = [p(300, 499), ...fifty]
+    const fiftyOne = [p(100, 499), ...fifty]
     expect(add(fiftyOne)).toMatchObject({ ok: false, reason: 'limit', detail: 'bends' })
   })
 
@@ -81,10 +81,10 @@ describe('addWire validates the drawn route', () => {
       ...world,
       wires: Array.from({ length: n }, (_, i) => panelWire(1000 + i, cw(id(2)), cw(id(3)), bends)),
     })
-    const route = [...Array.from({ length: 49 }, (_, i) => p(300, 500 + i)), p(300, 2050)]
+    const route = [...Array.from({ length: 49 }, (_, i) => p(100, 500 + i)), p(100, 1900)]
     expect(rejection(addWire(newWire(60, start, end, route))(heavy(399)))).toBeNull() // 19950 + 50
     expect(rejection(addWire(newWire(60, start, end, route))(heavy(400)))).toBe('limit') // 20000 + 50
-    expect(add([p(300, 1050), p(288, 1050)], heavy(400))).toMatchObject({
+    expect(add([p(100, 1050), p(288, 1050)], heavy(400))).toMatchObject({
       ok: false,
       reason: 'limit',
       detail: 'bends',
@@ -92,16 +92,16 @@ describe('addWire validates the drawn route', () => {
   })
 
   it.each([
-    ['below 0', [p(300, -10), p(288, -10)]],
-    ['past 99999.9 mm', [p(300, MAX_COORD_U + 1), p(288, MAX_COORD_U + 1)]],
-    ['left of 0', [p(-5, 450), p(-5, 2050)]],
+    ['below 0', [p(100, -10), p(288, -10)]],
+    ['past 99999.9 mm', [p(100, MAX_COORD_U + 1), p(288, MAX_COORD_U + 1)]],
+    ['left of 0', [p(-5, 300), p(-5, 1900)]],
   ])('rejects a bend %s as outside the coordinate range', (_n, bends) => {
     expect(add(bends)).toMatchObject({ ok: false, reason: 'limit', detail: 'coordinates' })
   })
 
   it('accepts bends on the range edges 0 and 999999', () => {
-    expect(rejection(add([p(300, 0), p(288, 0)]))).toBeNull()
-    expect(rejection(add([p(300, MAX_COORD_U), p(288, MAX_COORD_U)]))).toBeNull()
+    expect(rejection(add([p(100, 0), p(288, 0)]))).toBeNull()
+    expect(rejection(add([p(100, MAX_COORD_U), p(288, MAX_COORD_U)]))).toBeNull()
   })
 
   it.each([
@@ -113,7 +113,7 @@ describe('addWire validates the drawn route', () => {
   })
 
   it('does not mutate the spec bends', () => {
-    const bends = [p(300, 800), p(288, 800)]
+    const bends = [p(100, 800), p(288, 800)]
     const snapshot = structuredClone(bends)
     run(world, addWire(newWire(60, start, end, bends)))
     expect(bends).toEqual(snapshot)
@@ -137,7 +137,7 @@ describe('totalBends', () => {
   it('counts the bends added by addWire', () => {
     const after = run(
       content({ inputCables: [inputCable(1, [2, 3])] }),
-      addWire(newWire(60, cw(id(2)), cw(id(3)), [p(300, 900), p(400, 900)])),
+      addWire(newWire(60, cw(id(2)), cw(id(3)), [p(100, 900), p(150, 900)])),
     ).content
     expect(totalBends(after)).toBe(2)
   })
@@ -245,7 +245,7 @@ describe('finishDrawnRoute', () => {
   it('a wire finished this way is accepted by addWire', () => {
     const start = cw(id(2))
     const end = pole(id(20), 0, 'input')
-    const bends = finishDrawnRoute(p(300, 450), [p(300, 800), p(700, 800)], p(288, 2050))
+    const bends = finishDrawnRoute(p(100, 300), [p(100, 800), p(700, 800)], p(288, 1900))
     expect(rejection(addWire(newWire(60, start, end, bends))(world))).toBeNull()
   })
 })

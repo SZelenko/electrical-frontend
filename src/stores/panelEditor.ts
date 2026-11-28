@@ -6,6 +6,7 @@ import { invalidBusbarIds } from '@/domain/busbars'
 import { buildIndex, type ContentIndex } from '@/domain/contentIndex'
 import type { Command, CommandOutcome } from '@/domain/commands'
 import { computeLayout, type Layout } from '@/domain/geometry'
+import { convertLayout } from '@/domain/layoutConversion'
 import type { PanelContent, ShortCircuit } from '@/domain/panelContent'
 import { checkShortCircuits, shortCircuitWireIds } from '@/domain/shortCircuit'
 import type { MessageKey } from '@/domain/translate'
@@ -121,6 +122,8 @@ export const usePanelEditorStore = defineStore('panelEditor', () => {
   const loading = ref(false)
   const saving = ref(false)
   const saveError = ref<SaveError | null>(null)
+  /** Wires re-routed by the layout conversion of the last load (0: none); cleared by a save or a new session. */
+  const convertedWires = ref(0)
   /** Bumped whenever the session is replaced; late responses of an older one are ignored. */
   let generation = 0
 
@@ -190,13 +193,19 @@ export const usePanelEditorStore = defineStore('panelEditor', () => {
     loading.value = false
     saving.value = false
     saveError.value = null
+    convertedWires.value = 0
   }
 
   function adopt(panel: Panel) {
     panelId.value = panel.id
     name.value = panel.name
-    content.value = panel.content
-    savedContent.value = panel.content
+    // A v1 panel is redrawn for the current layout on every load (not an undo step). It is dirty
+    // against the server state only when a wire changed, and never in the trash (display only).
+    const converted = convertLayout(panel.content)
+    const changed = converted.rerouted > 0 && panel.deletedAt === null
+    content.value = converted.content
+    savedContent.value = changed ? panel.content : converted.content
+    convertedWires.value = changed ? converted.rerouted : 0
     baseVersion.value = panel.version
     deletedAt.value = panel.deletedAt
     backendShortCircuits.value = panel.shortCircuits
@@ -338,6 +347,7 @@ export const usePanelEditorStore = defineStore('panelEditor', () => {
       if (mine !== generation) return 'stale'
       baseVersion.value = panel.version
       savedContent.value = snapshot
+      convertedWires.value = 0
       backendShortCircuits.value = panel.shortCircuits
       name.value = panel.name
       return 'saved'
@@ -386,6 +396,7 @@ export const usePanelEditorStore = defineStore('panelEditor', () => {
     loading,
     saving,
     saveError,
+    convertedWires,
     readOnly,
     dirty,
     canUndo,

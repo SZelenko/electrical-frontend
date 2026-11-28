@@ -41,6 +41,11 @@ const SCHEMATIC = {
     'schematic-hover': '#4f8fe0',
     'schematic-error': '#b00020',
     'schematic-casing': '#e3e8ef',
+    // cable boxes: stroke (and icon) colour plus a light fill
+    'schematic-input': '#b26a00',
+    'schematic-input-fill': '#fff0d0',
+    'schematic-output': '#0f7a63',
+    'schematic-output-fill': '#d6f3ea',
   },
   dark: {
     'schematic-canvas': '#16191e',
@@ -61,6 +66,10 @@ const SCHEMATIC = {
     'schematic-hover': '#6f9be0',
     'schematic-error': '#ff6b81',
     'schematic-casing': '#e3e8ef',
+    'schematic-input': '#ffb74d',
+    'schematic-input-fill': '#4a3716',
+    'schematic-output': '#4fd1b0',
+    'schematic-output-fill': '#143d34',
   },
 } as const
 

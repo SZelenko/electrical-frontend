@@ -117,7 +117,7 @@ describe('CableRow: boxes by side', () => {
       const box = l.inputBoxes[0]!
       const w = render(c)
       const caption = w.findAll('text').find((t) => t.text() === 'Вх 1')!
-      const anchorX = box.x + (side === 'left' ? 80 : 190)
+      const anchorX = side === 'left' ? box.x + 120 : box.x + box.w - 120
       const anchorY = box.y + box.h / 2
       expect(caption.attributes('transform')).toBe(`rotate(-90 ${anchorX} ${anchorY})`)
       expect(caption.attributes('x')).toBe(String(anchorX))
@@ -125,21 +125,21 @@ describe('CableRow: boxes by side', () => {
     },
   )
 
-  it('the user label of a left box is rotated and placed at the label baseline, a right box at +140', () => {
+  it('the user label of a left box is rotated and placed at +170 from its outer edge, a right box the same from its right edge', () => {
     const left = computeLayout(labelled('left'))
     const lw = render(labelled('left'))
     const mark = lw.get('[data-testid=cable-mark]')
     const box = left.inputBoxes[0]!
-    expect(mark.attributes('x')).toBe(String(box.x + 130))
-    expect(mark.attributes('transform')).toBe(`rotate(-90 ${box.x + 130} ${box.y + box.h / 2})`)
+    expect(mark.attributes('x')).toBe(String(box.x + 170))
+    expect(mark.attributes('transform')).toBe(`rotate(-90 ${box.x + 170} ${box.y + box.h / 2})`)
 
     const right = computeLayout(labelled('right'))
     const rw = render(labelled('right'))
     const rbox = right.inputBoxes[0]!
-    expect(rw.get('[data-testid=cable-mark]').attributes('x')).toBe(String(rbox.x + 140))
+    expect(rw.get('[data-testid=cable-mark]').attributes('x')).toBe(String(rbox.x + rbox.w - 170))
   })
 
-  it('top box baselines: caption +80, label +130; bottom box: label +140, caption +190', () => {
+  it('top and bottom boxes: caption +120, label +170 from the outer edge (top edge / bottom edge)', () => {
     const top = computeLayout(labelled('top'))
     const tw = render(labelled('top'))
     const tbox = top.inputBoxes[0]!
@@ -148,8 +148,8 @@ describe('CableRow: boxes by side', () => {
         .findAll('text')
         .find((t) => t.text() === 'Вх 1')!
         .attributes('y'),
-    ).toBe(String(tbox.y + 80))
-    expect(tw.get('[data-testid=cable-mark]').attributes('y')).toBe(String(tbox.y + 130))
+    ).toBe(String(tbox.y + 120))
+    expect(tw.get('[data-testid=cable-mark]').attributes('y')).toBe(String(tbox.y + 170))
 
     const bottom = computeLayout(labelled('bottom'))
     const bw = render(labelled('bottom'))
@@ -159,8 +159,8 @@ describe('CableRow: boxes by side', () => {
         .findAll('text')
         .find((t) => t.text() === 'Вх 1')!
         .attributes('y'),
-    ).toBe(String(bbox.y + 190))
-    expect(bw.get('[data-testid=cable-mark]').attributes('y')).toBe(String(bbox.y + 140))
+    ).toBe(String(bbox.y + bbox.h - 120))
+    expect(bw.get('[data-testid=cable-mark]').attributes('y')).toBe(String(bbox.y + bbox.h - 170))
   })
 
   it('the caption of an output cable keeps its own numbering on a shared side', () => {
@@ -216,7 +216,7 @@ describe('PanelCanvas: cables and rows by side', () => {
     expect(wrapper.get('[data-testid=output-cable]').attributes('data-side')).toBe('bottom')
     const l = computeLayout({ ...base, inputCableSide: 'left' })
     expect(wrapper.get('[data-testid=terminal-row] rect').attributes('x')).toBe(String(l.railsLeft))
-    expect(l.railsLeft).toBe(600)
+    expect(l.railsLeft).toBe(450)
   })
 
   it('a bottom-row block is drawn in the bottom band and has its contacts', async () => {

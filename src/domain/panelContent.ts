@@ -22,11 +22,26 @@ export interface InputCable {
   wires: CableWire[]
 }
 
+/** What an output cable feeds; selects the drawn icon (drawing only). */
+export type OutputLoad = 'socket' | 'lighting'
+
+export const OUTPUT_LOADS: readonly OutputLoad[] = ['socket', 'lighting']
+
+/** The load of a new output cable. */
+export const DEFAULT_OUTPUT_LOAD: OutputLoad = 'socket'
+
+/** Layout version of the stored panel: `1` = the previous (two-row) layout, `2` = the compact cable layout. */
+export type LayoutVersion = 1 | 2
+
+/** The version `computeLayout` implements; a v1 panel is converted on open (`convertLayout`). */
+export const CURRENT_LAYOUT_VERSION: LayoutVersion = 2
+
 export interface OutputCable {
   id: string
   /** The user's free mark (at most 16 characters, may be empty). */
   label: string
   description: string
+  load: OutputLoad
   wires: CableWire[]
 }
 
@@ -157,6 +172,8 @@ export const ROW_KEYS = {
 } as const satisfies Record<RowId, 'terminalRow' | 'bottomTerminalRow'>
 
 export interface PanelContent {
+  /** Which drawing formulas the stored bends belong to (see `convertLayout`). */
+  layoutVersion: LayoutVersion
   /** Width of every rail in modules (1..60); also the capacity of both terminal rows. */
   railWidthModules: number
   /** Side of all input cables (default `top`); with an output cable on the same side the inputs come first. */

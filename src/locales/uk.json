@@ -116,6 +116,7 @@
     "view": {
       "notFound": "Щит не знайдено.",
       "inTrash": "Щит знаходиться в кошику. Редагування вимкнено.",
+      "layoutConverted": "Маршрут {n} дроту оновлено під новий макет | Маршрути {n} дротів оновлено під новий макет | Маршрути {n} дротів оновлено під новий макет",
       "saving": "Збереження…",
       "conflictSaveTitle": "Щит змінено в іншому місці: збереження вимкнено до перезавантаження",
       "dirty": "● Є незбережені зміни",
@@ -306,6 +307,7 @@
       "notCopied": "{reason}. Копію не створено.",
       "movedBack": "{reason}. Елемент повернено на місце.",
       "drawingHint": "Клацайте на полі, щоб додати злам, і на виводі, щоб завершити провід. Backspace або Ctrl+Z — прибрати останній злам, Esc — скасувати.",
+      "cableTooltip": "{head} — {detail}",
       "inputCableTitle": "Вхідний кабель: {rating}",
       "outputCableTitle": "Вихідний кабель",
       "outputCableTitleDescribed": "Вихідний кабель: {description}",
@@ -347,6 +349,7 @@
       "changeFrequency": "Змінити частоту",
       "changeCableCrossSection": "Змінити переріз кабелю",
       "changeCableDescription": "Змінити опис кабелю",
+      "changeOutputLoad": "Змінити навантаження кабелю",
       "changeCableWireColour": "Змінити колір проводу кабелю",
       "addCableWire": "Додати провід до кабелю",
       "changeElementStyle": "Змінити стиль апарата",
@@ -412,6 +415,7 @@
       "frequency": "Частота, Гц",
       "crossSection": "Переріз, мм²",
       "description": "Опис",
+      "load": "Навантаження",
       "wires": "Проводи кабелю",
       "wireColour": "Колір проводу {n}",
       "deleteWireLast": "Не можна видалити останній провід кабелю",
@@ -482,6 +486,10 @@
       "blue": "синій",
       "green-yellow": "жовто-зелений",
       "grey": "сірий"
+    },
+    "load": {
+      "socket": "Розетка",
+      "lighting": "Освітлення"
     },
     "cableSide": {
       "top": "зверху",
@@ -594,6 +602,9 @@
     },
     "cable": {
       "wire_count": "Кабель має мати від {min} до {max} проводів."
+    },
+    "layout_version": {
+      "downgrade": "Версію компонування не можна знизити (збережено: {current})."
     },
     "rails": {
       "too_many": "Не більше {max} рейок."

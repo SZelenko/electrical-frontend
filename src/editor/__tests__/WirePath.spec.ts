@@ -113,6 +113,13 @@ describe('WirePath z-order', () => {
     expect(ps[5]!.attributes('data-testid')).toBe('wire')
   })
 
+  it('the dark-theme casing is drawn at 50 % opacity', () => {
+    applyTheme({ mode: 'dark', palette: 'blue' })
+    const c = casing(mountWire())
+    expect(c.exists()).toBe(true)
+    expect(c.attributes('stroke-opacity')).toBe('0.5')
+  })
+
   it('light: no casing, the order is otherwise the same', () => {
     const w = mountWire({ shortCircuit: true, selected: true }, { colour: 'green-yellow' })
     const ps = paths(w)

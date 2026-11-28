@@ -61,7 +61,9 @@ import {
 } from './routes'
 import {
   CABLE_SIDES,
+  DEFAULT_OUTPUT_LOAD,
   endpointKey,
+  OUTPUT_LOADS,
   ROW_IDS,
   rowBlocks,
   rowOfBlock,
@@ -76,6 +78,7 @@ import {
   type Endpoint,
   type InputCable,
   type OutputCable,
+  type OutputLoad,
   type PanelContent,
   type PanelElement,
   type PanelWire,
@@ -306,7 +309,13 @@ export function defaultOutputCable(
   brownWireId: string,
   blueWireId: string,
 ): OutputCable {
-  return { id, label: '', description: '', wires: defaultWires(brownWireId, blueWireId) }
+  return {
+    id,
+    label: '',
+    description: '',
+    load: DEFAULT_OUTPUT_LOAD,
+    wires: defaultWires(brownWireId, blueWireId),
+  }
 }
 
 // ---- rails ----
@@ -363,7 +372,9 @@ export function setRailWidth(widthModules: number): Command {
     if (widthModules === content.railWidthModules) return content
     const error = checkRailWidth(content, widthModules)
     if (error) reject(error)
-    return settle(content, { ...content, railWidthModules: widthModules }, 0)
+    const after = { ...content, railWidthModules: widthModules }
+    requireDrawingInRange(after)
+    return settle(content, after, 0)
   })
 }
 
@@ -1037,6 +1048,7 @@ export function addOutputCable(cable: OutputCable): Command {
     requireFreeIds(content, cable.id, ...cable.wires.map((w) => w.id))
     requireText(cable.description, MAX_DESCRIPTION_LENGTH)
     requireText(cable.label, MAX_CABLE_LABEL_LENGTH)
+    if (!OUTPUT_LOADS.includes(cable.load)) reject('invalid', 'load')
     checkCableWires(cable.wires)
     const after = { ...content, outputCables: [...content.outputCables, cable] }
     requireDrawingInRange(after)
@@ -1062,6 +1074,21 @@ export function updateOutputCable(
       outputCables: content.outputCables.map((c, i) =>
         i === index ? { ...cable, description, label } : c,
       ),
+    }
+  })
+}
+
+/** Sets what an output cable feeds (icon only): one undoable command; no layout effect. */
+export function setOutputLoad(cableId: string, load: OutputLoad): Command {
+  return define((content) => {
+    const index = content.outputCables.findIndex((c) => c.id === cableId)
+    const cable = content.outputCables[index]
+    if (!cable) reject('notFound', cableId)
+    if (!OUTPUT_LOADS.includes(load)) reject('invalid', 'load')
+    if (cable.load === load) return content
+    return {
+      ...content,
+      outputCables: content.outputCables.map((c, i) => (i === index ? { ...cable, load } : c)),
     }
   })
 }

@@ -24,9 +24,9 @@ function axisAligned(points: readonly Pt[]): boolean {
 }
 
 /**
- * C1 (id1: wires id2 at (300,450), id3 at (400,450)); R id10 24 modules 150 mm (cy 2500, railsTop 1000):
- * E id20 offset 2 width 2 poles 2 (inputs (638,2050),(813,2050); outputs (638,2950),(813,2950));
- * B id40 offset 8 width 1 contacts 2 (left side (1625,2088),(1625,2163)).
+ * C1 (id1: wires id2 at (100,300), id3 at (150,300)); R id10 24 modules 150 mm (cy 2350, railsTop 850):
+ * E id20 offset 2 width 2 poles 2 (inputs (638,1900),(813,1900); outputs (638,2800),(813,2800));
+ * B id40 offset 8 width 1 contacts 2 (left side (1625,1938),(1625,2013)).
  */
 function scene(wires: PanelWire[], over: { offset?: number; spacing?: number } = {}): PanelContent {
   return content({
@@ -57,8 +57,8 @@ describe('repairRoutes (a): both endpoints moved by the same delta -> rigid tran
     ])
     const before = scene([wire])
     const after = scene([wire], { spacing: 160 }) // +10 mm = +100 u for both devices
-    expect(endpointPoint(computeLayout(before), wire.start)).toEqual(p(638, 2950))
-    expect(endpointPoint(computeLayout(after), wire.start)).toEqual(p(638, 3050))
+    expect(endpointPoint(computeLayout(before), wire.start)).toEqual(p(638, 2800))
+    expect(endpointPoint(computeLayout(after), wire.start)).toEqual(p(638, 2900))
     const repaired = repairRoutes(before, after)
     expect(wireOf(repaired).bends).toEqual([p(700, 2700), p(900, 2100), p(1100, 1800)])
   })
@@ -66,9 +66,9 @@ describe('repairRoutes (a): both endpoints moved by the same delta -> rigid tran
   it('translates horizontally when a new input cable shifts two wires of the same cable', () => {
     const wire = panelWire(30, cw(id(2)), cw(id(3)), [p(300, 700), p(400, 700)])
     const before = scene([wire])
-    // a 1-wire cable in front: 200 (box) + 100 (gap) = 300 u
+    // a 1-wire cable in front: 100 (box) + 100 (gap) = 200 u
     const after = { ...before, inputCables: [inputCable(9, [8]), ...before.inputCables] }
-    expect(wireOf(repairRoutes(before, after)).bends).toEqual([p(600, 700), p(700, 700)])
+    expect(wireOf(repairRoutes(before, after)).bends).toEqual([p(500, 700), p(600, 700)])
   })
 
   it('a wire with no bends stays without bends', () => {
@@ -84,8 +84,8 @@ describe('repairRoutes (a): both endpoints moved by the same delta -> rigid tran
     const after = scene([wire], { spacing: 0 }) // shifts both ends up by 1500 u: the bend would be at y = -1495
     const bends = wireOf(repairRoutes(before, after)).bends
     // the rail block contact is entered horizontally from the left
-    // start (638, 1450) leaves down (stub 1550); end (1625, 588) is entered from the left (stub 1525)
-    expect(bends).toEqual([p(638, 1550), p(1525, 1550), p(1525, 588)])
+    // start (638, 1300) leaves down (stub 1400); end (1625, 438) is entered from the left (stub 1525)
+    expect(bends).toEqual([p(638, 1400), p(1525, 1400), p(1525, 438)])
     expect(bends.every((b) => b.x >= 0 && b.y >= 0)).toBe(true)
   })
 })
@@ -100,21 +100,21 @@ describe('repairRoutes (b): an untouched automatic route is re-routed', () => {
 
   it('routes the wire again after the end element moved horizontally', () => {
     const before = mk()
-    expect(wireOf(before).bends).toEqual([p(300, 1250), p(638, 1250)])
+    expect(wireOf(before).bends).toEqual([p(100, 1100), p(638, 1100)])
     const after = {
       ...before,
       rails: [
         { ...before.rails[0]!, elements: [{ ...before.rails[0]!.elements[0]!, offsetModules: 4 }] },
       ],
     }
-    expect(wireOf(repairRoutes(before, after)).bends).toEqual([p(300, 1250), p(988, 1250)])
+    expect(wireOf(repairRoutes(before, after)).bends).toEqual([p(100, 1100), p(988, 1100)])
   })
 
   it('routes the wire again after the end moved vertically (channel follows the midpoint)', () => {
     const before = mk()
-    const after = mk({ spacing: 250 }) // rail centre 3500, pole input at y 3050 (stub 2950); channel = (550 + 2950) / 2
+    const after = mk({ spacing: 250 }) // rail centre 3350, pole input at y 2900 (stub 2800); channel = (400 + 2800) / 2
     const stale = { ...after, wires: before.wires }
-    expect(wireOf(repairRoutes(before, stale)).bends).toEqual([p(300, 1750), p(638, 1750)])
+    expect(wireOf(repairRoutes(before, stale)).bends).toEqual([p(100, 1600), p(638, 1600)])
   })
 
   it('returns the very same content when nothing moved', () => {
@@ -124,8 +124,8 @@ describe('repairRoutes (b): an untouched automatic route is re-routed', () => {
   })
 
   it('keeps the identity of unaffected wires', () => {
-    const unaffected = panelWire(31, cw(id(2)), cw(id(3)), [p(300, 700), p(400, 700)])
-    const moved = panelWire(30, start, end, [p(300, 1050), p(638, 1050)])
+    const unaffected = panelWire(31, cw(id(2)), cw(id(3)), [p(100, 700), p(150, 700)])
+    const moved = panelWire(30, start, end, [p(100, 1050), p(638, 1050)])
     const before = scene([moved, unaffected])
     const after = {
       ...before,
@@ -152,52 +152,52 @@ describe('repairRoutes (c): custom bends are re-anchored without diagonals', () 
   }
 
   it('moves the last bend onto the new terminal line when the last segment is perpendicular', () => {
-    const wire = panelWire(30, cw(id(2)), pole(id(20), 0, 'input'), [p(300, 800), p(638, 800)])
+    const wire = panelWire(30, cw(id(2)), pole(id(20), 0, 'input'), [p(100, 800), p(638, 800)])
     const before = scene([wire])
     const repaired = repairRoutes(before, moveEnd(before, 4))
-    expect(wireOf(repaired).bends).toEqual([p(300, 800), p(988, 800)])
+    expect(wireOf(repaired).bends).toEqual([p(100, 800), p(988, 800)])
     expect(axisAligned(polyline(repaired))).toBe(true)
   })
 
   it('inserts one elbow when the last two segments are collinear', () => {
     // last bend (638,1300) is a collinear point on the final vertical segment
     const wire = panelWire(30, cw(id(2)), pole(id(20), 0, 'input'), [
-      p(300, 1000),
+      p(100, 1000),
       p(638, 1000),
       p(638, 1300),
     ])
     const before = scene([wire])
     const repaired = repairRoutes(before, moveEnd(before, 4))
-    expect(wireOf(repaired).bends).toEqual([p(300, 1000), p(638, 1000), p(638, 1300), p(988, 1300)])
+    expect(wireOf(repaired).bends).toEqual([p(100, 1000), p(638, 1000), p(638, 1300), p(988, 1300)])
     expect(axisAligned(polyline(repaired))).toBe(true)
   })
 
   it('inserts one elbow at the start when the start moves sideways along a collinear first segment', () => {
     const wire = panelWire(30, cw(id(2)), pole(id(20), 0, 'input'), [
-      p(300, 700),
-      p(300, 1000),
+      p(100, 700),
+      p(100, 1000),
       p(638, 1000),
     ])
     const before = scene([wire])
-    const after = { ...before, inputCables: [inputCable(9, [8]), ...before.inputCables] } // start x 300 -> 600
+    const after = { ...before, inputCables: [inputCable(9, [8]), ...before.inputCables] } // start x 100 -> 300
     const repaired = repairRoutes(before, after)
-    expect(wireOf(repaired).bends).toEqual([p(600, 700), p(300, 700), p(300, 1000), p(638, 1000)])
+    expect(wireOf(repaired).bends).toEqual([p(300, 700), p(100, 700), p(100, 1000), p(638, 1000)])
     expect(axisAligned(polyline(repaired))).toBe(true)
   })
 
   it('keeps the user-placed collinear bends it did not touch', () => {
     const wire = panelWire(30, cw(id(2)), pole(id(20), 0, 'input'), [
-      p(300, 800),
-      p(300, 900),
+      p(100, 800),
+      p(100, 900),
       p(638, 900),
     ])
     const before = scene([wire])
     const repaired = repairRoutes(before, moveEnd(before, 4))
-    expect(wireOf(repaired).bends).toEqual([p(300, 800), p(300, 900), p(988, 900)])
+    expect(wireOf(repaired).bends).toEqual([p(100, 800), p(100, 900), p(988, 900)])
   })
 
   it('leaves the route alone when the moved terminal stays on its last segment line', () => {
-    const wire = panelWire(30, cw(id(2)), pole(id(20), 0, 'input'), [p(300, 800), p(638, 800)])
+    const wire = panelWire(30, cw(id(2)), pole(id(20), 0, 'input'), [p(100, 800), p(638, 800)])
     const before = scene([wire])
     const after = scene([wire], { spacing: 250 }) // end moves straight down along x = 638
     const repaired = repairRoutes(before, after)
@@ -207,7 +207,7 @@ describe('repairRoutes (c): custom bends are re-anchored without diagonals', () 
 
   it('keeps the orthogonality of a long zig-zag when the end moves', () => {
     const wire = panelWire(30, cw(id(2)), pole(id(20), 0, 'input'), [
-      p(300, 700),
+      p(100, 700),
       p(500, 700),
       p(500, 900),
       p(638, 900),
@@ -215,15 +215,15 @@ describe('repairRoutes (c): custom bends are re-anchored without diagonals', () 
     const before = scene([wire])
     const repaired = repairRoutes(before, moveEnd(before, 6))
     expect(axisAligned(polyline(repaired))).toBe(true)
-    expect(wireOf(repaired).bends.slice(0, 3)).toEqual([p(300, 700), p(500, 700), p(500, 900)])
+    expect(wireOf(repaired).bends.slice(0, 3)).toEqual([p(100, 700), p(500, 700), p(500, 900)])
   })
 })
 
 describe('repairRoutes (c) cap: 50 bends per wire', () => {
-  /** 47 collinear bends down x=300, then a horizontal jog to x=638 and one collinear bend above the end. */
+  /** 47 collinear bends down x=100, then a horizontal jog to x=638 and one collinear bend above the end. */
   const zigzag = (collinear: number): Pt[] => [
-    ...Array.from({ length: collinear }, (_, i) => p(300, 500 + 10 * i)),
-    p(300, 1000),
+    ...Array.from({ length: collinear }, (_, i) => p(100, 500 + 10 * i)),
+    p(100, 1000),
     p(638, 1000),
     p(638, 1300),
   ]
@@ -245,7 +245,7 @@ describe('repairRoutes (c) cap: 50 bends per wire', () => {
     const before = scene([wire])
     const after = moved(before)
     const bends = wireOf(repairRoutes(before, after)).bends
-    expect(bends).toEqual([p(300, 1250), p(988, 1250)])
+    expect(bends).toEqual([p(100, 1100), p(988, 1100)])
     expect(bends).toEqual(autoBends(after, wire))
   })
 })
@@ -267,8 +267,8 @@ describe('repairRoutes: scope and edge cases', () => {
     const after = moved(before)
     expect(repairRoutes(before, after, new Set([id(99)]))).toBe(after)
     expect(wireOf(repairRoutes(before, after, new Set([W]))).bends).toEqual([
-      p(300, 1250),
-      p(988, 1250),
+      p(100, 1100),
+      p(988, 1100),
     ])
   })
 
@@ -303,7 +303,7 @@ describe('repairRoutes: scope and edge cases', () => {
     const layout = computeLayout(after)
     expect(endpointDirection(layout, end)).toBe('down')
     const bends = wireOf(repairRoutes(before, after)).bends
-    expect(bends).toEqual(autoRoute(p(300, 450), 'down', p(638, 2950), 'down'))
+    expect(bends).toEqual(autoRoute(p(100, 300), 'down', p(638, 2800), 'down'))
   })
 })
 
@@ -312,12 +312,12 @@ describe('autoRouteFor', () => {
     const c = scene([])
     const layout = computeLayout(c)
     expect(autoRouteFor(layout, { start: cw(id(2)), end: pole(id(20), 0, 'input') })).toEqual([
-      p(300, 1250),
-      p(638, 1250),
+      p(100, 1100),
+      p(638, 1100),
     ])
     expect(autoRouteFor(layout, { start: cw(id(99)), end: pole(id(20), 0, 'input') })).toBeNull()
     expect(autoRouteFor(layout, { start: cw(id(2)), end: term(id(40), 5) })).toBeNull() // index past the count
-    expect(autoRouteFor(layout, { start: cw(id(2)), end: term(id(40), 1) })).toEqual([p(300, 2163)])
+    expect(autoRouteFor(layout, { start: cw(id(2)), end: term(id(40), 1) })).toEqual([p(100, 2013)])
   })
 })
 

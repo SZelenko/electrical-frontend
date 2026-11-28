@@ -168,6 +168,7 @@ describe('contentToPayload: editor tenths -> payload mm', () => {
       id: id(4),
       label: '',
       description: '',
+      load: 'socket',
       wires: [{ id: id(5), colour: 'black' }],
     })
     expect(payload.rails?.map((r) => r.id)).toEqual([id(10), id(11)])

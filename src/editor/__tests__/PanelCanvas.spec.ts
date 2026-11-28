@@ -224,7 +224,7 @@ describe('PanelCanvas: drawing a wire', () => {
     const wire = store.content!.wires[0]!
     expect(wire.start).toEqual(cw(id(2)))
     expect(wire.end).toEqual(pole(id(20), 0, 'input'))
-    expect(wire.bends).toEqual([{ x: 288, y: 450 }]) // no clicks in between: exactly one elbow
+    expect(wire.bends).toEqual([{ x: 288, y: 300 }]) // no clicks in between: exactly one elbow
     expect(store.selection).toEqual({ kind: 'wire', id: wire.id })
     expect(ctx.drawing.value).toBeNull()
     expect(store.undoLabel && t(store.undoLabel)).toBe('Додати провід')
@@ -318,7 +318,7 @@ describe('PanelCanvas: drawing a wire', () => {
 })
 
 describe('PanelCanvas: bend editing', () => {
-  /** W1 cw2 (300,450) -> E1.p0 in (288,2050); auto bends (300,1250), (288,1250). */
+  /** W1 cw2 (100,300) -> E1.p0 in (288,1900); auto bends (100,1100), (288,1100). */
   const select = async (wrapper: Awaited<ReturnType<typeof mountEditor>>['wrapper']) => {
     await wrapper.get('[data-testid=wire]').trigger('pointerdown', { button: 0, pointerId: 1 })
   }
@@ -334,7 +334,7 @@ describe('PanelCanvas: bend editing', () => {
   it('dragging a bend commits one entry with the dragged position and aligned neighbour', async () => {
     const { wrapper, store } = await mountEditor(wired)
     await select(wrapper)
-    const start = { x: 300, y: 1250 }
+    const start = { x: 100, y: 1100 }
     await wrapper
       .get('[data-testid=bend][data-index="0"]')
       .trigger('pointerdown', pointer(wrapper, start))
@@ -344,7 +344,7 @@ describe('PanelCanvas: bend editing', () => {
     }
     await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: 330, y: 900 }))
     expect(store.content?.wires[0]?.bends).toEqual([
-      { x: 300, y: 900 }, // x locked by the cable wire terminal
+      { x: 100, y: 900 }, // x locked by the cable wire terminal
       { x: 288, y: 900 },
     ])
     expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити злам')
@@ -356,8 +356,8 @@ describe('PanelCanvas: bend editing', () => {
     await select(wrapper)
     await wrapper
       .get('[data-testid=bend][data-index="0"]')
-      .trigger('pointerdown', pointer(wrapper, { x: 300, y: 1250 }))
-    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: 300, y: 1250 }))
+      .trigger('pointerdown', pointer(wrapper, { x: 100, y: 1100 }))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: 100, y: 1100 }))
     expect(store.dirty).toBe(false)
   })
 
@@ -366,10 +366,10 @@ describe('PanelCanvas: bend editing', () => {
     await select(wrapper)
     await wrapper
       .get('[data-testid=wire]')
-      .trigger('dblclick', pointer(wrapper, { x: 294, y: 1250 }))
+      .trigger('dblclick', pointer(wrapper, { x: 194, y: 1100 }))
     const bends = store.content!.wires[0]!.bends
     expect(bends).toHaveLength(3)
-    expect(bends[1]).toEqual({ x: 294, y: 1250 })
+    expect(bends[1]).toEqual({ x: 194, y: 1100 })
     expect(store.undoLabel && t(store.undoLabel)).toBe('Додати злам')
     expect(historyLength(store)).toBe(1)
   })
@@ -379,14 +379,14 @@ describe('PanelCanvas: bend editing', () => {
     await select(wrapper)
     await wrapper
       .get('[data-testid=wire]')
-      .trigger('dblclick', pointer(wrapper, { x: 294, y: 1250 }))
+      .trigger('dblclick', pointer(wrapper, { x: 194, y: 1100 }))
     expect(wrapper.findAll('[data-testid=bend]')).toHaveLength(3)
     await wrapper
       .get('[data-testid=bend][data-index="1"]')
-      .trigger('dblclick', pointer(wrapper, { x: 294, y: 1250 }))
+      .trigger('dblclick', pointer(wrapper, { x: 194, y: 1100 }))
     expect(store.content?.wires[0]?.bends).toEqual([
-      { x: 300, y: 1250 },
-      { x: 288, y: 1250 },
+      { x: 100, y: 1100 },
+      { x: 288, y: 1100 },
     ])
     expect(store.undoLabel && t(store.undoLabel)).toBe('Видалити злам')
     const l = computeLayout(store.content!)
@@ -473,17 +473,17 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
   it('each click off a contact adds a bend snapped to the closer axis; the end click adds one elbow', async () => {
     const { wrapper, store, ctx } = await mountEditor(base)
     await start(wrapper)
-    await clickAt(wrapper, { x: 305, y: 900 }) // closer to the vertical axis of (300,450)
-    expect(ctx.drawing.value?.bends).toEqual([{ x: 300, y: 900 }])
-    await clickAt(wrapper, { x: 700, y: 905 }) // closer to the horizontal axis of (300,900)
+    await clickAt(wrapper, { x: 105, y: 900 }) // closer to the vertical axis of (100,300)
+    expect(ctx.drawing.value?.bends).toEqual([{ x: 100, y: 900 }])
+    await clickAt(wrapper, { x: 700, y: 905 }) // closer to the horizontal axis of (100,900)
     expect(ctx.drawing.value?.bends).toEqual([
-      { x: 300, y: 900 },
+      { x: 100, y: 900 },
       { x: 700, y: 900 },
     ])
     await poleIn(wrapper)
     const wire = store.content!.wires[0]!
     expect(wire.bends).toEqual([
-      { x: 300, y: 900 },
+      { x: 100, y: 900 },
       { x: 700, y: 900 },
       { x: 288, y: 900 }, // the single elbow in front of the contact
     ])
@@ -496,8 +496,8 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     await start(wrapper)
     await wrapper
       .get('[data-testid=rail]')
-      .trigger('pointerdown', pointer(wrapper, { x: 305, y: 2500 }))
-    expect(ctx.drawing.value?.bends).toEqual([{ x: 300, y: 2500 }])
+      .trigger('pointerdown', pointer(wrapper, { x: 105, y: 2350 }))
+    expect(ctx.drawing.value?.bends).toEqual([{ x: 100, y: 2350 }])
   })
 
   it('a background click moves less than 4 px adds a bend; a drag of 4 px or more pans instead', async () => {
@@ -529,7 +529,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
   it('a click exactly on the last point is ignored', async () => {
     const { wrapper, ctx } = await mountEditor(base)
     await start(wrapper)
-    await clickAt(wrapper, { x: 300, y: 450 })
+    await clickAt(wrapper, { x: 100, y: 300 })
     expect(ctx.drawing.value?.bends).toEqual([])
   })
 
@@ -537,12 +537,12 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     const { wrapper, store, ctx } = await mountEditor(base)
     store.select({ kind: 'element', id: id(21) })
     await start(wrapper)
-    await clickAt(wrapper, { x: 300, y: 900 })
+    await clickAt(wrapper, { x: 100, y: 900 })
     await clickAt(wrapper, { x: 700, y: 900 })
     const bs = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true })
     window.dispatchEvent(bs)
     expect(bs.defaultPrevented).toBe(true)
-    expect(ctx.drawing.value?.bends).toEqual([{ x: 300, y: 900 }])
+    expect(ctx.drawing.value?.bends).toEqual([{ x: 100, y: 900 }])
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }))
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' })) // nothing left to remove
     expect(ctx.drawing.value?.bends).toEqual([])
@@ -553,11 +553,11 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
   it('Escape and a click on the start contact cancel drawing and leave nothing behind', async () => {
     const { wrapper, store, ctx } = await mountEditor(base)
     await start(wrapper)
-    await clickAt(wrapper, { x: 300, y: 900 })
+    await clickAt(wrapper, { x: 100, y: 900 })
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     expect(ctx.drawing.value).toBeNull()
     await start(wrapper)
-    await clickAt(wrapper, { x: 300, y: 900 })
+    await clickAt(wrapper, { x: 100, y: 900 })
     await start(wrapper) // second click on the start contact
     expect(ctx.drawing.value).toBeNull()
     expect(store.canUndo).toBe(false)
@@ -565,8 +565,8 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
   })
 
   describe('the 50-bend cap', () => {
-    /** 50 vertical bends from the start contact (300,450): ends at (300,990); the pole input is at (288,2050). */
-    const fifty = Array.from({ length: 50 }, (_, i) => ({ x: 300, y: 500 + 10 * i }))
+    /** 50 vertical bends from the start contact (100,300): ends at (100,990); the pole input is at (288,1900). */
+    const fifty = Array.from({ length: 50 }, (_, i) => ({ x: 100, y: 500 + 10 * i }))
 
     it('refuses a 51st bend with a hint and keeps the drawing', async () => {
       const { wrapper, ctx, store } = await mountEditor(base)
@@ -599,8 +599,8 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     it('finishing 50 bends on an aligned contact succeeds', async () => {
       const { wrapper, ctx, store } = await mountEditor(base)
       await start(wrapper)
-      // the last bend (300,2050) shares y with the pole input (288,2050): no elbow needed
-      const aligned = [...fifty.slice(0, 49), { x: 300, y: 2050 }]
+      // the last bend (100,1900) shares y with the pole input (288,1900): no elbow needed
+      const aligned = [...fifty.slice(0, 49), { x: 100, y: 1900 }]
       ctx.drawing.value = { ...ctx.drawing.value!, bends: aligned }
       await poleIn(wrapper)
       expect(store.content!.wires).toHaveLength(1)
@@ -615,9 +615,9 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     await start(wrapper)
     ctx.drawing.value = {
       ...ctx.drawing.value!,
-      bends: Array.from({ length: 49 }, (_, i) => ({ x: 300, y: 500 + 10 * i })),
+      bends: Array.from({ length: 49 }, (_, i) => ({ x: 100, y: 500 + 10 * i })),
     }
-    await clickAt(wrapper, { x: 900, y: 990 }) // last bend (300, 980): vertical axis
+    await clickAt(wrapper, { x: 900, y: 990 }) // last bend (100, 980): vertical axis
     expect(ctx.drawing.value?.bends).toHaveLength(50)
     expect(ctx.notice.value).toBeNull()
   })
@@ -625,9 +625,9 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
   it('the rubber band follows start, bends and the pointer snapped to an axis', async () => {
     const { wrapper } = await mountEditor(base)
     await start(wrapper)
-    await clickAt(wrapper, { x: 300, y: 900 })
+    await clickAt(wrapper, { x: 100, y: 900 })
     await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: 700, y: 905 }))
-    expect(wrapper.get('polyline.rubber').attributes('points')).toBe('300,450 300,900 700,900')
+    expect(wrapper.get('polyline.rubber').attributes('points')).toBe('100,300 100,900 700,900')
   })
 
   describe('colour from the start contact (W3)', () => {
@@ -702,7 +702,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
           crossSection: '2.5' as const,
           start: cw(id(2)),
           end: cw(id(3)),
-          bends: Array.from({ length: 50 }, (_, k) => ({ x: 300, y: 500 + 10 * k })),
+          bends: Array.from({ length: 50 }, (_, k) => ({ x: 100, y: 500 + 10 * k })),
         })),
       }
       const { wrapper, ctx, store } = await mountEditor(crowded)
@@ -724,7 +724,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       await start(wrapper, id(3))
       await wrapper
         .get('[data-testid=wire]')
-        .trigger('dblclick', pointer(wrapper, { x: 294, y: 1250 }))
+        .trigger('dblclick', pointer(wrapper, { x: 194, y: 1100 }))
       expect(store.content).toBe(before)
       expect(store.canUndo).toBe(false)
     })
@@ -746,7 +746,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       await wrapper.get('[data-testid=wire]').trigger('pointerdown', { button: 0, pointerId: 1 })
       await wrapper
         .get('[data-testid=wire]')
-        .trigger('dblclick', pointer(wrapper, { x: 294, y: 1250 }))
+        .trigger('dblclick', pointer(wrapper, { x: 194, y: 1100 }))
       expect(store.undoLabel && t(store.undoLabel)).toBe('Додати злам')
     })
   })
@@ -834,10 +834,10 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       await nextTick() // let the content watcher settle before drawing starts
       const before = store.content
       await start(wrapper)
-      await clickAt(wrapper, { x: 300, y: 900 })
+      await clickAt(wrapper, { x: 100, y: 900 })
       await clickAt(wrapper, { x: 700, y: 900 })
       ctrl('z')
-      expect(ctx.drawing.value?.bends).toEqual([{ x: 300, y: 900 }])
+      expect(ctx.drawing.value?.bends).toEqual([{ x: 100, y: 900 }])
       await undoButton(wrapper).trigger('click')
       expect(ctx.drawing.value?.bends).toEqual([])
       expect(ctx.drawing.value).not.toBeNull()
@@ -868,13 +868,13 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       const before = store.content
       expect(store.canRedo).toBe(true)
       await start(wrapper)
-      await clickAt(wrapper, { x: 300, y: 900 })
+      await clickAt(wrapper, { x: 100, y: 900 })
       ctrl('y')
       ctrl('z', { shiftKey: true })
       await redoButton(wrapper).trigger('click')
       expect(store.content).toBe(before)
       expect(store.canRedo).toBe(true)
-      expect(ctx.drawing.value?.bends).toEqual([{ x: 300, y: 900 }])
+      expect(ctx.drawing.value?.bends).toEqual([{ x: 100, y: 900 }])
     })
 
     it('redo works again once drawing is over (control)', async () => {
@@ -915,7 +915,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       expect(store.canRedo).toBe(true)
       expect(redoBtn(wrapper).attributes('disabled')).toBeUndefined()
       await start(wrapper)
-      await clickAt(wrapper, { x: 300, y: 900 })
+      await clickAt(wrapper, { x: 100, y: 900 })
       expect(undoBtn(wrapper).attributes('title')).toBe('Прибрати останній злам')
       expect(redoBtn(wrapper).attributes('disabled')).toBeDefined()
     })

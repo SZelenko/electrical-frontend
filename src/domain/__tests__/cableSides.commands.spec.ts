@@ -91,15 +91,15 @@ describe('setCableSides: wire routes', () => {
     const out = run(edited, setCableSides({ input: 'left' })).content
     const layout = computeLayout(out)
     expect(bends(out, 30)).toEqual(autoRouteFor(layout, wireOf(out, 30)))
-    expect(endpointPoint(layout, cw(id(2)))).toEqual({ x: 450, y: 700 })
+    expect(endpointPoint(layout, cw(id(2)))).toEqual({ x: 300, y: 100 })
     expect(orthogonal(out)).toBe(true)
   })
 
   it('wires on the other kind stay as they were when only one kind moved (translated, not re-routed)', () => {
-    // moving the inputs to the left shifts the rails by (+400, -400); W32 ends on an output cable wire
+    // moving the inputs to the left shifts the rails by (+250, -250); W32 ends on an output cable wire
     const out = run(world, setCableSides({ input: 'left' })).content
-    expect(bends(out, 31)).toEqual(bends(world, 31).map((b) => ({ x: b.x + 400, y: b.y - 400 })))
-    expect(bends(out, 33)).toEqual(bends(world, 33).map((b) => ({ x: b.x + 400, y: b.y - 400 })))
+    expect(bends(out, 31)).toEqual(bends(world, 31).map((b) => ({ x: b.x + 250, y: b.y - 250 })))
+    expect(bends(out, 33)).toEqual(bends(world, 33).map((b) => ({ x: b.x + 250, y: b.y - 250 })))
     expect(orthogonal(out)).toBe(true)
   })
 

@@ -24,6 +24,10 @@
   --schematic-hover: rgb(var(--v-theme-schematic-hover));
   --schematic-error: rgb(var(--v-theme-schematic-error));
   --schematic-casing: rgb(var(--v-theme-schematic-casing));
+  --schematic-input: rgb(var(--v-theme-schematic-input));
+  --schematic-input-fill: rgb(var(--v-theme-schematic-input-fill));
+  --schematic-output: rgb(var(--v-theme-schematic-output));
+  --schematic-output-fill: rgb(var(--v-theme-schematic-output-fill));
 }
 body {
   margin: 0;

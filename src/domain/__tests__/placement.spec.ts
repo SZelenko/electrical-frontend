@@ -96,7 +96,7 @@ describe('snapOffset (drawing x in tenths of mm -> module offset)', () => {
 
   it('follows the layout of a panel with input cables on the left', () => {
     const left = computeLayout(content({ inputCableSide: 'left' }))
-    expect(left.railsLeft).toBe(600)
+    expect(left.railsLeft).toBe(450) // SHEET_INSET + one-line column + CABLE_ROW_GAP
     expect(snapOffset(left, left.railsLeft + 3 * 175)).toBe(3)
   })
 })
@@ -133,18 +133,18 @@ describe('nearestFreeOffset / firstFreeOffset', () => {
 })
 
 describe('railAtY (rail band = element height around the centre line)', () => {
-  const layout = computeLayout(buildWorld()) // centres 2500 and 3500 (railsTop 1000)
+  const layout = computeLayout(buildWorld()) // centres 2350 and 3350 (railsTop 850)
   it.each([
-    [2500, 0],
-    [2050, 0], // inclusive top edge
-    [2950, 0], // inclusive bottom edge
-    [3500, 1],
-    [3050, 1],
-    [3950, 1],
-    [2049, null],
-    [2951, null], // gap between the rails
-    [3049, null],
-    [3951, null],
+    [2350, 0],
+    [1900, 0], // inclusive top edge
+    [2800, 0], // inclusive bottom edge
+    [3350, 1],
+    [2900, 1],
+    [3800, 1],
+    [1899, null],
+    [2801, null], // gap between the rails
+    [2899, null],
+    [3801, null],
     [0, null],
   ])('y=%i -> %s', (y, expected) => expect(railAtY(layout, y)).toBe(expected))
 
@@ -229,33 +229,33 @@ describe('checkRailWidth', () => {
 })
 
 describe('inRowBand (both terminal-row bands, inclusive edges)', () => {
-  // default panel: topRowY 600 (band 600..850), no rails, bottomRowY 1150 (band 1150..1400)
+  // default panel: topRowY 450 (band 450..700), no rails, bottomRowY 1000 (band 1000..1250)
   const layout = computeLayout(content())
   it.each([
-    [599, null],
-    [600, 'top'],
-    [725, 'top'],
-    [850, 'top'],
-    [851, null],
-    [1149, null],
-    [1150, 'bottom'],
-    [1400, 'bottom'],
-    [1401, null],
+    [449, null],
+    [450, 'top'],
+    [575, 'top'],
+    [700, 'top'],
+    [701, null],
+    [999, null],
+    [1000, 'bottom'],
+    [1250, 'bottom'],
+    [1251, null],
     [0, null],
   ] as const)('y=%i -> %s', (y, expected) => expect(inRowBand(layout, y)).toBe(expected))
 
-  it('follows a taller drawing (output cables below the rails)', () => {
+  it('follows a taller drawing (rails)', () => {
     const tall = computeLayout(
       content({
         rails: [rail(10, 24, 150)],
         outputCables: [outputCable(4, [5])],
       }),
     )
-    // rail cy 2500 -> sideBottom 2950; outTop 3100; bottomRowY 3500
-    expect(inRowBand(tall, 3500)).toBe('bottom')
-    expect(inRowBand(tall, 3750)).toBe('bottom')
-    expect(inRowBand(tall, 3751)).toBeNull()
-    expect(inRowBand(tall, 1150)).toBeNull()
+    // rail cy 2350 -> sideBottom 2800; bottomRowY 2950
+    expect(inRowBand(tall, 2950)).toBe('bottom')
+    expect(inRowBand(tall, 3200)).toBe('bottom')
+    expect(inRowBand(tall, 3201)).toBeNull() // the cable band lies below the row
+    expect(inRowBand(tall, 1000)).toBeNull()
   })
 })
 

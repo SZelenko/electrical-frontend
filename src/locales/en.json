@@ -116,6 +116,7 @@
     "view": {
       "notFound": "Panel not found.",
       "inTrash": "The panel is in the trash. Editing is disabled.",
+      "layoutConverted": "The route of {n} wire was updated for the new layout | The routes of {n} wires were updated for the new layout",
       "saving": "Saving…",
       "conflictSaveTitle": "The panel was changed elsewhere: saving is disabled until it is reloaded",
       "dirty": "● Unsaved changes",
@@ -306,6 +307,7 @@
       "notCopied": "{reason}. The copy was not created.",
       "movedBack": "{reason}. The item was returned to its place.",
       "drawingHint": "Click on the canvas to add a bend and on a terminal to finish the wire. Backspace or Ctrl+Z removes the last bend, Esc cancels.",
+      "cableTooltip": "{head} — {detail}",
       "inputCableTitle": "Input cable: {rating}",
       "outputCableTitle": "Output cable",
       "outputCableTitleDescribed": "Output cable: {description}",
@@ -347,6 +349,7 @@
       "changeFrequency": "Change frequency",
       "changeCableCrossSection": "Change cable cross-section",
       "changeCableDescription": "Change cable description",
+      "changeOutputLoad": "Change cable load",
       "changeCableWireColour": "Change cable wire colour",
       "addCableWire": "Add wire to cable",
       "changeElementStyle": "Change device style",
@@ -412,6 +415,7 @@
       "frequency": "Frequency, Hz",
       "crossSection": "Cross-section, mm²",
       "description": "Description",
+      "load": "Load",
       "wires": "Cable wires",
       "wireColour": "Wire {n} colour",
       "deleteWireLast": "The last cable wire cannot be deleted",
@@ -482,6 +486,10 @@
       "blue": "blue",
       "green-yellow": "green-yellow",
       "grey": "grey"
+    },
+    "load": {
+      "socket": "Socket",
+      "lighting": "Lighting"
     },
     "cableSide": {
       "top": "top",
@@ -594,6 +602,9 @@
     },
     "cable": {
       "wire_count": "A cable has {min} to {max} wires."
+    },
+    "layout_version": {
+      "downgrade": "The layout version cannot be lowered (stored: {current})."
     },
     "rails": {
       "too_many": "At most {max} rails are allowed."

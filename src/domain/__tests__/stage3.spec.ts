@@ -75,8 +75,8 @@ const allOrthogonal = (c: PanelContent) => {
 
 /**
  * World: C1 (id2 brown, id3 blue); row block R id50 [0,2) 3 contacts, row block id51 [4,5) 2 contacts;
- * rail 1 id10 (cy 2500): ATS id21 [0,2), device id20 [4,6) 2 poles, rail block id40 [10,11) 3 contacts;
- * rail 2 id11 (cy 3500) empty; the input cable is on top (default), so railsTop is 1000; the row capacity is the rail width, 24.
+ * rail 1 id10 (cy 2350): ATS id21 [0,2), device id20 [4,6) 2 poles, rail block id40 [10,11) 3 contacts;
+ * rail 2 id11 (cy 3350) empty; the input cable is on top (default), so railsTop is 850; the row capacity is the rail width, 24.
  */
 function world(): PanelContent {
   return content({
@@ -93,14 +93,14 @@ function world(): PanelContent {
 
 describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
   const layout = computeLayout(world())
-  // box x = 200 + 10*175 = 1950, y = 2500 - 450 = 2050
+  // box x = 200 + 10*175 = 1950, y = 2350 - 450 = 1900
   it.each([
-    [0, 'left', p(1975, 2088)],
-    [0, 'right', p(2100, 2088)],
-    [1, 'left', p(1975, 2163)],
-    [1, 'right', p(2100, 2163)],
-    [2, 'left', p(1975, 2238)],
-    [2, 'right', p(2100, 2238)],
+    [0, 'left', p(1975, 1938)],
+    [0, 'right', p(2100, 1938)],
+    [1, 'left', p(1975, 2013)],
+    [1, 'right', p(2100, 2013)],
+    [2, 'left', p(1975, 2088)],
+    [2, 'right', p(2100, 2088)],
   ] as const)('contact %i %s is at the exact integer point', (k, side, expected) => {
     expect(endpointPoint(layout, term(id(40), k, side))).toEqual(expected)
   })
@@ -116,9 +116,9 @@ describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
     const c = content({ rails: [rail(10, 24, 150, [], [block(40, 0, 1, 12)])] })
     const l = computeLayout(c)
     const last = endpointPoint(l, term(id(40), 11, 'left'))!
-    expect(last.y).toBe(2050 + 38 + 75 * 11)
-    expect(last.y).toBeLessThan(2050 + 900)
-    expect(railContactY(l.blocks.get(id(40))!, 0)).toBe(2088)
+    expect(last.y).toBe(1900 + 38 + 75 * 11)
+    expect(last.y).toBeLessThan(1900 + 900)
+    expect(railContactY(l.blocks.get(id(40))!, 0)).toBe(1938)
   })
 
   it('top/bottom sides do not exist on a rail block, left/right do not exist on a row block', () => {
@@ -140,11 +140,11 @@ describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
 
 describe('geometry: terminal-row blocks', () => {
   const layout = computeLayout(world())
-  it('row block box: y = topRowY 600, height 250, x = railsLeft 200 + offset*175, width = modules*175', () => {
+  it('row block box: y = topRowY 450, height 250, x = railsLeft 200 + offset*175, width = modules*175', () => {
     const b = layout.blocks.get(id(50))!
     expect([b.x, b.y, b.w, b.h, b.railId, b.railIndex, b.row]).toEqual([
       200,
-      600,
+      450,
       350,
       250,
       null,
@@ -167,17 +167,17 @@ describe('geometry: terminal-row blocks', () => {
     ])
   })
 
-  it('top is at y 600 and bottom at y 850, same x', () => {
+  it('top is at y 450 and bottom at y 700, same x', () => {
     const t = endpointPoint(layout, term(id(51), 1, 'top'))!
     const b = endpointPoint(layout, term(id(51), 1, 'bottom'))!
-    expect(t.y).toBe(600)
-    expect(b.y).toBe(850)
+    expect(t.y).toBe(450)
+    expect(b.y).toBe(700)
     expect(t.x).toBe(b.x)
   })
 
-  it('railsTop is 1000 (below the top terminal row): the first rail centre line is 1000 + spacing', () => {
-    expect(layout.railsTop).toBe(1000)
-    expect(layout.rails[0]?.cy).toBe(2500)
+  it('railsTop is 850 (below the top terminal row): the first rail centre line is 850 + spacing', () => {
+    expect(layout.railsTop).toBe(850)
+    expect(layout.rails[0]?.cy).toBe(2350)
   })
 
   it('the drawing is as wide as the panel rail width (rails or not)', () => {
@@ -199,20 +199,20 @@ describe('geometry: terminal-row blocks', () => {
 
 describe('geometry: ATS terminals (4 inputs, 2 outputs)', () => {
   const layout = computeLayout(world())
-  // box x 200, w 350, y 2050, h 900
+  // box x 200, w 350, y 1900, h 900
   it.each([
     [0, 244],
     [1, 331],
     [2, 419],
     [3, 506],
   ])('input %i sits at x %i on the top edge', (i, x) => {
-    expect(endpointPoint(layout, pole(id(21), i, 'input'))).toEqual(p(x, 2050))
+    expect(endpointPoint(layout, pole(id(21), i, 'input'))).toEqual(p(x, 1900))
   })
   it.each([
     [0, 288],
     [1, 463],
   ])('output %i sits at x %i on the bottom edge', (i, x) => {
-    expect(endpointPoint(layout, pole(id(21), i, 'output'))).toEqual(p(x, 2950))
+    expect(endpointPoint(layout, pole(id(21), i, 'output'))).toEqual(p(x, 2800))
   })
 
   it('there is no fifth input and no third output (error)', () => {
@@ -223,8 +223,8 @@ describe('geometry: ATS terminals (4 inputs, 2 outputs)', () => {
   it('sidesSwapped puts the inputs at the bottom and the outputs at the top, keeping x', () => {
     const c = run(world(), updateElement(id(21), { sidesSwapped: true })).content
     const l = computeLayout(c)
-    expect(endpointPoint(l, pole(id(21), 2, 'input'))).toEqual(p(419, 2950))
-    expect(endpointPoint(l, pole(id(21), 1, 'output'))).toEqual(p(463, 2050))
+    expect(endpointPoint(l, pole(id(21), 2, 'input'))).toEqual(p(419, 2800))
+    expect(endpointPoint(l, pole(id(21), 1, 'output'))).toEqual(p(463, 1900))
     expect(endpointDirection(l, pole(id(21), 0, 'input'))).toBe('down')
     expect(endpointDirection(l, pole(id(21), 0, 'output'))).toBe('up')
   })
@@ -317,7 +317,7 @@ describe('autoRoute with horizontal ends', () => {
   it('autoRouteFor a wire from a rail block side contact to a cable wire is orthogonal', () => {
     const l = computeLayout(world())
     const bends = autoRouteFor(l, { start: term(id(40), 1, 'left'), end: cw(id(2)) })!
-    expect(orthogonal([endpointPoint(l, term(id(40), 1, 'left'))!, ...bends, p(300, 450)])).toBe(
+    expect(orthogonal([endpointPoint(l, term(id(40), 1, 'left'))!, ...bends, p(100, 300)])).toBe(
       true,
     )
   })
@@ -399,7 +399,7 @@ describe('placement: ATS width, rail block, row band', () => {
 
   it('the top row band is topRowY..topRowY+250 inclusive', () => {
     const l = computeLayout(world())
-    expect([599, 600, 850, 851].map((y) => inRowBand(l, y))).toEqual([null, 'top', 'top', null])
+    expect([449, 450, 700, 701].map((y) => inRowBand(l, y))).toEqual([null, 'top', 'top', null])
   })
 
   it('checkRowPlacement: fits, overlap, out of the row, negative offset, invalid size', () => {

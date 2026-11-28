@@ -155,6 +155,7 @@ export function outputCable(n: number, wireNumbers: number[]): OutputCable {
     id: id(n),
     label: '',
     description: '',
+    load: 'socket',
     wires: wireNumbers.map((w) => ({ id: id(w), colour: 'black' as const })),
   }
 }
@@ -172,6 +173,7 @@ export function content(over: Partial<PanelContent> = {}): PanelContent {
   const hints = (over.rails ?? []).flatMap((r) => railWidthHint.get(r) ?? [])
   const widest = hints.length > 0 ? Math.max(...hints) : 24
   return {
+    layoutVersion: 2,
     railWidthModules: widest,
     inputCables: [inputCable(1, [2])],
     inputCableSide: 'top',

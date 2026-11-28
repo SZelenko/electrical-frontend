@@ -61,6 +61,7 @@ const halo = computed(
       fill="none"
       :style="{ stroke: 'var(--schematic-casing)' }"
       :stroke-width="casing"
+      stroke-opacity="0.5"
       stroke-linejoin="round"
       pointer-events="none"
       data-testid="wire-casing"

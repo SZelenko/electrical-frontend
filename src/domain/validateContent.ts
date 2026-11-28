@@ -39,6 +39,7 @@ import {
 } from './limits'
 import {
   CABLE_SIDES,
+  OUTPUT_LOADS,
   endpointKey,
   ROW_IDS,
   ROW_KEYS,
@@ -125,6 +126,10 @@ export function validateContent(content: PanelContent): Violation[] {
     null,
   )
 
+  if (!Number.isInteger(content.layoutVersion)) {
+    run.add('content.layoutVersion', 'value.invalid_type', {}, 'This value should be of type int.')
+  } else run.intRange(content.layoutVersion, 1, 2, 'content.layoutVersion', null)
+
   // cables
   if (content.inputCables.length < 1)
     run.add(
@@ -190,6 +195,15 @@ export function validateContent(content: PanelContent): Violation[] {
     run.claimId(cable.id, `${path}.id`)
     run.maxLength(cable.label, MAX_CABLE_LABEL_LENGTH, `${path}.label`, cable.id)
     run.maxLength(cable.description, MAX_DESCRIPTION_LENGTH, `${path}.description`, cable.id)
+    if (!OUTPUT_LOADS.includes(cable.load)) {
+      run.add(
+        `${path}.load`,
+        'value.invalid_type',
+        {},
+        `Must be one of ${OUTPUT_LOADS.join(', ')}.`,
+        cable.id,
+      )
+    }
     wires(cable.wires, path)
   })
 

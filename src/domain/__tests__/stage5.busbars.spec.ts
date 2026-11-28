@@ -249,7 +249,7 @@ describe('busbarIssues / invalidBusbarIds / issuesOfBusbar', () => {
 })
 
 describe('geometry of the busbar body and feeds', () => {
-  // railsTop 1000 + 150 mm -> cy 2500; element top edge 2050, bottom 2950
+  // railsTop 850 + 150 mm -> cy 2350; element top edge 1900, bottom 2800
   const c = content({
     rails: [
       rail(10, 24, 150, [dev(20, 2), dev(21, 3), dev(22, 4)], [], [busbar(60, 'LN', id(20), 3)]),
@@ -258,14 +258,14 @@ describe('geometry of the busbar body and feeds', () => {
   const box = computeLayout(c).busbars.get(id(60))!
 
   it('lies outside the devices against the input (top) edge, from the anchor to the last device', () => {
-    expect(box).toMatchObject({ x: 200 + 2 * 175, y: 2050 - BUSBAR_H, h: BUSBAR_H, swapped: false })
+    expect(box).toMatchObject({ x: 200 + 2 * 175, y: 1900 - BUSBAR_H, h: BUSBAR_H, swapped: false })
     expect(box.w).toBe(3 * 175)
     expect(BUSBAR_H).toBe(60)
   })
 
   it('feed L at anchorX + 30 and feed N at anchorX + 90 on the outer edge, leaving upwards', () => {
-    expect(endpointPoint(computeLayout(c), feed(id(60), 0))).toEqual({ x: 550 + 30, y: 1990 })
-    expect(endpointPoint(computeLayout(c), feed(id(60), 1))).toEqual({ x: 550 + 90, y: 1990 })
+    expect(endpointPoint(computeLayout(c), feed(id(60), 0))).toEqual({ x: 550 + 30, y: 1840 })
+    expect(endpointPoint(computeLayout(c), feed(id(60), 1))).toEqual({ x: 550 + 90, y: 1840 })
     expect(endpointDirection(computeLayout(c), feed(id(60), 0))).toBe('up')
   })
 
@@ -294,8 +294,8 @@ describe('geometry of the busbar body and feeds', () => {
       ],
     })
     const layout = computeLayout(s)
-    expect(layout.busbars.get(id(60))).toMatchObject({ y: 2950, h: 60, swapped: true, dir: 'down' })
-    expect(endpointPoint(layout, feed(id(60), 0))).toEqual({ x: 230, y: 3010 })
+    expect(layout.busbars.get(id(60))).toMatchObject({ y: 2800, h: 60, swapped: true, dir: 'down' })
+    expect(endpointPoint(layout, feed(id(60), 0))).toEqual({ x: 230, y: 2860 })
     expect(endpointDirection(layout, feed(id(60), 0))).toBe('down')
   })
 

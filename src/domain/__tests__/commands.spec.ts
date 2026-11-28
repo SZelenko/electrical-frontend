@@ -27,6 +27,7 @@ const addAuto =
       bends: autoRouteFor(computeLayout(c), { start, end }) ?? [],
     })(c)
 const empty: PanelContent = {
+  layoutVersion: 2,
   railWidthModules: 60,
   inputCableSide: 'top',
   outputCableSide: 'bottom',

@@ -231,6 +231,9 @@ const errorText = computed(() => {
       </v-alert>
 
       <template v-if="hasPanel">
+        <StatusNote v-if="editor.convertedWires > 0" tone="info" class="layout-notice my-2">
+          {{ t('panels.view.layoutConverted', { n: editor.convertedWires }) }}
+        </StatusNote>
         <StatusNote
           v-if="ctx.notice.value"
           :tone="ctx.notice.value.tone === 'error' ? 'error' : 'info'"

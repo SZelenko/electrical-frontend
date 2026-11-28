@@ -200,12 +200,25 @@ const rowY = (l: Layout, row: RowId) => (row === 'top' ? l.topRowY : l.bottomRow
 
 const cableTitles = computed(() => {
   const titles: Record<string, string> = {}
-  for (const c of content.value?.inputCables ?? [])
-    titles[c.id] = t('editor.canvas.inputCableTitle', { rating: formatInputCableLabel(c, t) })
-  for (const c of content.value?.outputCables ?? [])
-    titles[c.id] = c.description
-      ? t('editor.canvas.outputCableTitleDescribed', { description: c.description })
-      : t('editor.canvas.outputCableTitle')
+  // «Вх 1 · label — detail»: the full caption and label (the drawn ones may be cut) plus the details
+  const full = (caption: string, label: string, detail: string) =>
+    t('editor.canvas.cableTooltip', { head: [caption, label].filter(Boolean).join(' · '), detail })
+  content.value?.inputCables.forEach((c, i) => {
+    titles[c.id] = full(
+      t('editor.canvas.inputCaption', { n: i + 1 }),
+      c.label,
+      t('editor.canvas.inputCableTitle', { rating: formatInputCableLabel(c, t) }),
+    )
+  })
+  content.value?.outputCables.forEach((c, i) => {
+    titles[c.id] = full(
+      t('editor.canvas.outputCaption', { n: i + 1 }),
+      c.label,
+      c.description
+        ? t('editor.canvas.outputCableTitleDescribed', { description: c.description })
+        : t('editor.canvas.outputCableTitle'),
+    )
+  })
   return titles
 })
 

@@ -167,9 +167,9 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     const { wrapper, store } = await mountEditor(base)
     const from = centreOf(id(40))
     await wrapper.get(blockSel(40)).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: from.x, y: 725 })) // inside the top row band (600..850)
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: from.x, y: 575 })) // inside the top row band (450..700)
     expect(wrapper.get('.hint').text()).toBe('Елемент рейки не можна перенести в ряд клемників')
-    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: from.x, y: 725 }))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: from.x, y: 575 }))
     expect(store.canUndo).toBe(false)
   })
 
@@ -402,7 +402,7 @@ describe('drawing from side contacts', () => {
     const end = endpointPoint(layout, term(id(40), 1, 'left'))!
     const bends = store.content!.wires[0]!.bends
     expect(bends.slice(-1)[0]?.y).toBe(end.y)
-    expect(bends).toEqual([{ x: 300, y: end.y }])
+    expect(bends).toEqual([{ x: 100, y: end.y }])
   })
 
   it('a row block: from the top of contact 0 to the bottom of contact 2', async () => {

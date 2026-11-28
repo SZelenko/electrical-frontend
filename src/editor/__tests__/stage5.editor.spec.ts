@@ -426,13 +426,13 @@ describe('cable label', () => {
     }
   }
 
-  it('is drawn inside the box: input baseline boxY + 130, output boxY + 140', async () => {
+  it('is drawn inside the box: both baselines +170 from the outer edge (top box: the top edge, bottom box: the bottom edge)', async () => {
     const { wrapper } = await mountEditor(labelled())
     const marks = wrapper.findAll('[data-testid=cable-mark]')
     expect(marks.map((m) => m.text())).toEqual(['Ввід А', 'Світло'])
     const l = computeLayout(labelled())
-    expect(marks[0]!.attributes('y')).toBe(String(200 + 130))
-    expect(marks[1]!.attributes('y')).toBe(String(l.outTop + 140))
+    expect(marks[0]!.attributes('y')).toBe(String(l.inputBoxes[0]!.y + 170))
+    expect(marks[1]!.attributes('y')).toBe(String(l.outputBoxes[0]!.y + 250 - 170))
     expect(marks[0]!.attributes('x')).toBe(String(l.inputBoxes[0]!.x + l.inputBoxes[0]!.w / 2))
   })
 

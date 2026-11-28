@@ -190,8 +190,8 @@ export interface paths {
     }
     get?: never
     /**
-     * Sets the UI theme of the current user: `mode` (`light`, `dark` or `system`) and `palette` (`blue`, `green`, `orange` or `violet`), both required.
-     * @description Sets the UI theme of the current user: `mode` (`light`, `dark` or `system`) and `palette` (`blue`, `green`, `orange` or `violet`), both required.
+     * Sets the UI theme (mode and palette, both required) of the current user.
+     * @description Sets the UI theme (mode and palette, both required) of the current user.
      */
     put: operations['api_metheme_put']
     post?: never
@@ -688,6 +688,8 @@ export interface components {
       label: string
       /** @description at most 255 characters */
       description: string
+      /** @enum {string} */
+      load: 'socket' | 'lighting'
       /** @description 1 to 4 wires */
       wires: components['schemas']['CableWireDto'][]
     }
@@ -697,6 +699,8 @@ export interface components {
       label: string
       /** @description at most 255 characters */
       description: string
+      /** @enum {string} */
+      load: 'socket' | 'lighting'
       /** @description 1 to 4 wires */
       wires: components['schemas']['CableWireDto.jsonld_noid'][]
     }
@@ -706,6 +710,8 @@ export interface components {
       label: string
       /** @description at most 255 characters */
       description: string
+      /** @enum {string} */
+      load: 'socket' | 'lighting'
       /** @description 1 to 4 wires */
       wires: components['schemas']['CableWireDto_noid'][]
     }
@@ -810,6 +816,8 @@ export interface components {
     PanelContent: {
       /** @description width of every rail and of both terminal rows, 1 to 60 */
       railWidthModules: number
+      /** @description drawing layout generation, 1 (legacy) or 2 (current); never lowered */
+      layoutVersion: number
       /** @enum {string} */
       inputCableSide: 'top' | 'bottom' | 'left' | 'right'
       /** @enum {string} */
@@ -826,6 +834,8 @@ export interface components {
     'PanelContent.jsonld_noid': {
       /** @description width of every rail and of both terminal rows, 1 to 60 */
       railWidthModules: number
+      /** @description drawing layout generation, 1 (legacy) or 2 (current); never lowered */
+      layoutVersion: number
       /** @enum {string} */
       inputCableSide: 'top' | 'bottom' | 'left' | 'right'
       /** @enum {string} */
@@ -842,6 +852,8 @@ export interface components {
     PanelContent_noid: {
       /** @description width of every rail and of both terminal rows, 1 to 60 */
       railWidthModules: number
+      /** @description drawing layout generation, 1 (legacy) or 2 (current); never lowered */
+      layoutVersion: number
       /** @enum {string} */
       inputCableSide: 'top' | 'bottom' | 'left' | 'right'
       /** @enum {string} */

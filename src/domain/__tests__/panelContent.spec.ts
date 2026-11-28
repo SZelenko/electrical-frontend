@@ -12,6 +12,7 @@ import {
 } from '../panelContent'
 
 const content: PanelContent = {
+  layoutVersion: 2,
   railWidthModules: 12,
   inputCableSide: 'top',
   outputCableSide: 'bottom',

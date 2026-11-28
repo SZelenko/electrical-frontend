@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { mdiFlash, mdiLightbulbOutline, mdiPowerSocketEu } from '@mdi/js'
 import { t } from '@/i18n'
-import { fitText } from './shapes/fitText'
 import {
-  CABLE_LABEL_INSET,
-  GREEN_YELLOW_OVERLAY,
-  WIRE_COLOUR_HEX,
-  cableTextOffsets,
-  type CableBox,
-} from '@/domain/geometry'
+  CABLE_DOT_R,
+  CABLE_DOT_STROKE,
+  CABLE_HIT_R,
+  cableBoxContent,
+  fitCableText,
+  type CableBoxContent,
+  type FittedText,
+} from '@/domain/cableBoxContent'
+import { CABLE_ICON, GREEN_YELLOW_OVERLAY, WIRE_COLOUR_HEX, type CableBox } from '@/domain/geometry'
 
 const props = defineProps<{
   /** `body`: boxes and labels (above the wires); `contacts`: wire points (above the wires). */
@@ -20,51 +23,51 @@ const props = defineProps<{
   titles: Readonly<Record<string, string>>
 }>()
 
-interface BoxText {
-  x: number
-  y: number
-  /** Rotation of the caption about its anchor (left/right boxes read bottom-to-top). */
-  transform: string | undefined
-  /** Room along the text direction. */
-  length: number
-  labelX: number
-  labelY: number
-  labelTransform: string | undefined
+/** The 24-unit icon paths are scaled to the `CABLE_ICON` square. */
+const ICON_SCALE = CABLE_ICON / 24
+
+function iconPath(box: CableBox): string {
+  if (box.kind === 'input') return mdiFlash
+  return box.load === 'lighting' ? mdiLightbulbOutline : mdiPowerSocketEu
 }
 
-/** Text anchors of a box: captions and labels follow the side, not the kind. */
-function textOf(box: CableBox): BoxText {
-  const { caption, label } = cableTextOffsets(box.side)
-  if (box.side === 'top' || box.side === 'bottom') {
-    const x = box.x + box.w / 2
+interface Item {
+  box: CableBox
+  content: CableBoxContent
+  caption: string
+  fittedCaption: FittedText
+  fittedLabel: FittedText | null
+}
+
+const items = computed<Item[]>(() =>
+  props.boxes.map((box) => {
+    const content = cableBoxContent(box)
+    const caption =
+      box.kind === 'input'
+        ? t('editor.canvas.inputCaption', { n: box.index + 1 })
+        : t('editor.canvas.outputCaption', { n: box.index + 1 })
     return {
-      x,
-      y: box.y + caption,
-      transform: undefined,
-      length: box.w,
-      labelX: x,
-      labelY: box.y + label,
-      labelTransform: undefined,
+      box,
+      content,
+      caption,
+      fittedCaption: fitCableText(caption, content.room),
+      fittedLabel: box.label ? fitCableText(box.label, content.room) : null,
     }
-  }
-  const y = box.y + box.h / 2
-  const labelX = box.x + label
-  return {
-    x: box.x + caption,
-    y,
-    transform: `rotate(-90 ${box.x + caption} ${y})`,
-    length: box.h,
-    labelX,
-    labelY: y,
-    labelTransform: `rotate(-90 ${labelX} ${y})`,
-  }
-}
+  }),
+)
 
-const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) })))
+function rotation(c: CableBoxContent, at: { x: number; y: number }): string | undefined {
+  return c.rotated ? `rotate(-90 ${at.x} ${at.y})` : undefined
+}
+function iconTransform(c: CableBoxContent): string {
+  const { x, y } = c.icon
+  const turn = c.rotated ? ' rotate(-90)' : ''
+  return `translate(${x} ${y})${turn} scale(${ICON_SCALE}) translate(-12 -12)`
+}
 </script>
 
 <template>
-  <g v-for="{ box, text } in items" :key="box.id">
+  <g v-for="{ box, content, fittedCaption, fittedLabel } in items" :key="box.id">
     <rect
       v-if="layer === 'body'"
       :x="box.x"
@@ -74,6 +77,7 @@ const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) 
       rx="12"
       class="cable-box"
       :class="{
+        [box.kind]: true,
         selected: selectedId === box.id,
         violation: violationIds.has(box.id),
       }"
@@ -84,51 +88,58 @@ const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) 
     >
       <title>{{ titles[box.id] }}</title>
     </rect>
+    <path
+      v-if="layer === 'body'"
+      :d="iconPath(box)"
+      :transform="iconTransform(content)"
+      class="cable-icon"
+      :class="box.kind"
+      pointer-events="none"
+      data-testid="cable-icon"
+      :data-icon="box.kind === 'input' ? 'flash' : box.load"
+    />
     <text
       v-if="layer === 'body'"
-      :x="text.x"
-      :y="text.y"
-      :transform="text.transform"
+      :x="content.caption.x"
+      :y="content.caption.y"
+      :transform="rotation(content, content.caption)"
+      :font-size="fittedCaption.size"
       class="cable-label"
       text-anchor="middle"
       pointer-events="none"
     >
-      {{
-        box.kind === 'input'
-          ? t('editor.canvas.inputCaption', { n: box.index + 1 })
-          : t('editor.canvas.outputCaption', { n: box.index + 1 })
-      }}
+      {{ fittedCaption.text }}
     </text>
     <text
-      v-if="layer === 'body' && box.label"
-      :x="text.labelX"
-      :y="text.labelY"
-      :transform="text.labelTransform"
-      v-bind="fitText(box.label, 35, text.length - CABLE_LABEL_INSET)"
+      v-if="layer === 'body' && fittedLabel"
+      :x="content.label.x"
+      :y="content.label.y"
+      :transform="rotation(content, content.label)"
+      :font-size="fittedLabel.size"
       class="user-label"
       text-anchor="middle"
       pointer-events="none"
       data-testid="cable-mark"
     >
-      {{ box.label }}
+      {{ fittedLabel.text }}
     </text>
     <g v-for="wire in layer === 'contacts' ? box.wires : []" :key="wire.id">
       <circle
         :cx="wire.pt.x"
         :cy="wire.pt.y"
-        r="22"
+        :r="CABLE_DOT_R - CABLE_DOT_STROKE / 2"
         :fill="WIRE_COLOUR_HEX[wire.colour]"
         :style="{
           stroke:
             wire.colour === 'green-yellow' ? GREEN_YELLOW_OVERLAY.stroke : 'var(--schematic-sheet)',
         }"
-        stroke-width="8"
+        :stroke-width="CABLE_DOT_STROKE"
         pointer-events="none"
       />
       <circle
         :cx="wire.pt.x"
         :cy="wire.pt.y"
-        r="42"
+        :r="CABLE_HIT_R"
         class="terminal-hit"
         data-kind="terminal"
         data-testid="terminal"
@@ -141,10 +152,22 @@ const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) 
 
 <style scoped>
 .cable-box {
-  fill: var(--schematic-device-alt);
-  stroke: var(--schematic-muted);
   stroke-width: 6;
   cursor: pointer;
+}
+.cable-box.input {
+  fill: var(--schematic-input-fill);
+  stroke: var(--schematic-input);
+}
+.cable-box.output {
+  fill: var(--schematic-output-fill);
+  stroke: var(--schematic-output);
+}
+.cable-icon.input {
+  fill: var(--schematic-input);
+}
+.cable-icon.output {
+  fill: var(--schematic-output);
 }
 .cable-box.selected {
   stroke: var(--schematic-selection);
@@ -156,12 +179,10 @@ const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) 
   stroke-width: 12;
 }
 .cable-label {
-  font-size: 40px;
   fill: var(--schematic-caption);
   user-select: none;
 }
 .user-label {
-  font-size: 35px;
   fill: var(--schematic-caption);
   user-select: none;
 }

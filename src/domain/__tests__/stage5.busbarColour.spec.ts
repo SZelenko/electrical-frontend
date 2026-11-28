@@ -1,7 +1,8 @@
 /** Stage 5 follow-up: busbar colour in commands, validation, geometry and default wire colours. */
 import { describe, expect, it } from 'vitest'
 import { updateBusbar } from '../commands'
-import { CABLE_LABEL_INSET, cableTextOffsets, computeLayout } from '../geometry'
+import { CABLE_LABEL_INSET, computeLayout } from '../geometry'
+import { CABLE_CAPTION_DEPTH, CABLE_LABEL_DEPTH } from '../cableBoxContent'
 import { WIRE_COLOURS } from '../limits'
 import type { PanelContent, WireColour } from '../panelContent'
 import { validateContent } from '../validateContent'
@@ -42,11 +43,7 @@ const colourOf = (c: PanelContent) => c.rails[0]?.busbars[0]?.colour
 
 describe('geometry: cable label constants', () => {
   it('match panel-domain', () => {
-    expect([
-      cableTextOffsets('top').label,
-      cableTextOffsets('bottom').label,
-      CABLE_LABEL_INSET,
-    ]).toEqual([130, 140, 40])
+    expect([CABLE_CAPTION_DEPTH, CABLE_LABEL_DEPTH, CABLE_LABEL_INSET]).toEqual([120, 170, 15])
   })
 })
 

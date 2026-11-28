@@ -1,5 +1,5 @@
 /** Wire route maintenance: repair after endpoints moved (E3) and bend editing operations (E5). */
-import { autoRoute, routeEquals, samePt, simplifyRoute } from './autoRoute'
+import { autoRoute, cableLead, routeEquals, samePt, simplifyRoute } from './autoRoute'
 import {
   computeLayout,
   endpointDirection,
@@ -26,6 +26,20 @@ interface Ends {
   end: Pt
   startDir: Direction
   endDir: Direction
+  /** Points a wrapped cable wire runs through to cross inner cable lines (from the wire point outwards); empty otherwise. */
+  startLead: Pt[]
+  endLead: Pt[]
+}
+
+/** The automatic route (bends only) of a wire with these ends, including the passes through inner cable lines. */
+function routeOf(e: Ends): Pt[] {
+  if (e.startLead.length === 0 && e.endLead.length === 0) {
+    return autoRoute(e.start, e.startDir, e.end, e.endDir)
+  }
+  const from = e.startLead[e.startLead.length - 1] ?? e.start
+  const to = e.endLead[e.endLead.length - 1] ?? e.end
+  const middle = autoRoute(from, e.startDir, to, e.endDir)
+  return simplifyRoute(e.start, [...e.startLead, ...middle, ...[...e.endLead].reverse()], e.end)
 }
 
 function endsOf(layout: Layout, wire: Pick<PanelWire, 'start' | 'end'>): Ends | null {
@@ -34,13 +48,20 @@ function endsOf(layout: Layout, wire: Pick<PanelWire, 'start' | 'end'>): Ends | 
   const startDir = endpointDirection(layout, wire.start)
   const endDir = endpointDirection(layout, wire.end)
   if (!start || !end || !startDir || !endDir) return null
-  return { start, end, startDir, endDir }
+  return {
+    start,
+    end,
+    startDir,
+    endDir,
+    startLead: wire.start.kind === 'cableWire' ? cableLead(layout, wire.start.cableWireId) : [],
+    endLead: wire.end.kind === 'cableWire' ? cableLead(layout, wire.end.cableWireId) : [],
+  }
 }
 
 /** The automatic route of a wire in the given layout (bends only), or null for unknown endpoints. */
 export function autoRouteFor(layout: Layout, wire: Pick<PanelWire, 'start' | 'end'>): Pt[] | null {
   const e = endsOf(layout, wire)
-  return e ? autoRoute(e.start, e.startDir, e.end, e.endDir) : null
+  return e ? routeOf(e) : null
 }
 
 type Axis = 'h' | 'v'
@@ -120,16 +141,24 @@ function repairWire(oldE: Ends, newE: Ends, bends: readonly Pt[]): Pt[] {
   const dsy = newE.start.y - oldE.start.y
   const dex = newE.end.x - oldE.end.x
   const dey = newE.end.y - oldE.end.y
-  // (a) both ends moved by the same delta
-  if (dsx === dex && dsy === dey) {
+  const shifted = (a: readonly Pt[], b: readonly Pt[]) =>
+    a.length === b.length &&
+    a.every((p, i) => p.x + dsx === (b[i] as Pt).x && p.y + dsy === (b[i] as Pt).y)
+  // (a) both ends moved by the same delta (and so did the passes through inner cable lines)
+  if (
+    dsx === dex &&
+    dsy === dey &&
+    shifted(oldE.startLead, newE.startLead) &&
+    shifted(oldE.endLead, newE.endLead)
+  ) {
     const moved = bends.map((p) => ({ x: p.x + dsx, y: p.y + dsy }))
     // never clamp (that could skew a segment): out-of-range routes are drawn again
     if (moved.every(inRange)) return moved
-    return autoRoute(newE.start, newE.startDir, newE.end, newE.endDir)
+    return routeOf(newE)
   }
-  const fresh = () => autoRoute(newE.start, newE.startDir, newE.end, newE.endDir)
+  const fresh = () => routeOf(newE)
   // (b) the route was the automatic one
-  if (routeEquals(bends, autoRoute(oldE.start, oldE.startDir, oldE.end, oldE.endDir))) {
+  if (routeEquals(bends, routeOf(oldE))) {
     return fresh()
   }
   // (c) keep the user's bends, re-anchor the end segments
@@ -138,16 +167,19 @@ function repairWire(oldE: Ends, newE: Ends, bends: readonly Pt[]): Pt[] {
 
 /**
  * Repairs the routes of wires whose endpoints moved between `before` and `after` (same wires, same
- * ids). Only wires in `wireIds` (when given) are considered. Returns `after` itself when nothing changed.
+ * ids). Only wires in `wireIds` (when given) are considered. `layouts` are the precomputed layouts of
+ * `before` and `after` (the layout conversion compares two layout versions of the same content).
+ * Returns `after` itself when nothing changed.
  */
 export function repairRoutes(
   before: PanelContent,
   after: PanelContent,
   wireIds?: ReadonlySet<string>,
+  layouts?: { before: Layout; after: Layout },
 ): PanelContent {
-  if (before === after && !wireIds) return after
-  const layoutBefore = computeLayout(before)
-  const layoutAfter = computeLayout(after)
+  if (before === after && !wireIds && !layouts) return after
+  const layoutBefore = layouts?.before ?? computeLayout(before)
+  const layoutAfter = layouts?.after ?? computeLayout(after)
   const oldById = new Map(before.wires.map((w) => [w.id, w]))
   let changed = false
   const wires = after.wires.map((wire) => {
@@ -161,7 +193,9 @@ export function repairRoutes(
       samePt(oldE.start, newE.start) &&
       samePt(oldE.end, newE.end) &&
       oldE.startDir === newE.startDir &&
-      oldE.endDir === newE.endDir
+      oldE.endDir === newE.endDir &&
+      routeEquals(oldE.startLead, newE.startLead) &&
+      routeEquals(oldE.endLead, newE.endLead)
     ) {
       return wire
     }
