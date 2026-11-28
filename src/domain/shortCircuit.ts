@@ -51,6 +51,7 @@ export function checkShortCircuits(content: PanelContent): ShortCircuit[] {
     for (let i = 1; i < block.terminalCount; i++) union(`t:${block.id}:0`, `t:${block.id}:${i}`)
   }
   content.terminalRow.forEach(bar)
+  content.bottomTerminalRow.forEach(bar)
   for (const rail of content.rails) {
     for (const element of rail.elements) {
       if (element.kind === 'ats') {

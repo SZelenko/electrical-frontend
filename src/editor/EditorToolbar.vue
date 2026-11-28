@@ -83,11 +83,21 @@ const undoTitle = computed(() => {
     </button>
     <button
       type="button"
-      :disabled="!!ctx.disabledReason.value.rowBlock"
-      :title="ctx.disabledReason.value.rowBlock ?? 'Додати клемник у рядок клемників'"
-      @click="ctx.addRowBlock"
+      :disabled="!!ctx.disabledReason.value.rowBlock.top"
+      :title="ctx.disabledReason.value.rowBlock.top ?? 'Додати клемник у верхній ряд клемників'"
+      data-testid="add-row-block-top"
+      @click="ctx.addRowBlock('top')"
     >
-      Додати клемник у рядок
+      Клемник у верхній ряд
+    </button>
+    <button
+      type="button"
+      :disabled="!!ctx.disabledReason.value.rowBlock.bottom"
+      :title="ctx.disabledReason.value.rowBlock.bottom ?? 'Додати клемник у нижній ряд клемників'"
+      data-testid="add-row-block-bottom"
+      @click="ctx.addRowBlock('bottom')"
+    >
+      Клемник у нижній ряд
     </button>
     <button
       type="button"

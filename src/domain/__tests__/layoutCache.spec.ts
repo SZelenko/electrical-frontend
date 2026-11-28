@@ -68,12 +68,12 @@ describe('computeLayout box cache: boxes are recomputed correctly when only the 
   it('spacing of an earlier rail moves the later rails and their devices', () => {
     const next = run(world, updateRail(id(10), { spacingMm: 160 })).content
     const l = computeLayout(next)
-    expect(l.rails.map((r) => r.cy)).toEqual([2200, 3200])
-    expect(l.rails[1]).toMatchObject({ index: 1, y: 3200 - 175 })
-    expect(l.blocks.get(id(41))).toMatchObject({ y: 3200 - 450, railIndex: 1 })
-    expect(l.elements.get(id(20))).toMatchObject({ y: 2200 - 450 })
-    expect(l.outTop).toBe(3200 + 450 + 150)
-    expect(l.cableWires.get(id(5))?.pt).toEqual({ x: 300, y: 3800 })
+    expect(l.rails.map((r) => r.cy)).toEqual([2600, 3600])
+    expect(l.rails[1]).toMatchObject({ index: 1, y: 3600 - 175 })
+    expect(l.blocks.get(id(41))).toMatchObject({ y: 3600 - 450, railIndex: 1 })
+    expect(l.elements.get(id(20))).toMatchObject({ y: 2600 - 450 })
+    expect(l.outTop).toBe(3600 + 450 + 150)
+    expect(l.cableWires.get(id(5))?.pt).toEqual({ x: 300, y: 4200 })
   })
 
   it('the same result as a fresh layout of an equal but unshared content', () => {
@@ -85,9 +85,9 @@ describe('computeLayout box cache: boxes are recomputed correctly when only the 
     const next = run(world, removeRail(id(10))).content
     const l = computeLayout(next)
     expect(l.rails).toHaveLength(1)
-    expect(l.rails[0]).toMatchObject({ id: id(11), index: 0, cy: 600 + 1000 })
-    expect(l.blocks.get(id(41))).toMatchObject({ railIndex: 0, railId: id(11), y: 1600 - 450 })
-    expect(l.outTop).toBe(1600 + 450 + 150)
+    expect(l.rails[0]).toMatchObject({ id: id(11), index: 0, cy: 1000 + 1000 })
+    expect(l.blocks.get(id(41))).toMatchObject({ railIndex: 0, railId: id(11), y: 2000 - 450 })
+    expect(l.outTop).toBe(2000 + 450 + 150)
   })
 
   it('adding an input cable in front shifts the later cable boxes and their wire points', () => {
@@ -111,16 +111,17 @@ describe('computeLayout box cache: boxes are recomputed correctly when only the 
   it('removing the last rail moves the output row up', () => {
     const next = run(world, removeRail(id(11))).content
     const l = computeLayout(next)
-    expect(l.outTop).toBe(2100 + 450 + 150)
-    expect(l.outputBoxes[0]).toMatchObject({ y: 2700 })
-    expect(l.cableWires.get(id(5))?.pt).toEqual({ x: 300, y: 2700 })
-    expect(l.height).toBe(2700 + 250 + 200)
+    expect(l.outTop).toBe(2500 + 450 + 150)
+    expect(l.outputBoxes[0]).toMatchObject({ y: 3100 })
+    expect(l.cableWires.get(id(5))?.pt).toEqual({ x: 300, y: 3100 })
+    expect(l.bottomRowY).toBe(3100 + 250 + 150)
+    expect(l.height).toBe(3500 + 250 + 200)
   })
 
   it('moving an element to another rail gives its box the new railId, index and y', () => {
     const next = run(world, moveItem(id(21), id(11), 4)).content
     const l = computeLayout(next)
-    expect(l.elements.get(id(21))).toMatchObject({ railId: id(11), railIndex: 1, y: 3100 - 450 })
+    expect(l.elements.get(id(21))).toMatchObject({ railId: id(11), railIndex: 1, y: 3500 - 450 })
     expect(l.elements.get(id(20))).toMatchObject({ railId: id(10), railIndex: 0 })
   })
 
@@ -152,9 +153,9 @@ describe('computeLayout box cache: boxes are recomputed correctly when only the 
     const out = outputCable(4, [5])
     const one = content({ outputCables: [out], rails: [rail(10)] })
     const two = content({ outputCables: [out], rails: [rail(10), rail(11)] })
-    expect(computeLayout(one).outputBoxes[0]?.y).toBe(2100 + 450 + 150)
-    expect(computeLayout(two).outputBoxes[0]?.y).toBe(2100 + 1500 + 450 + 150)
-    expect(computeLayout(two).cableWires.get(id(5))?.pt.y).toBe(4200)
+    expect(computeLayout(one).outputBoxes[0]?.y).toBe(2500 + 450 + 150)
+    expect(computeLayout(two).outputBoxes[0]?.y).toBe(2500 + 1500 + 450 + 150)
+    expect(computeLayout(two).cableWires.get(id(5))?.pt.y).toBe(4600)
   })
 })
 

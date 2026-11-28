@@ -65,7 +65,7 @@ export type PanelElement = DeviceElement | AtsElement
 
 /**
  * A terminal block: a bar of joined contacts. On a rail it is 1 module wide with 1..12 contacts in a
- * column; in the terminal row its width is `ceil(contacts / 2)` modules.
+ * column; in a terminal row its width is `ceil(contacts / 2)` modules.
  */
 export interface TerminalBlock {
   id: string
@@ -139,15 +139,47 @@ export interface ShortCircuit {
   terminals: NodeEndpoint[]
 }
 
+/** Side of the drawing a cable kind is placed on (drawing only). */
+export type CableSide = 'top' | 'bottom' | 'left' | 'right'
+
+export const CABLE_SIDES: readonly CableSide[] = ['top', 'bottom', 'left', 'right']
+
+/** One of the two terminal rows: `top` (`terminalRow`, above the rails) or `bottom` (`bottomTerminalRow`). */
+export type RowId = 'top' | 'bottom'
+
+export const ROW_IDS: readonly RowId[] = ['top', 'bottom']
+
+/** The content key holding the blocks of each row. */
+export const ROW_KEYS = {
+  top: 'terminalRow',
+  bottom: 'bottomTerminalRow',
+} as const satisfies Record<RowId, 'terminalRow' | 'bottomTerminalRow'>
+
 export interface PanelContent {
-  /** Width of every rail in modules (1..60); also bounds the terminal row. */
+  /** Width of every rail in modules (1..60); also the capacity of both terminal rows. */
   railWidthModules: number
+  /** Side of all input cables (default `top`); with an output cable on the same side the inputs come first. */
+  inputCableSide: CableSide
+  /** Side of all output cables (default `bottom`). */
+  outputCableSide: CableSide
   inputCables: InputCable[]
   outputCables: OutputCable[]
-  /** Terminal blocks in the terminal row (between the input cables and the first rail), ordered by offset. */
+  /** Terminal blocks of the top terminal row (above the rails), ordered by offset from the rail start. */
   terminalRow: TerminalBlock[]
+  /** Terminal blocks of the bottom terminal row (below the rails and the cables), ordered by offset. */
+  bottomTerminalRow: TerminalBlock[]
   rails: Rail[]
   wires: PanelWire[]
+}
+
+/** Blocks of a terminal row. */
+export function rowBlocks(content: PanelContent, row: RowId): TerminalBlock[] {
+  return content[ROW_KEYS[row]]
+}
+
+/** The row holding block `blockId`, or null for a rail block or an unknown id. */
+export function rowOfBlock(content: PanelContent, blockId: string): RowId | null {
+  return ROW_IDS.find((row) => rowBlocks(content, row).some((b) => b.id === blockId)) ?? null
 }
 
 /** Key of a drawn contact: the electrical node plus the side it is wired from (hit-testing, rubber band). */
@@ -299,10 +331,13 @@ export function describeEndpoint(content: PanelContent, endpoint: Endpoint): str
     }
     case 'terminal': {
       const sideName = CONTACT_SIDE_NAMES[endpoint.contactSide]
-      const rowIndex = content.terminalRow.findIndex((b) => b.id === endpoint.terminalBlockId)
-      if (rowIndex !== -1) {
-        const block = content.terminalRow[rowIndex] as TerminalBlock
-        return `клемник у рядку ${block.label || `№${rowIndex + 1}`}, клема ${endpoint.terminalIndex + 1} (${sideName})`
+      for (const row of ROW_IDS) {
+        const blocks = rowBlocks(content, row)
+        const rowIndex = blocks.findIndex((b) => b.id === endpoint.terminalBlockId)
+        if (rowIndex === -1) continue
+        const block = blocks[rowIndex] as TerminalBlock
+        const rowName = row === 'top' ? 'верхньому' : 'нижньому'
+        return `клемник у ${rowName} ряду ${block.label || `№${rowIndex + 1}`}, клема ${endpoint.terminalIndex + 1} (${sideName})`
       }
       const all = content.rails.flatMap((r) => r.terminalBlocks)
       const index = all.findIndex((b) => b.id === endpoint.terminalBlockId)

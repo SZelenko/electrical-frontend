@@ -82,6 +82,8 @@ type Json = Record<string, unknown>
 export function panelContent(over: Json = {}): Json {
   return {
     railWidthModules: 20,
+    inputCableSide: 'top',
+    outputCableSide: 'bottom',
     inputCables: [
       {
         id: id(1),
@@ -97,6 +99,7 @@ export function panelContent(over: Json = {}): Json {
     ],
     outputCables: [],
     terminalRow: [],
+    bottomTerminalRow: [],
     rails: [rail(10)],
     wires: [],
     ...over,

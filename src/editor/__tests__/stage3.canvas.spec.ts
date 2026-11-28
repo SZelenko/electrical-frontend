@@ -142,7 +142,7 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     const from = centreOf(id(50))
     await wrapper.get(blockSel(50)).trigger('pointerdown', pointer(wrapper, from))
     await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x, y: 1000 })) // below the row band (200..450), above the rails
-    expect(wrapper.get('.hint').text()).toBe('Перетягніть у рядок клемників')
+    expect(wrapper.get('.hint').text()).toBe('Перетягніть у ряд клемників')
     await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x, y: 1000 }))
     expect(store.canUndo).toBe(false)
   })
@@ -154,7 +154,7 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     await wrapper
       .get('svg')
       .trigger('pointermove', pointer(wrapper, { x: from.x, y: layout.rails[1]!.cy }))
-    expect(wrapper.get('.hint').text()).toBe('Клемник рядка не можна перенести на рейку')
+    expect(wrapper.get('.hint').text()).toBe('Клемник ряду не можна перенести на рейку')
     expect(wrapper.find('[data-testid=invalid-ghost]').exists()).toBe(true)
     await wrapper
       .get('svg')
@@ -166,9 +166,9 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     const { wrapper, store } = await mountEditor(base)
     const from = centreOf(id(40))
     await wrapper.get(blockSel(40)).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x, y: 325 })) // inside the row band (200..450)
-    expect(wrapper.get('.hint').text()).toBe('Елемент рейки не можна перенести в рядок клемників')
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x, y: 325 }))
+    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x, y: 725 })) // inside the top row band (600..850)
+    expect(wrapper.get('.hint').text()).toBe('Елемент рейки не можна перенести в ряд клемників')
+    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x, y: 725 }))
     expect(store.canUndo).toBe(false)
   })
 

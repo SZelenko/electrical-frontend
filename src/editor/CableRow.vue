@@ -1,26 +1,68 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { fitText } from './shapes/fitText'
 import {
-  CABLE_LABEL_INPUT_Y,
   CABLE_LABEL_INSET,
-  CABLE_LABEL_OUTPUT_Y,
   WIRE_COLOUR_HEX,
+  cableTextOffsets,
   type CableBox,
 } from '@/domain/geometry'
 
-defineProps<{
+const props = defineProps<{
   /** `body`: boxes and labels (above the wires); `contacts`: wire points (above the wires). */
   layer: 'body' | 'contacts'
+  /** Cable boxes of any kind and side; each box is drawn by its own side. */
   boxes: readonly CableBox[]
-  kind: 'input' | 'output'
   selectedId: string | null
   violationIds: ReadonlySet<string>
   titles: Readonly<Record<string, string>>
 }>()
+
+interface BoxText {
+  x: number
+  y: number
+  /** Rotation of the caption about its anchor (left/right boxes read bottom-to-top). */
+  transform: string | undefined
+  /** Room along the text direction. */
+  length: number
+  labelX: number
+  labelY: number
+  labelTransform: string | undefined
+}
+
+/** Text anchors of a box: captions and labels follow the side, not the kind. */
+function textOf(box: CableBox): BoxText {
+  const { caption, label } = cableTextOffsets(box.side)
+  if (box.side === 'top' || box.side === 'bottom') {
+    const x = box.x + box.w / 2
+    return {
+      x,
+      y: box.y + caption,
+      transform: undefined,
+      length: box.w,
+      labelX: x,
+      labelY: box.y + label,
+      labelTransform: undefined,
+    }
+  }
+  const y = box.y + box.h / 2
+  const labelX = box.x + label
+  return {
+    x: box.x + caption,
+    y,
+    transform: `rotate(-90 ${box.x + caption} ${y})`,
+    length: box.h,
+    labelX,
+    labelY: y,
+    labelTransform: `rotate(-90 ${labelX} ${y})`,
+  }
+}
+
+const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) })))
 </script>
 
 <template>
-  <g v-for="box in boxes" :key="box.id">
+  <g v-for="{ box, text } in items" :key="box.id">
     <rect
       v-if="layer === 'body'"
       :x="box.x"
@@ -33,27 +75,30 @@ defineProps<{
         selected: selectedId === box.id,
         violation: violationIds.has(box.id),
       }"
-      :data-kind="kind === 'input' ? 'inputCable' : 'outputCable'"
+      :data-kind="box.kind === 'input' ? 'inputCable' : 'outputCable'"
       :data-id="box.id"
-      :data-testid="kind === 'input' ? 'input-cable' : 'output-cable'"
+      :data-side="box.side"
+      :data-testid="box.kind === 'input' ? 'input-cable' : 'output-cable'"
     >
       <title>{{ titles[box.id] }}</title>
     </rect>
     <text
       v-if="layer === 'body'"
-      :x="box.x + box.w / 2"
-      :y="kind === 'input' ? box.y + 80 : box.y + 190"
+      :x="text.x"
+      :y="text.y"
+      :transform="text.transform"
       class="cable-label"
       text-anchor="middle"
       pointer-events="none"
     >
-      {{ kind === 'input' ? 'Вх' : 'Вих' }} {{ box.index + 1 }}
+      {{ box.kind === 'input' ? 'Вх' : 'Вих' }} {{ box.index + 1 }}
     </text>
     <text
       v-if="layer === 'body' && box.label"
-      :x="box.x + box.w / 2"
-      :y="box.y + (kind === 'input' ? CABLE_LABEL_INPUT_Y : CABLE_LABEL_OUTPUT_Y)"
-      v-bind="fitText(box.label, 35, box.w - CABLE_LABEL_INSET)"
+      :x="text.labelX"
+      :y="text.labelY"
+      :transform="text.labelTransform"
+      v-bind="fitText(box.label, 35, text.length - CABLE_LABEL_INSET)"
       class="user-label"
       text-anchor="middle"
       pointer-events="none"

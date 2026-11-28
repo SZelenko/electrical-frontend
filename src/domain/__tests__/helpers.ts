@@ -174,8 +174,11 @@ export function content(over: Partial<PanelContent> = {}): PanelContent {
   return {
     railWidthModules: widest,
     inputCables: [inputCable(1, [2])],
+    inputCableSide: 'top',
+    outputCableSide: 'bottom',
     outputCables: [],
     terminalRow: [],
+    bottomTerminalRow: [],
     rails: [],
     wires: [],
     ...over,

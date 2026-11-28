@@ -421,11 +421,11 @@ describe('rail width (panel value)', () => {
     content({
       railWidthModules: 24,
       rails: [rail(10, 24, 150, [element(20, 8, 2, 2)])],
-      terminalRow: [rowBlock(50, 4, 2)], // row start 2 (1-wire cable) -> occupies row modules [4, 5)
+      terminalRow: [rowBlock(50, 4, 2)], // occupies row modules [4, 5)
     })
 
   it('shrinks exactly to what the rail items and the row need', () => {
-    // rail items need 10; the row needs rowStart 2 + 5 = 7
+    // rail items need 10; the row needs 5
     expect(run(w(), setRailWidth(10)).content.railWidthModules).toBe(10)
     expect(rejection(setRailWidth(9)(w()))).toBe('railTooNarrow')
   })
@@ -435,8 +435,17 @@ describe('rail width (panel value)', () => {
       railWidthModules: 24,
       terminalRow: [rowBlock(50, 4, 2)],
     })
-    expect(run(c, setRailWidth(7)).content.railWidthModules).toBe(7)
-    expect(rejection(setRailWidth(6)(c))).toBe('rowOverflow')
+    expect(run(c, setRailWidth(5)).content.railWidthModules).toBe(5)
+    expect(rejection(setRailWidth(4)(c))).toBe('rowOverflow')
+  })
+
+  it('rejects a shrink that no longer fits the bottom terminal row', () => {
+    const c = content({
+      railWidthModules: 24,
+      bottomTerminalRow: [rowBlock(50, 4, 2)],
+    })
+    expect(run(c, setRailWidth(5)).content.railWidthModules).toBe(5)
+    expect(rejection(setRailWidth(4)(c))).toBe('rowOverflow')
   })
 
   it.each([0, 61, 1.5, -2, Number.NaN])('rejects the invalid width %s', (v) => {
@@ -463,78 +472,71 @@ describe('rail width (panel value)', () => {
   })
 })
 
-describe('the terminal row moves with the input cables', () => {
-  /** C1 has one wire (row starts at module 2); row block id50 at offset 20 (1 module), W1 cw -> row contact. */
-  const rowWorld = (offset = 20) => {
+describe('the terminal rows do not move with the cables', () => {
+  /** C1 has one wire; row block id50 at offset `offset` (1 module), W1 row contact -> pole input. */
+  const rowWorld = (offset = 20, row: 'top' | 'bottom' = 'top') => {
     const c = content({
       railWidthModules: 24,
       inputCables: [inputCable(1, [2])],
-      terminalRow: [rowBlock(50, offset, 2)],
+      ...(row === 'top'
+        ? { terminalRow: [rowBlock(50, offset, 2)] }
+        : { bottomTerminalRow: [rowBlock(50, offset, 2)] }),
       rails: [rail(10, 24, 150, [dev(20, 0)])],
     })
     return run(c, addAuto(30, term(id(50), 0, 'bottom'), pole(id(20), 0, 'input'))).content
   }
 
-  it('adding an input cable shifts the row blocks; the wire follows and stays orthogonal', () => {
+  it('adding an input cable keeps the row blocks where they are; the wires stay orthogonal', () => {
     const c = rowWorld(4)
     const before = computeLayout(c).blocks.get(id(50))!.x
     const out = run(c, addInputCable(inputCable(6, [7]))).content
     const layout = computeLayout(out)
-    expect(layout.rowStartModules).toBe(4) // 200 + 100 + 200 -> ceil(600 / 175)
-    expect(layout.blocks.get(id(50))!.x).toBe(before + 2 * 175)
-    expect(out.terminalRow[0]?.offsetModules).toBe(4) // the stored offset is relative
+    expect(layout.blocks.get(id(50))!.x).toBe(before)
+    expect(before).toBe(200 + 4 * 175)
+    expect(out.terminalRow[0]?.offsetModules).toBe(4)
     expect(wireById(out, 30).bends).toEqual(autoOf(out, 30))
     expect(orthogonal(out)).toBe(true)
   })
 
-  it('removing an input cable shifts the row back', () => {
-    const two = run(rowWorld(4), addInputCable(inputCable(6, [7]))).content
-    const out = run(two, removeInputCable(id(6))).content
-    expect(computeLayout(out).rowStartModules).toBe(2)
-    expect(orthogonal(out)).toBe(true)
+  it('removing an input cable and adding or removing a cable wire change nothing for the rows', () => {
+    const c = rowWorld(4)
+    const x = computeLayout(c).blocks.get(id(50))!.x
+    const two = run(c, addInputCable(inputCable(6, [7]))).content
+    const steps = [
+      run(two, removeInputCable(id(6))).content,
+      run(c, addCableWire(id(1), { id: id(8), colour: 'blue' })).content,
+      run(
+        run(c, addCableWire(id(1), { id: id(8), colour: 'blue' })).content,
+        removeCableWire(id(8)),
+      ).content,
+    ]
+    for (const out of steps) {
+      expect(computeLayout(out).blocks.get(id(50))!.x).toBe(x)
+      expect(orthogonal(out)).toBe(true)
+    }
   })
 
-  it('adding a cable wire (1 -> 2 wires) shifts the row by one module', () => {
-    const out = run(rowWorld(4), addCableWire(id(1), { id: id(8), colour: 'blue' })).content
-    expect(computeLayout(out).rowStartModules).toBe(3)
-    expect(orthogonal(out)).toBe(true)
-  })
+  it.each(['top', 'bottom'] as const)(
+    'a block at the %s row end stays valid when a cable or cable wire is added (never rowOverflow)',
+    (row) => {
+      const c = rowWorld(23, row) // [23, 24): exactly the rail width
+      expect(rejection(addInputCable(inputCable(6, [7, 8, 9, 11]))(c))).toBeNull()
+      expect(rejection(addCableWire(id(1), { id: id(8), colour: 'blue' })(c))).toBeNull()
+      expect(rejection(addOutputCable(outputCable(6, [7]))(c))).toBeNull()
+    },
+  )
 
-  it('removing a cable wire shifts the row back and drops the wires on it', () => {
-    const two = run(rowWorld(4), addCableWire(id(1), { id: id(8), colour: 'blue' })).content
-    const out = run(two, removeCableWire(id(8))).content
-    expect(computeLayout(out).rowStartModules).toBe(2)
-  })
-
-  it('rejects a new input cable that would push a row block past the capacity (content unchanged)', () => {
-    const c = rowWorld(20) // [20, 21) within capacity 22; new start 4 -> capacity 20
-    const out = addInputCable(inputCable(6, [7]))(c)
-    expect(out).toMatchObject({ ok: false, reason: 'rowOverflow' })
-  })
-
-  it('rejects a new cable wire that would push a row block past the capacity', () => {
-    const c = rowWorld(21) // [21, 22) -> exactly the capacity 22
-    expect(rejection(addCableWire(id(1), { id: id(8), colour: 'blue' })(c))).toBe('rowOverflow')
-  })
-
-  it('accepts the change while the block still fits exactly', () => {
-    const c = rowWorld(20) // capacity after the extra wire: 21, block ends at 21
-    expect(rejection(addCableWire(id(1), { id: id(8), colour: 'blue' })(c))).toBeNull()
-  })
-
-  it('an output cable never shifts the row', () => {
-    const c = rowWorld(21)
-    expect(rejection(addOutputCable(outputCable(6, [7]))(c))).toBeNull()
-  })
-
-  it('cables can be added while the row is empty even when the capacity is not positive', () => {
+  it('cables can be added while the rail is narrower than the cable row', () => {
     const c = content({ railWidthModules: 2, inputCables: [inputCable(1, [2])] })
     expect(rejection(addInputCable(inputCable(6, [7]))(c))).toBeNull()
   })
 
-  it('a row block cannot be added when the capacity is zero or negative', () => {
+  it('a row block fits while its end is within the rail width and not beyond it', () => {
     const c = content({ railWidthModules: 2, inputCables: [inputCable(1, [2])] })
-    expect(rejection(addRowBlock(rowBlock(50, 0, 1))(c))).toBe('outOfRow')
+    expect(rejection(addRowBlock('top', rowBlock(50, 0, 1))(c))).toBeNull()
+    expect(rejection(addRowBlock('bottom', rowBlock(50, 1, 2))(c))).toBeNull()
+    expect(rejection(addRowBlock('top', rowBlock(50, 2, 1))(c))).toBe('outOfRow')
+    expect(rejection(addRowBlock('bottom', rowBlock(50, 2, 1))(c))).toBe('outOfRow')
   })
 })
 

@@ -90,7 +90,7 @@ test('a terminal-row block takes wires on its top and bottom and saves the conta
   page,
 }) => {
   const s = await open(page, panelContent({ rails: [rail(10, [element(20, 4, 2, 2)])] }))
-  await button(page, 'Додати клемник у рядок').click()
+  await page.getByTestId('add-row-block-top').click()
   const row = page.locator('[data-testid="block"][data-block-zone="row"]')
   await expect(row).toHaveCount(1)
   const rowId = await itemId(row)

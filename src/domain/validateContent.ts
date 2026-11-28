@@ -3,7 +3,6 @@
  * paths (`content.rails[2].elements[0].widthModules`) and the offending item id where there is one.
  */
 import { busbarIssues, railItems } from './busbars'
-import { rowCapacity as rowCapacityOf } from './geometry'
 import {
   ATS_INPUTS,
   ATS_MIN_WIDTH,
@@ -38,11 +37,15 @@ import {
   VOLTAGE_RULE,
 } from './limits'
 import {
+  CABLE_SIDES,
   endpointKey,
+  ROW_IDS,
+  ROW_KEYS,
   type CableWire,
   type Busbar,
   type Endpoint,
   type PanelContent,
+  type RowId,
   type TerminalBlock,
 } from './panelContent'
 
@@ -146,12 +149,14 @@ export function validateContent(content: PanelContent): Violation[] {
     wires(cable.wires, path)
   })
 
-  // Modules the terminal row has: rail width minus the input-cable row; unknown while those are invalid.
-  const inputsValid =
-    content.inputCables.length >= 1 &&
-    content.inputCables.length <= MAX_INPUT_CABLES &&
-    content.inputCables.every((c) => c.wires.length >= 1 && c.wires.length <= MAX_CABLE_WIRES)
-  const rowCapacity = railWidthOk && inputsValid ? rowCapacityOf(content) : null
+  for (const field of ['inputCableSide', 'outputCableSide'] as const) {
+    if (!CABLE_SIDES.includes(content[field])) {
+      run.add(`content.${field}`, `Must be one of ${CABLE_SIDES.join(', ')}.`)
+    }
+  }
+
+  // Modules each terminal row has: the rail width; unknown while that is invalid.
+  const rowCapacity = railWidthOk ? content.railWidthModules : null
 
   /** Offset/width/fit/overlap violations so far; a rail with any of them skips the busbar coverage walk. */
   let spanBad = 0
@@ -173,7 +178,7 @@ export function validateContent(content: PanelContent): Violation[] {
     width: number,
     itemPath: string,
     limit: number | null,
-    zone: 'rail' | 'row',
+    zone: 'rail' | RowId,
   ) => {
     let valid = true
     const before = run.list.length
@@ -190,14 +195,14 @@ export function validateContent(content: PanelContent): Violation[] {
         `${itemPath}.offsetModules`,
         zone === 'rail'
           ? 'Does not fit within the rail width.'
-          : 'Does not fit within the terminal row (rail width minus the input cables).',
+          : `Does not fit within the ${zone} terminal row (rail width).`,
         id,
       )
     }
     spanBad += run.list.length - before
     if (valid) spans.push({ offset, end: offset + width, path: itemPath, id })
   }
-  const checkOverlaps = (spans: Span[], zone: 'rail' | 'row') => {
+  const checkOverlaps = (spans: Span[], zone: 'rail' | RowId) => {
     spans.sort((a, b) => a.offset - b.offset || a.end - b.end)
     let previousEnd = 0
     for (const s of spans) {
@@ -207,7 +212,7 @@ export function validateContent(content: PanelContent): Violation[] {
           `${s.path}.offsetModules`,
           zone === 'rail'
             ? 'Overlaps another item on the rail.'
-            : 'Overlaps another block in the terminal row.',
+            : `Overlaps another block in the ${zone} terminal row.`,
           s.id,
         )
       }
@@ -215,32 +220,35 @@ export function validateContent(content: PanelContent): Violation[] {
     }
   }
 
-  // terminal row
-  if (content.terminalRow.length > MAX_ROW_BLOCKS) {
-    run.add(
-      'content.terminalRow',
-      `At most ${MAX_ROW_BLOCKS} terminal blocks are allowed in the terminal row.`,
-    )
-  }
-  const rowSpans: Span[] = []
-  content.terminalRow.forEach((b, i) => {
-    const itemPath = `content.terminalRow[${i}]`
-    checkBlock(b, itemPath, true)
-    if (
-      Number.isInteger(b.terminalCount) &&
-      b.terminalCount >= 1 &&
-      b.widthModules >= 1 &&
-      b.widthModules !== rowBlockWidth(b.terminalCount)
-    ) {
+  // terminal rows (both are validated alike; ids are unique across the whole payload)
+  for (const row of ROW_IDS) {
+    const key = ROW_KEYS[row]
+    if (content[key].length > MAX_ROW_BLOCKS) {
       run.add(
-        `${itemPath}.widthModules`,
-        `Must be ${rowBlockWidth(b.terminalCount)} (half of the terminal count, rounded up).`,
-        b.id,
+        `content.${key}`,
+        `At most ${MAX_ROW_BLOCKS} terminal blocks are allowed in the ${row} terminal row.`,
       )
     }
-    collectSpan(rowSpans, b.id, b.offsetModules, b.widthModules, itemPath, rowCapacity, 'row')
-  })
-  checkOverlaps(rowSpans, 'row')
+    const rowSpans: Span[] = []
+    content[key].forEach((b, i) => {
+      const itemPath = `content.${key}[${i}]`
+      checkBlock(b, itemPath, true)
+      if (
+        Number.isInteger(b.terminalCount) &&
+        b.terminalCount >= 1 &&
+        b.widthModules >= 1 &&
+        b.widthModules !== rowBlockWidth(b.terminalCount)
+      ) {
+        run.add(
+          `${itemPath}.widthModules`,
+          `Must be ${rowBlockWidth(b.terminalCount)} (half of the terminal count, rounded up).`,
+          b.id,
+        )
+      }
+      collectSpan(rowSpans, b.id, b.offsetModules, b.widthModules, itemPath, rowCapacity, row)
+    })
+    checkOverlaps(rowSpans, row)
+  }
 
   // rails
   if (content.rails.length > MAX_RAILS)
@@ -456,8 +464,11 @@ export function resolveViolationItem(content: PanelContent, propertyPath: string
   const [, s1, s2] = segments
   if (!s1 || s1.index === null) return null
   switch (s1.name) {
-    case 'terminalRow': {
-      const block = content.terminalRow[s1.index]
+    case 'terminalRow':
+    case 'bottomTerminalRow': {
+      const block = (s1.name === 'terminalRow' ? content.terminalRow : content.bottomTerminalRow)[
+        s1.index
+      ]
       return block ? { kind: 'block', id: block.id } : null
     }
     case 'rails': {

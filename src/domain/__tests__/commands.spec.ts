@@ -28,9 +28,12 @@ const addAuto =
     })(c)
 const empty: PanelContent = {
   railWidthModules: 60,
-  inputCables: [defaultInputCable(id(1), id(2))],
+  inputCableSide: 'top',
+  outputCableSide: 'bottom',
+  inputCables: [defaultInputCable(id(1), id(2), id(3))],
   outputCables: [],
   terminalRow: [],
+  bottomTerminalRow: [],
   rails: [],
   wires: [],
 }

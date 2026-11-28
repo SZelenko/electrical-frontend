@@ -7,7 +7,10 @@ import {
   describeShortCircuit,
   formatInputCableLabel,
   pluralUk,
+  rowBlocks,
+  type CableSide,
   type PanelContent,
+  type RowId,
   type ShortCircuit,
 } from '@/domain/panelContent'
 
@@ -16,12 +19,23 @@ const props = defineProps<{ content: PanelContent; shortCircuits: ShortCircuit[]
 const circuits = computed(() =>
   props.shortCircuits.map((group) => describeShortCircuit(props.content, group)),
 )
+const SIDE_NAMES: Record<CableSide, string> = {
+  top: 'зверху',
+  bottom: 'знизу',
+  left: 'зліва',
+  right: 'справа',
+}
+const ROWS: readonly { id: RowId; title: string }[] = [
+  { id: 'top', title: 'Верхній ряд клемників' },
+  { id: 'bottom', title: 'Нижній ряд клемників' },
+]
 const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', 'проводів')
 </script>
 
 <template>
   <section aria-labelledby="sum-input">
     <h2 id="sum-input">Вхідні кабелі</h2>
+    <p>Розташування: {{ SIDE_NAMES[content.inputCableSide] }}</p>
     <ul>
       <li v-for="(cable, i) in content.inputCables" :key="cable.id">
         Кабель {{ i + 1 }}{{ cable.label ? ` «${cable.label}»` : '' }}:
@@ -37,6 +51,7 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
 
   <section aria-labelledby="sum-output">
     <h2 id="sum-output">Вихідні кабелі</h2>
+    <p>Розташування: {{ SIDE_NAMES[content.outputCableSide] }}</p>
     <p v-if="content.outputCables.length === 0">Немає.</p>
     <ul v-else>
       <li v-for="(cable, i) in content.outputCables" :key="cable.id">
@@ -50,11 +65,11 @@ const wireWord = (n: number) => pluralUk(n, 'провід', 'проводи', '�
     </ul>
   </section>
 
-  <section aria-labelledby="sum-row">
-    <h2 id="sum-row">Рядок клемників</h2>
-    <p v-if="content.terminalRow.length === 0">Немає.</p>
+  <section v-for="row in ROWS" :key="row.id" :aria-labelledby="`sum-row-${row.id}`">
+    <h2 :id="`sum-row-${row.id}`">{{ row.title }}</h2>
+    <p v-if="rowBlocks(content, row.id).length === 0">Немає.</p>
     <ul v-else>
-      <li v-for="block in content.terminalRow" :key="block.id">
+      <li v-for="block in rowBlocks(content, row.id)" :key="block.id">
         {{ block.label || 'Клемник' }}: {{ block.widthModules }} мод., клем:
         {{ block.terminalCount }}, колір: {{ block.colour ? colourName(block.colour) : 'сірий' }}
       </li>

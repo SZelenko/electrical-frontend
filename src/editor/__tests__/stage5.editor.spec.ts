@@ -101,12 +101,21 @@ describe('panel properties: rail width', () => {
     expect(ctx.notice.value?.tone).toBe('error')
   })
 
-  it('a width below the terminal row end is rejected', async () => {
-    const { wrapper, store } = await mountEditor(world(), { properties: true })
+  it.each([
+    ['top', 'terminalRow'],
+    ['bottom', 'bottomTerminalRow'],
+  ] as const)('a width below the %s terminal row end is rejected', async (_row, key) => {
+    const c = { ...world(), terminalRow: [], bottomTerminalRow: [], [key]: [rowBlock(50, 6, 2)] }
+    const { wrapper, store, ctx } = await mountEditor(c, { properties: true })
     const input = fieldInput(wrapper, 'Властивості щита', 'Ширина рейок (усіх), модулів')
-    await input.setValue('5') // row starts at 3 and its block ends at 3 + 4 = 7; items need 4
+    await input.setValue('6') // the row block ends at module 7; the rail items need only 4
     await input.trigger('blur')
     expect(store.content?.railWidthModules).toBe(24)
+    expect(store.canUndo).toBe(false)
+    expect(ctx.notice.value?.tone).toBe('error')
+    await input.setValue('7')
+    await input.trigger('blur')
+    expect(store.content?.railWidthModules).toBe(7)
   })
 
   it('is disabled on a read-only panel', async () => {

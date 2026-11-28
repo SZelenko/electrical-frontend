@@ -19,7 +19,11 @@ export function defaultWireColour(
     return fallback
   }
   if (start.kind === 'terminal') {
-    const blocks = [...content.terminalRow, ...content.rails.flatMap((r) => r.terminalBlocks)]
+    const blocks = [
+      ...content.terminalRow,
+      ...content.bottomTerminalRow,
+      ...content.rails.flatMap((r) => r.terminalBlocks),
+    ]
     const colour = blocks.find((b) => b.id === start.terminalBlockId)?.colour
     if (colour) return colour
   }

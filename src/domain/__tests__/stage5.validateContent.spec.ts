@@ -95,22 +95,33 @@ describe('fit within the panel rail width and the terminal row', () => {
     const c = content({ railWidthModules: 0, rails: [rail(10, 24, 150, [element(20, 50, 2, 2)])] })
     expect(pairs(c)).toEqual([['content.railWidthModules', 'Must be between 1 and 60.']])
   })
-  it('rejects a row block beyond the row capacity (rail width minus the input cables)', () => {
-    // 1-wire cable -> row start 2; rail 24 -> capacity 22
-    const ok = content({ terminalRow: [rowBlock(50, 21, 2)] })
-    expect(validateContent(ok)).toEqual([])
-    const bad = content({ terminalRow: [rowBlock(50, 22, 2)] })
-    expect(pairs(bad)).toEqual([
-      [
-        'content.terminalRow[0].offsetModules',
-        'Does not fit within the terminal row (rail width minus the input cables).',
-      ],
-    ])
-  })
-  it('skips the row fit check while the input cables are invalid', () => {
-    const c = content({ terminalRow: [rowBlock(50, 30, 2)] })
+  it.each([
+    ['top', 'terminalRow'],
+    ['bottom', 'bottomTerminalRow'],
+  ] as const)(
+    'rejects a %s row block beyond the rail width (the cables do not matter)',
+    (name, key) => {
+      // rail 24 -> capacity 24, whatever the input cables are
+      expect(validateContent(content({ [key]: [rowBlock(50, 23, 2)] }))).toEqual([])
+      const bad = content({ [key]: [rowBlock(50, 24, 2)] })
+      expect(pairs(bad)).toEqual([
+        [
+          `content.${key}[0].offsetModules`,
+          `Does not fit within the ${name} terminal row (rail width).`,
+        ],
+      ])
+    },
+  )
+  it.each([
+    ['top', 'terminalRow'],
+    ['bottom', 'bottomTerminalRow'],
+  ] as const)('still checks the %s row fit while the input cables are invalid', (_n, key) => {
+    const c = content({ [key]: [rowBlock(50, 30, 2)] })
     c.inputCables = []
-    expect(pairs(c)).toEqual([['content.inputCables', 'At least one input cable is required.']])
+    expect(pairs(c).map(([path]) => path)).toEqual([
+      'content.inputCables',
+      `content.${key}[0].offsetModules`,
+    ])
   })
 })
 
@@ -359,14 +370,17 @@ describe('resolveViolationItem for busbars', () => {
 void inputCable
 
 describe('terminal row / rail block messages equal the backend', () => {
-  it('too many row blocks', () => {
+  it.each([
+    ['top', 'terminalRow'],
+    ['bottom', 'bottomTerminalRow'],
+  ] as const)('too many %s row blocks', (name, key) => {
     const c = content({
       railWidthModules: 60,
-      terminalRow: Array.from({ length: 61 }, (_, i) => rowBlock(100 + i, i, 1)),
+      [key]: Array.from({ length: 61 }, (_, i) => rowBlock(100 + i, i, 1)),
     })
     expect(pairs(c)).toContainEqual([
-      'content.terminalRow',
-      'At most 60 terminal blocks are allowed in the terminal row.',
+      `content.${key}`,
+      `At most 60 terminal blocks are allowed in the ${name} terminal row.`,
     ])
   })
   it('a row block with the wrong width', () => {
@@ -378,12 +392,53 @@ describe('terminal row / rail block messages equal the backend', () => {
       ],
     ])
   })
-  it('overlapping row blocks', () => {
-    const c = content({ terminalRow: [rowBlock(50, 0, 4), rowBlock(51, 1, 2)] })
+  it.each([
+    ['top', 'terminalRow'],
+    ['bottom', 'bottomTerminalRow'],
+  ] as const)('overlapping %s row blocks', (name, key) => {
+    const c = content({ [key]: [rowBlock(50, 0, 4), rowBlock(51, 1, 2)] })
     expect(pairs(c)).toEqual([
-      ['content.terminalRow[1].offsetModules', 'Overlaps another block in the terminal row.'],
+      [`content.${key}[1].offsetModules`, `Overlaps another block in the ${name} terminal row.`],
     ])
   })
+
+  it('blocks at the same place of different rows do not overlap', () => {
+    const c = content({
+      terminalRow: [rowBlock(50, 0, 4)],
+      bottomTerminalRow: [rowBlock(51, 0, 4)],
+    })
+    expect(validateContent(c)).toEqual([])
+  })
+
+  it('a block id used by both rows is reported (ids are unique across the panel)', () => {
+    const c = content({
+      terminalRow: [rowBlock(50, 0, 2)],
+      bottomTerminalRow: [rowBlock(50, 5, 2)],
+    })
+    expect(pairs(c).map(([path]) => path)).toContain('content.bottomTerminalRow[0].id')
+  })
+
+  it('a bottom-row block with the wrong width', () => {
+    const c = content({ bottomTerminalRow: [{ ...rowBlock(50, 0, 4), widthModules: 1 }] })
+    expect(pairs(c)).toEqual([
+      [
+        'content.bottomTerminalRow[0].widthModules',
+        'Must be 2 (half of the terminal count, rounded up).',
+      ],
+    ])
+  })
+
+  it.each(['inputCableSide', 'outputCableSide'] as const)('rejects an unknown %s', (field) => {
+    const c = { ...content(), [field]: 'diagonal' } as unknown as PanelContent
+    expect(pairs(c).map(([path]) => path)).toEqual([`content.${field}`])
+  })
+
+  it.each(['top', 'bottom', 'left', 'right'] as const)(
+    'accepts the side %s for both kinds',
+    (side) => {
+      expect(validateContent(content({ inputCableSide: side, outputCableSide: side }))).toEqual([])
+    },
+  )
   it('a rail block wider than one module', () => {
     const c = content({ rails: [rail(10, 24, 150, [], [block(40, 0, 2, 2)])] })
     expect(pairs(c)).toEqual([
@@ -392,5 +447,28 @@ describe('terminal row / rail block messages equal the backend', () => {
         'A terminal block on a rail is exactly 1 module wide.',
       ],
     ])
+  })
+})
+
+describe('resolveViolationItem for terminal rows', () => {
+  const c = content({
+    terminalRow: [rowBlock(50, 0, 2)],
+    bottomTerminalRow: [rowBlock(51, 0, 2), rowBlock(52, 3, 2)],
+  })
+
+  it.each([
+    ['content.terminalRow[0].offsetModules', id(50)],
+    ['content.bottomTerminalRow[0].offsetModules', id(51)],
+    ['content.bottomTerminalRow[1].widthModules', id(52)],
+  ])('%s resolves to its block', (path, blockId) => {
+    expect(resolveViolationItem(c, path)).toEqual({ kind: 'block', id: blockId })
+  })
+
+  it.each([
+    'content.bottomTerminalRow[5].offsetModules',
+    'content.terminalRow[1].offsetModules',
+    'content.bottomTerminalRow',
+  ])('%s resolves to nothing', (path) => {
+    expect(resolveViolationItem(c, path)).toBeNull()
   })
 })

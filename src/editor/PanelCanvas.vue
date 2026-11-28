@@ -24,7 +24,6 @@ import {
   WIRE_COLOUR_HEX,
   WIRE_STROKE_MM,
   ROW_BLOCK_H,
-  MARGIN,
   MODULE,
   type Layout,
   type Pt,
@@ -43,7 +42,10 @@ import {
   formatInputCableLabel,
   type ContactSide,
   type Endpoint,
+  ROW_IDS,
+  rowBlocks,
   type PanelContent,
+  type RowId,
 } from '@/domain/panelContent'
 import type { ItemRef } from '@/domain/validateContent'
 import BendHandles from './BendHandles.vue'
@@ -181,6 +183,19 @@ const selectedCable = (kind: 'inputCable' | 'outputCable'): string | null => {
   if (s?.kind === 'cableWire') return store.index?.cableWires.get(s.id)?.cableId ?? null
   return null
 }
+
+/** Cable boxes of both kinds; every box is drawn on its own side. */
+const cableBoxes = computed(() => layout.value?.cableBoxes ?? [])
+/** Blocks of both terminal rows. */
+const rowBlockList = computed(() =>
+  content.value ? ROW_IDS.flatMap((row) => rowBlocks(content.value as PanelContent, row)) : [],
+)
+
+const ROW_BANDS: readonly { id: RowId; label: string; testid: string }[] = [
+  { id: 'top', label: 'Верхній ряд клемників', testid: 'terminal-row' },
+  { id: 'bottom', label: 'Нижній ряд клемників', testid: 'terminal-row-bottom' },
+]
+const rowY = (l: Layout, row: RowId) => (row === 'top' ? l.topRowY : l.bottomRowY)
 
 const cableTitles = computed(() => {
   const titles: Record<string, string> = {}
@@ -533,16 +548,15 @@ function dragItem(g: Extract<Gesture, { type: 'item' }>, u: Pt, copy: boolean) {
   if (!c || !l) return
   const item = g.kind === 'element' ? l.elements.get(g.id) : l.blocks.get(g.id)
   if (!item) return
-  const moduleOffset = snapOffset(u.x - g.grabDx)
-  const inRow = inRowBand(u.y)
-  // row offsets count from the end of the input cables
-  const offset = g.row && inRow ? moduleOffset - l.rowStartModules : moduleOffset
-  const railIndex = g.row && inRow ? null : railAtY(l, u.y)
+  // rail and row offsets both count from the rail start
+  const offset = snapOffset(l, u.x - g.grabDx)
+  const band = inRowBand(l, u.y)
+  const railIndex = g.row && band ? null : railAtY(l, u.y)
   const rail = railIndex === null ? null : c.rails[railIndex]
   const target: Target | null = rail
     ? { railId: rail.id, offset }
-    : inRow
-      ? { row: true, offset }
+    : band
+      ? { row: band, offset }
       : null
   const same =
     g.moved &&
@@ -550,6 +564,8 @@ function dragItem(g: Extract<Gesture, { type: 'item' }>, u: Pt, copy: boolean) {
     g.target?.offset === offset &&
     (g.target && 'railId' in g.target ? g.target.railId : null) ===
       (target && 'railId' in target ? target.railId : null) &&
+    (g.target && 'row' in g.target ? g.target.row : null) ===
+      (target && 'row' in target ? target.row : null) &&
     (g.target === null) === (target === null)
   if (same) return
   const widthModules = item.w / MODULE
@@ -569,11 +585,11 @@ function dragItem(g: Extract<Gesture, { type: 'item' }>, u: Pt, copy: boolean) {
       target: null,
       error: !target
         ? g.row
-          ? 'Перетягніть у рядок клемників'
+          ? 'Перетягніть у ряд клемників'
           : 'Перетягніть на рейку'
         : g.row
-          ? 'Клемник рядка не можна перенести на рейку'
-          : 'Елемент рейки не можна перенести в рядок клемників',
+          ? 'Клемник ряду не можна перенести на рейку'
+          : 'Елемент рейки не можна перенести в ряд клемників',
       preview: null,
       ghost: pointerGhost,
     }
@@ -583,14 +599,14 @@ function dragItem(g: Extract<Gesture, { type: 'item' }>, u: Pt, copy: boolean) {
   const spot: Ghost =
     'row' in target
       ? {
-          x: MARGIN + (l.rowStartModules + offset) * MODULE,
-          y: MARGIN,
+          x: l.railsLeft + offset * MODULE,
+          y: target.row === 'top' ? l.topRowY : l.bottomRowY,
           w: widthModules * MODULE,
           h: ROW_BLOCK_H,
           copy,
         }
       : {
-          x: MARGIN + offset * MODULE,
+          x: l.railsLeft + offset * MODULE,
           y: (l.rails[railIndex as number] as { cy: number }).cy - item.h / 2,
           w: widthModules * MODULE,
           h: item.h,
@@ -616,8 +632,11 @@ function dropCommand(
   target: Target,
   copy: boolean,
 ): Command {
-  if (copy) return copyItem(g.id, g.copyId, 'row' in target ? { row: true } : target, target.offset)
-  if ('row' in target) return moveRowBlock(g.id, target.offset)
+  if (copy) {
+    const into: CopyTarget = 'row' in target ? { row: target.row } : { railId: target.railId }
+    return copyItem(g.id, g.copyId, into, target.offset)
+  }
+  if ('row' in target) return moveRowBlock(g.id, target.offset, target.row)
   return moveItem(g.id, target.railId, target.offset)
 }
 
@@ -762,24 +781,21 @@ const dragHint = computed(() => {
           :violation="violationIds.has(rail.id)"
         />
         <g
-          v-if="layout.rowCapacity > 0"
+          v-for="row in ROW_BANDS"
+          :key="row.id"
           class="row-band"
           pointer-events="none"
-          data-testid="terminal-row"
+          :data-testid="row.testid"
         >
           <rect
-            :x="MARGIN + layout.rowStartModules * MODULE"
-            :y="MARGIN"
-            :width="layout.rowCapacity * MODULE"
+            :x="layout.railsLeft"
+            :y="rowY(layout, row.id)"
+            :width="layout.railWidthModules * MODULE"
             :height="ROW_BLOCK_H"
             class="row-band-rect"
           />
-          <text
-            :x="MARGIN + layout.rowStartModules * MODULE + 20"
-            :y="MARGIN - 20"
-            class="row-band-label"
-          >
-            Рядок клемників
+          <text :x="layout.railsLeft + 20" :y="rowY(layout, row.id) - 20" class="row-band-label">
+            {{ row.label }}
           </text>
         </g>
         <!-- wires lie under the device bodies; contacts, feeds and handles come above them -->
@@ -797,22 +813,13 @@ const dragHint = computed(() => {
         <g class="bodies" :class="{ translucent }" data-testid="bodies">
           <CableRow
             layer="body"
-            :boxes="layout.inputBoxes"
-            kind="input"
-            :selected-id="selectedCable('inputCable')"
-            :violation-ids="violationIds"
-            :titles="cableTitles"
-          />
-          <CableRow
-            layer="body"
-            :boxes="layout.outputBoxes"
-            kind="output"
-            :selected-id="selectedCable('outputCable')"
+            :boxes="cableBoxes"
+            :selected-id="selectedCable('inputCable') ?? selectedCable('outputCable')"
             :violation-ids="violationIds"
             :titles="cableTitles"
           />
           <RowBlockShape
-            v-for="block in content.terminalRow"
+            v-for="block in rowBlockList"
             :key="block.id"
             :block="block"
             :box="layout.blocks.get(block.id)!"
@@ -875,22 +882,13 @@ const dragHint = computed(() => {
         <!-- contacts are drawn above the wires so they stay clickable -->
         <CableRow
           layer="contacts"
-          :boxes="layout.inputBoxes"
-          kind="input"
-          :selected-id="null"
-          :violation-ids="violationIds"
-          :titles="cableTitles"
-        />
-        <CableRow
-          layer="contacts"
-          :boxes="layout.outputBoxes"
-          kind="output"
+          :boxes="cableBoxes"
           :selected-id="null"
           :violation-ids="violationIds"
           :titles="cableTitles"
         />
         <ItemContacts
-          v-for="block in content.terminalRow"
+          v-for="block in rowBlockList"
           :key="block.id"
           :box="layout.blocks.get(block.id)!"
           :block="block"

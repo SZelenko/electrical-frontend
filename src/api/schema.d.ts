@@ -802,32 +802,50 @@ export interface components {
       shortCircuits: components['schemas']['ShortCircuitGroup.jsonld_noid'][]
     }
     PanelContent: {
-      /** @description width of every rail, 1 to 60 */
+      /** @description width of every rail and of both terminal rows, 1 to 60 */
       railWidthModules: number
+      /** @enum {string} */
+      inputCableSide: 'top' | 'bottom' | 'left' | 'right'
+      /** @enum {string} */
+      outputCableSide: 'top' | 'bottom' | 'left' | 'right'
       inputCables: components['schemas']['InputCableDto'][]
       outputCables: components['schemas']['OutputCableDto'][]
-      /** @description blocks of the terminal row (beside the input cables, offsets relative to the row start), at most 60 */
+      /** @description blocks of the top terminal row (offsets from the rail start, capacity = railWidthModules), at most 60 */
       terminalRow: components['schemas']['TerminalBlockDto'][]
+      /** @description blocks of the bottom terminal row, same rules as the top row */
+      bottomTerminalRow: components['schemas']['TerminalBlockDto'][]
       rails: components['schemas']['RailDto'][]
       wires: components['schemas']['WireDto'][]
     }
     'PanelContent.jsonld_noid': {
-      /** @description width of every rail, 1 to 60 */
+      /** @description width of every rail and of both terminal rows, 1 to 60 */
       railWidthModules: number
+      /** @enum {string} */
+      inputCableSide: 'top' | 'bottom' | 'left' | 'right'
+      /** @enum {string} */
+      outputCableSide: 'top' | 'bottom' | 'left' | 'right'
       inputCables: components['schemas']['InputCableDto.jsonld_noid'][]
       outputCables: components['schemas']['OutputCableDto.jsonld_noid'][]
-      /** @description blocks of the terminal row (beside the input cables, offsets relative to the row start), at most 60 */
+      /** @description blocks of the top terminal row (offsets from the rail start, capacity = railWidthModules), at most 60 */
       terminalRow: components['schemas']['TerminalBlockDto.jsonld_noid'][]
+      /** @description blocks of the bottom terminal row, same rules as the top row */
+      bottomTerminalRow: components['schemas']['TerminalBlockDto.jsonld_noid'][]
       rails: components['schemas']['RailDto.jsonld_noid'][]
       wires: components['schemas']['WireDto.jsonld_noid'][]
     }
     PanelContent_noid: {
-      /** @description width of every rail, 1 to 60 */
+      /** @description width of every rail and of both terminal rows, 1 to 60 */
       railWidthModules: number
+      /** @enum {string} */
+      inputCableSide: 'top' | 'bottom' | 'left' | 'right'
+      /** @enum {string} */
+      outputCableSide: 'top' | 'bottom' | 'left' | 'right'
       inputCables: components['schemas']['InputCableDto_noid'][]
       outputCables: components['schemas']['OutputCableDto_noid'][]
-      /** @description blocks of the terminal row (beside the input cables, offsets relative to the row start), at most 60 */
+      /** @description blocks of the top terminal row (offsets from the rail start, capacity = railWidthModules), at most 60 */
       terminalRow: components['schemas']['TerminalBlockDto_noid'][]
+      /** @description blocks of the bottom terminal row, same rules as the top row */
+      bottomTerminalRow: components['schemas']['TerminalBlockDto_noid'][]
       rails: components['schemas']['RailDto_noid'][]
       wires: components['schemas']['WireDto_noid'][]
     }

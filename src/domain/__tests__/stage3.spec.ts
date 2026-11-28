@@ -73,8 +73,8 @@ const allOrthogonal = (c: PanelContent) => {
 
 /**
  * World: C1 (id2 brown, id3 blue); row block R id50 [0,2) 3 contacts, row block id51 [4,5) 2 contacts;
- * rail 1 id10 (cy 2100): ATS id21 [0,2), device id20 [4,6) 2 poles, rail block id40 [10,11) 3 contacts;
- * rail 2 id11 (cy 3100) empty; the input cable (2 wires, 300 u) puts the row start at module 3, the capacity is 24 - 3 = 21.
+ * rail 1 id10 (cy 2500): ATS id21 [0,2), device id20 [4,6) 2 poles, rail block id40 [10,11) 3 contacts;
+ * rail 2 id11 (cy 3500) empty; the input cable is on top (default), so railsTop is 1000; the row capacity is the rail width, 24.
  */
 function world(): PanelContent {
   return content({
@@ -91,14 +91,14 @@ function world(): PanelContent {
 
 describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
   const layout = computeLayout(world())
-  // box x = 200 + 10*175 = 1950, y = 2100 - 450 = 1650
+  // box x = 200 + 10*175 = 1950, y = 2500 - 450 = 2050
   it.each([
-    [0, 'left', p(1975, 1688)],
-    [0, 'right', p(2100, 1688)],
-    [1, 'left', p(1975, 1763)],
-    [1, 'right', p(2100, 1763)],
-    [2, 'left', p(1975, 1838)],
-    [2, 'right', p(2100, 1838)],
+    [0, 'left', p(1975, 2088)],
+    [0, 'right', p(2100, 2088)],
+    [1, 'left', p(1975, 2163)],
+    [1, 'right', p(2100, 2163)],
+    [2, 'left', p(1975, 2238)],
+    [2, 'right', p(2100, 2238)],
   ] as const)('contact %i %s is at the exact integer point', (k, side, expected) => {
     expect(endpointPoint(layout, term(id(40), k, side))).toEqual(expected)
   })
@@ -114,9 +114,9 @@ describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
     const c = content({ rails: [rail(10, 24, 150, [], [block(40, 0, 1, 12)])] })
     const l = computeLayout(c)
     const last = endpointPoint(l, term(id(40), 11, 'left'))!
-    expect(last.y).toBe(1650 + 38 + 75 * 11)
-    expect(last.y).toBeLessThan(1650 + 900)
-    expect(railContactY(l.blocks.get(id(40))!, 0)).toBe(1688)
+    expect(last.y).toBe(2050 + 38 + 75 * 11)
+    expect(last.y).toBeLessThan(2050 + 900)
+    expect(railContactY(l.blocks.get(id(40))!, 0)).toBe(2088)
   })
 
   it('top/bottom sides do not exist on a rail block, left/right do not exist on a row block', () => {
@@ -138,36 +138,44 @@ describe('geometry: rail block contacts (left/right, 38 + 75k)', () => {
 
 describe('geometry: terminal-row blocks', () => {
   const layout = computeLayout(world())
-  it('row block box: y = MARGIN 200, height 250, x = 200 + (rowStart 3 + offset)*175, width = modules*175', () => {
+  it('row block box: y = topRowY 600, height 250, x = railsLeft 200 + offset*175, width = modules*175', () => {
     const b = layout.blocks.get(id(50))!
-    expect([b.x, b.y, b.w, b.h, b.railId, b.railIndex]).toEqual([725, 200, 350, 250, null, null])
+    expect([b.x, b.y, b.w, b.h, b.railId, b.railIndex, b.row]).toEqual([
+      200,
+      600,
+      350,
+      250,
+      null,
+      null,
+      'top',
+    ])
     const b2 = layout.blocks.get(id(51))!
-    expect([b2.x, b2.w]).toEqual([1425, 175])
+    expect([b2.x, b2.w]).toEqual([900, 175])
   })
 
   it('3 contacts on 2 modules follow the pole formula (783, 900, 1017)', () => {
-    // x = 725 + floor((350*(2i+1) + 3) / 6)
+    // x = 200 + floor((350*(2i+1) + 3) / 6)
     expect([0, 1, 2].map((i) => endpointPoint(layout, term(id(50), i, 'top'))?.x)).toEqual([
-      725 + Math.floor((350 * 1 + 3) / 6),
-      725 + Math.floor((350 * 3 + 3) / 6),
-      725 + Math.floor((350 * 5 + 3) / 6),
+      200 + Math.floor((350 * 1 + 3) / 6),
+      200 + Math.floor((350 * 3 + 3) / 6),
+      200 + Math.floor((350 * 5 + 3) / 6),
     ])
     expect([0, 1, 2].map((i) => endpointPoint(layout, term(id(50), i, 'top'))?.x)).toEqual([
-      783, 900, 1017,
+      258, 375, 492,
     ])
   })
 
-  it('top is at y 200 and bottom at y 450, same x', () => {
+  it('top is at y 600 and bottom at y 850, same x', () => {
     const t = endpointPoint(layout, term(id(51), 1, 'top'))!
     const b = endpointPoint(layout, term(id(51), 1, 'bottom'))!
-    expect(t.y).toBe(200)
-    expect(b.y).toBe(450)
+    expect(t.y).toBe(600)
+    expect(b.y).toBe(850)
     expect(t.x).toBe(b.x)
   })
 
-  it('railsTop is 600 (no row band): the first rail centre line is 600 + spacing', () => {
-    expect(layout.railsTop).toBe(600)
-    expect(layout.rails[0]?.cy).toBe(2100)
+  it('railsTop is 1000 (below the top terminal row): the first rail centre line is 1000 + spacing', () => {
+    expect(layout.railsTop).toBe(1000)
+    expect(layout.rails[0]?.cy).toBe(2500)
   })
 
   it('the drawing is as wide as the panel rail width (rails or not)', () => {
@@ -175,32 +183,34 @@ describe('geometry: terminal-row blocks', () => {
     expect(computeLayout(content({ railWidthModules: 10 })).width).toBe(2 * 200 + 10 * 175)
   })
 
-  it('rowStartModules and rowCapacity follow the input cables and the rail width', () => {
-    const l = computeLayout(world())
-    expect([l.rowStartModules, l.rowCapacity]).toEqual([3, 21])
-    // rail width equal to the row start: capacity 0 (no row blocks fit); narrower: negative
-    const narrow = computeLayout(content({ railWidthModules: 2 }))
-    expect([narrow.rowStartModules, narrow.rowCapacity]).toEqual([2, 0])
-    expect(computeLayout(content({ railWidthModules: 1 })).rowCapacity).toBe(-1)
+  it('rowCapacity is the rail width and does not depend on the cables', () => {
+    expect(computeLayout(world()).railWidthModules).toBe(24)
+    expect(computeLayout(content({ railWidthModules: 2 })).railWidthModules).toBe(2)
+    expect(computeLayout(content({ railWidthModules: 1 })).railWidthModules).toBe(1)
+    const wide = content({
+      railWidthModules: 5,
+      inputCables: Array.from({ length: 6 }, (_, i) => inputCable(100 + i, [200 + i])),
+    })
+    expect(computeLayout(wide).railWidthModules).toBe(5)
   })
 })
 
 describe('geometry: ATS terminals (4 inputs, 2 outputs)', () => {
   const layout = computeLayout(world())
-  // box x 200, w 350, y 1650, h 900
+  // box x 200, w 350, y 2050, h 900
   it.each([
     [0, 244],
     [1, 331],
     [2, 419],
     [3, 506],
   ])('input %i sits at x %i on the top edge', (i, x) => {
-    expect(endpointPoint(layout, pole(id(21), i, 'input'))).toEqual(p(x, 1650))
+    expect(endpointPoint(layout, pole(id(21), i, 'input'))).toEqual(p(x, 2050))
   })
   it.each([
     [0, 288],
     [1, 463],
   ])('output %i sits at x %i on the bottom edge', (i, x) => {
-    expect(endpointPoint(layout, pole(id(21), i, 'output'))).toEqual(p(x, 2550))
+    expect(endpointPoint(layout, pole(id(21), i, 'output'))).toEqual(p(x, 2950))
   })
 
   it('there is no fifth input and no third output (error)', () => {
@@ -211,8 +221,8 @@ describe('geometry: ATS terminals (4 inputs, 2 outputs)', () => {
   it('sidesSwapped puts the inputs at the bottom and the outputs at the top, keeping x', () => {
     const c = run(world(), updateElement(id(21), { sidesSwapped: true })).content
     const l = computeLayout(c)
-    expect(endpointPoint(l, pole(id(21), 2, 'input'))).toEqual(p(419, 2550))
-    expect(endpointPoint(l, pole(id(21), 1, 'output'))).toEqual(p(463, 1650))
+    expect(endpointPoint(l, pole(id(21), 2, 'input'))).toEqual(p(419, 2950))
+    expect(endpointPoint(l, pole(id(21), 1, 'output'))).toEqual(p(463, 2050))
     expect(endpointDirection(l, pole(id(21), 0, 'input'))).toBe('down')
     expect(endpointDirection(l, pole(id(21), 0, 'output'))).toBe('up')
   })
@@ -385,8 +395,9 @@ describe('placement: ATS width, rail block, row band', () => {
     expect(firstFreeRowOffset([rowBlock(50, 0, 120)], 60, 1)).toBeNull()
   })
 
-  it('the row band is MARGIN..MARGIN+250 inclusive', () => {
-    expect([199, 200, 450, 451].map((y) => inRowBand(y))).toEqual([false, true, true, false])
+  it('the top row band is topRowY..topRowY+250 inclusive', () => {
+    const l = computeLayout(world())
+    expect([599, 600, 850, 851].map((y) => inRowBand(l, y))).toEqual([null, 'top', 'top', null])
   })
 
   it('checkRowPlacement: fits, overlap, out of the row, negative offset, invalid size', () => {
@@ -435,7 +446,7 @@ describe('validateContent: stage 3 rules (paths as the backend)', () => {
     expect(validateContent(c)).toEqual([])
   })
 
-  it('rejects a 60-contact row block when the rail is too narrow for the row (rail width - row start)', () => {
+  it('rejects a 60-contact row block when the rail is too narrow for the row (30 modules > rail width 24)', () => {
     const c = content({
       terminalRow: [rowBlock(50, 0, 60)],
       rails: [rail(10, 24, 150, [], [block(40, 0, 1, 12)])],
@@ -650,7 +661,7 @@ describe('defaultWireColour precedence: cable wire, coloured block, attached wir
 
 describe('addRowBlock', () => {
   it('adds a block in order of offset', () => {
-    const c = run(world(), addRowBlock(rowBlock(52, 2, 2))).content
+    const c = run(world(), addRowBlock('top', rowBlock(52, 2, 2))).content
     expect(c.terminalRow.map((b) => b.id)).toEqual([id(50), id(52), id(51)])
   })
 
@@ -665,21 +676,21 @@ describe('addRowBlock', () => {
     ['with a 17 character label', { ...rowBlock(52, 10, 2), label: 'x'.repeat(17) }, 'invalid'],
     ['with an unknown colour', { ...rowBlock(52, 10, 2), colour: 'pink' as never }, 'invalid'],
   ])('rejects a block %s', (_n, b, reason) => {
-    expect(rejection(addRowBlock(b)(world()))).toBe(reason)
+    expect(rejection(addRowBlock('top', b)(world()))).toBe(reason)
   })
 
   it('accepts 60 contacts on a full 30-module block ending exactly at the row capacity', () => {
-    // 60-module rail, row start 3 -> capacity 57: [27, 57) fits, [28, 58) does not
+    // 60-module rail: capacity 60, [30, 60) fits, [31, 61) does not
     const wide = { ...world(), railWidthModules: 60 }
-    expect(addRowBlock(rowBlock(52, 27, 60))(wide).ok).toBe(true)
-    expect(rejection(addRowBlock(rowBlock(52, 28, 60))(wide))).toBe('outOfRow')
+    expect(addRowBlock('top', rowBlock(52, 30, 60))(wide).ok).toBe(true)
+    expect(rejection(addRowBlock('top', rowBlock(52, 31, 60))(wide))).toBe('outOfRow')
   })
 
   it('rejects the 61st block of the row (limit)', () => {
     const full = content({
       terminalRow: Array.from({ length: 60 }, (_, i) => rowBlock(100 + i, i, 1)),
     })
-    const out = addRowBlock(rowBlock(999, 0, 1))(full)
+    const out = addRowBlock('top', rowBlock(999, 0, 1))(full)
     expect(out).toEqual({ ok: false, reason: 'limit', detail: 'row blocks' })
   })
 })
@@ -796,7 +807,7 @@ describe('copyItem', () => {
   })
 
   it('copies a row block within the row', () => {
-    const out = run(world(), copyItem(id(50), id(73), { row: true }, 10)).content
+    const out = run(world(), copyItem(id(50), id(73), { row: 'top' }, 10)).content
     expect(out.terminalRow.map((b) => b.id)).toEqual([id(50), id(51), id(73)])
     expect(out.terminalRow[2]).toEqual({ ...world().terminalRow[0], id: id(73), offsetModules: 10 })
   })
@@ -805,13 +816,13 @@ describe('copyItem', () => {
     expect(rejection(copyItem(id(20), id(70), { railId: id(10) }, 4)(c0))).toBe('overlap')
     expect(rejection(copyItem(id(21), id(70), { railId: id(10) }, 0)(c0))).toBe('overlap')
     expect(rejection(copyItem(id(40), id(70), { railId: id(10) }, 10)(c0))).toBe('overlap')
-    expect(rejection(copyItem(id(50), id(70), { row: true }, 0)(c0))).toBe('overlap')
+    expect(rejection(copyItem(id(50), id(70), { row: 'top' }, 0)(c0))).toBe('overlap')
   })
 
   it.each([
-    ['a device into the row', id(20), { row: true } as const],
-    ['an ATS into the row', id(21), { row: true } as const],
-    ['a rail block into the row', id(40), { row: true } as const],
+    ['a device into the row', id(20), { row: 'top' } as const],
+    ['an ATS into the row', id(21), { row: 'top' } as const],
+    ['a rail block into the row', id(40), { row: 'top' } as const],
     ['a row block onto a rail', id(50), { railId: id(11) }],
   ])('cross-zone: %s is invalid', (_n, source, target) => {
     expect(copyItem(source, id(70), target, 8)(c0)).toEqual({
@@ -832,7 +843,7 @@ describe('copyItem', () => {
 
   it('a copy past the rail end or the row end is rejected', () => {
     expect(rejection(copyItem(id(20), id(70), { railId: id(11) }, 23)(c0))).toBe('outOfRail')
-    expect(rejection(copyItem(id(51), id(70), { row: true }, 60)(c0))).toBe('outOfRow')
+    expect(rejection(copyItem(id(51), id(70), { row: 'top' }, 60)(c0))).toBe('outOfRow')
   })
 })
 
@@ -868,7 +879,7 @@ describe('updateBlock on a row block', () => {
   })
 
   it('growing past the row end is outOfRow', () => {
-    const c = run(world(), moveRowBlock(id(51), 20)).content // [20, 21): the last module of the capacity 21
+    const c = run(world(), moveRowBlock(id(51), 23)).content // [23, 24): the last module of the capacity 24
     expect(rejection(updateBlock(id(51), { terminalCount: 6 })(c))).toBe('outOfRow')
   })
 
@@ -1081,6 +1092,7 @@ describe('descriptions of the new kinds', () => {
   const c = content({
     inputCables: [inputCable(1, [2, 3])],
     terminalRow: [{ ...rowBlock(50, 0, 3), label: 'N' }, rowBlock(51, 4, 2)],
+    bottomTerminalRow: [rowBlock(52, 1, 2), { ...rowBlock(53, 5, 2), label: 'PE' }],
     rails: [
       rail(
         10,
@@ -1100,8 +1112,10 @@ describe('descriptions of the new kinds', () => {
     [pole(id(21), 1, 'output'), 'АВР QA1, вихід N'],
     [pole(id(23), 0, 'input'), 'АВР AV, вхід А L'], // the marking wins over the label
     [pole(id(22), 3, 'input'), 'АВР №2, вхід Б N'], // unnamed: position among elements
-    [term(id(50), 1, 'top'), 'клемник у рядку N, клема 2 (зверху)'],
-    [term(id(51), 0, 'bottom'), 'клемник у рядку №2, клема 1 (знизу)'],
+    [term(id(50), 1, 'top'), 'клемник у верхньому ряду N, клема 2 (зверху)'],
+    [term(id(51), 0, 'bottom'), 'клемник у верхньому ряду №2, клема 1 (знизу)'],
+    [term(id(52), 0, 'top'), 'клемник у нижньому ряду №1, клема 1 (зверху)'],
+    [term(id(53), 1, 'bottom'), 'клемник у нижньому ряду PE, клема 2 (знизу)'],
     [term(id(40), 1, 'left'), 'клемний блок PE, клема 2 (ліворуч)'],
     [term(id(41), 0, 'right'), 'клемний блок №2, клема 1 (праворуч)'],
   ])('%j reads "%s"', (endpoint, text) => {
@@ -1121,5 +1135,21 @@ describe('descriptions of the new kinds', () => {
       'АВР (M), 3 мод., стан: 0',
     )
     expect(ATS_STATE_NAMES).toEqual({ A: 'А', B: 'Б', off: '0' })
+  })
+})
+
+describe('defaultWireColour from a coloured bottom-row block', () => {
+  const c = content({
+    bottomTerminalRow: [{ ...rowBlock(60, 0, 2), colour: 'green-yellow' }, rowBlock(61, 3, 2)],
+  })
+
+  it('takes the colour of the block the wire starts on', () => {
+    expect(defaultWireColour(c, term(id(60), 1, 'bottom'), 'black')).toBe('green-yellow')
+    expect(defaultWireColour(c, term(id(60), 0, 'top'), 'black')).toBe('green-yellow')
+  })
+
+  it('a grey bottom-row block and an unknown block fall back to the toolbar colour', () => {
+    expect(defaultWireColour(c, term(id(61), 0, 'top'), 'red')).toBe('red')
+    expect(defaultWireColour(c, term(id(99), 0, 'top'), 'red')).toBe('red')
   })
 })

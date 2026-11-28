@@ -1,16 +1,18 @@
 import { apiRequest } from './client'
 import type { components } from './schema'
-import type {
-  CableWire,
-  Endpoint,
-  NodeEndpoint,
-  PanelContent,
-  PanelElement,
-  Rail,
-  ShortCircuit,
-  TerminalBlock,
-  WireColour,
-  WireCrossSection,
+import {
+  CABLE_SIDES,
+  type CableSide,
+  type CableWire,
+  type Endpoint,
+  type NodeEndpoint,
+  type PanelContent,
+  type PanelElement,
+  type Rail,
+  type ShortCircuit,
+  type TerminalBlock,
+  type WireColour,
+  type WireCrossSection,
 } from '@/domain/panelContent'
 import { mmToTenths, tenthsToMm } from '@/domain/geometry'
 
@@ -62,6 +64,13 @@ export class InvalidPayloadError extends Error {
 function req<T>(value: T | null | undefined, what: string): T {
   if (value === undefined || value === null) throw new InvalidPayloadError(what)
   return value
+}
+
+/** A cable side: one of the four allowed values, anything else is an invalid payload. */
+function cableSide(value: unknown, what: string): CableSide {
+  const side = CABLE_SIDES.find((s) => s === value)
+  if (!side) throw new InvalidPayloadError(what)
+  return side
 }
 
 /** A field that is always present but may be `null`; `undefined` means the server omitted it. */
@@ -206,6 +215,8 @@ function normalizeRail(raw: Schemas['RailDto']): Rail {
 export function normalizeContent(content: Schemas['PanelContent']): PanelContent {
   return {
     railWidthModules: req(content.railWidthModules, 'railWidthModules'),
+    inputCableSide: cableSide(content.inputCableSide, 'inputCableSide'),
+    outputCableSide: cableSide(content.outputCableSide, 'outputCableSide'),
     inputCables: list(content.inputCables, 'inputCables').map((c) => ({
       id: req(c.id, 'input cable id'),
       label: req(c.label, 'input cable label'),
@@ -221,6 +232,7 @@ export function normalizeContent(content: Schemas['PanelContent']): PanelContent
       wires: normalizeCableWires(c.wires),
     })),
     terminalRow: list(content.terminalRow, 'terminalRow').map(normalizeBlock),
+    bottomTerminalRow: list(content.bottomTerminalRow, 'bottomTerminalRow').map(normalizeBlock),
     rails: list(content.rails, 'rails').map(normalizeRail),
     wires: list(content.wires, 'wires').map((w) => ({
       id: req(w.id, 'wire id'),
@@ -297,12 +309,15 @@ function elementPayload(e: PanelElement): PayloadElement {
 export function contentToPayload(content: PanelContent): Schemas['PanelContent'] {
   const payload: Schemas['PanelContent'] = {
     railWidthModules: content.railWidthModules,
+    inputCableSide: content.inputCableSide,
+    outputCableSide: content.outputCableSide,
     inputCables: content.inputCables.map((c) => ({ ...c, wires: c.wires.map((w) => ({ ...w })) })),
     outputCables: content.outputCables.map((c) => ({
       ...c,
       wires: c.wires.map((w) => ({ ...w })),
     })),
     terminalRow: content.terminalRow.map((b) => ({ ...b })),
+    bottomTerminalRow: content.bottomTerminalRow.map((b) => ({ ...b })),
     rails: content.rails.map((r) => ({
       id: r.id,
       spacingMm: r.spacingMm,

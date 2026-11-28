@@ -13,7 +13,10 @@ import {
 
 const content: PanelContent = {
   railWidthModules: 12,
+  inputCableSide: 'top',
+  outputCableSide: 'bottom',
   terminalRow: [],
+  bottomTerminalRow: [],
   inputCables: [
     {
       id: 'c1',

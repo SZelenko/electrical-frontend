@@ -22,7 +22,7 @@ const xs = computed(() =>
 const midY = computed(() => props.box.y + props.box.h / 2)
 const title = computed(
   () =>
-    `Клемник у рядку${props.block.label ? ` ${props.block.label}` : ''}, клем: ${props.block.terminalCount}, колір: ${props.block.colour ? colourName(props.block.colour) : 'сірий'}`,
+    `Клемник у ряду${props.block.label ? ` ${props.block.label}` : ''}, клем: ${props.block.terminalCount}, колір: ${props.block.colour ? colourName(props.block.colour) : 'сірий'}`,
 )
 </script>
 

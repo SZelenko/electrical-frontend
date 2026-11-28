@@ -10,16 +10,19 @@ import {
   maxBusbarCount,
   railItems,
 } from '../busbars'
+import { BUSBAR_H, computeLayout, endpointDirection, endpointPoint, rowCapacity } from '../geometry'
 import {
-  BUSBAR_H,
-  computeLayout,
-  endpointDirection,
-  endpointPoint,
-  rowCapacity,
-  rowStartModules,
-} from '../geometry'
-import type { InputCable } from '../panelContent'
-import { ats, block, busbar, content, element, feed, id, inputCable, rail } from './helpers'
+  ats,
+  block,
+  busbar,
+  content,
+  element,
+  feed,
+  id,
+  inputCable,
+  rail,
+  rowBlock,
+} from './helpers'
 
 const dev = (n: number, offset: number, over = {}) => element(n, offset, 1, 2, over)
 
@@ -246,7 +249,7 @@ describe('busbarIssues / invalidBusbarIds / issuesOfBusbar', () => {
 })
 
 describe('geometry of the busbar body and feeds', () => {
-  // railsTop 600 + 150 mm -> cy 2100; element top edge 1650, bottom 2550
+  // railsTop 1000 + 150 mm -> cy 2500; element top edge 2050, bottom 2950
   const c = content({
     rails: [
       rail(10, 24, 150, [dev(20, 2), dev(21, 3), dev(22, 4)], [], [busbar(60, 'LN', id(20), 3)]),
@@ -255,14 +258,14 @@ describe('geometry of the busbar body and feeds', () => {
   const box = computeLayout(c).busbars.get(id(60))!
 
   it('lies outside the devices against the input (top) edge, from the anchor to the last device', () => {
-    expect(box).toMatchObject({ x: 200 + 2 * 175, y: 1650 - BUSBAR_H, h: BUSBAR_H, swapped: false })
+    expect(box).toMatchObject({ x: 200 + 2 * 175, y: 2050 - BUSBAR_H, h: BUSBAR_H, swapped: false })
     expect(box.w).toBe(3 * 175)
     expect(BUSBAR_H).toBe(60)
   })
 
   it('feed L at anchorX + 30 and feed N at anchorX + 90 on the outer edge, leaving upwards', () => {
-    expect(endpointPoint(computeLayout(c), feed(id(60), 0))).toEqual({ x: 550 + 30, y: 1590 })
-    expect(endpointPoint(computeLayout(c), feed(id(60), 1))).toEqual({ x: 550 + 90, y: 1590 })
+    expect(endpointPoint(computeLayout(c), feed(id(60), 0))).toEqual({ x: 550 + 30, y: 1990 })
+    expect(endpointPoint(computeLayout(c), feed(id(60), 1))).toEqual({ x: 550 + 90, y: 1990 })
     expect(endpointDirection(computeLayout(c), feed(id(60), 0))).toBe('up')
   })
 
@@ -291,8 +294,8 @@ describe('geometry of the busbar body and feeds', () => {
       ],
     })
     const layout = computeLayout(s)
-    expect(layout.busbars.get(id(60))).toMatchObject({ y: 2550, h: 60, swapped: true, dir: 'down' })
-    expect(endpointPoint(layout, feed(id(60), 0))).toEqual({ x: 230, y: 2610 })
+    expect(layout.busbars.get(id(60))).toMatchObject({ y: 2950, h: 60, swapped: true, dir: 'down' })
+    expect(endpointPoint(layout, feed(id(60), 0))).toEqual({ x: 230, y: 3010 })
     expect(endpointDirection(layout, feed(id(60), 0))).toBe('down')
   })
 
@@ -319,61 +322,50 @@ describe('geometry of the busbar body and feeds', () => {
   })
 })
 
-describe('row geometry (input-cable row)', () => {
-  it.each([
-    [[1], 2],
-    [[2], 3],
-    [[3], 3],
-    [[4], 4],
-    [[1, 1], 4], // 200 + 100 + 200 = 500 -> ceil(600 / 175)
-    [[4, 4], 7], // 500 + 100 + 500 = 1100 -> ceil(1200 / 175)
-  ])('input cables with %j wires start the row at module %i', (wires, start) => {
-    const cables = wires.map((n, i) => ({
-      ...content().inputCables[0]!,
-      id: id(100 + i),
-      wires: Array.from({ length: n }, (_, k) => ({
-        id: id(200 + 10 * i + k),
-        colour: 'brown' as const,
-      })),
-    }))
-    const layout = computeLayout(content({ inputCables: cables, railWidthModules: 24 }))
-    expect(layout.rowStartModules).toBe(start)
-    expect(layout.rowCapacity).toBe(24 - start)
-  })
+describe('row geometry (the terminal rows do not depend on the input cables)', () => {
+  it.each([[[1]], [[2]], [[4]], [[1, 1]], [[4, 4]], [[]]])(
+    'input cables with %j wires leave the rows at the rail start and the full rail width',
+    (wires) => {
+      const cables = wires.map((n, i) => ({
+        ...content().inputCables[0]!,
+        id: id(100 + i),
+        wires: Array.from({ length: n }, (_, k) => ({
+          id: id(200 + 10 * i + k),
+          colour: 'brown' as const,
+        })),
+      }))
+      const layout = computeLayout(
+        content({
+          inputCables: cables,
+          railWidthModules: 24,
+          terminalRow: [rowBlock(80, 0, 2)],
+          bottomTerminalRow: [rowBlock(81, 0, 2)],
+        }),
+      )
+      expect(layout.railsLeft).toBe(200)
+      expect(layout.blocks.get(id(80))?.x).toBe(200)
+      expect(layout.blocks.get(id(81))?.x).toBe(200)
+      expect(layout.railWidthModules).toBe(24)
+    },
+  )
 })
 
 describe('rowCapacity', () => {
-  const cables = (wires: number[]): InputCable[] =>
-    wires.map((n, i) =>
-      inputCable(
-        100 + i,
-        Array.from({ length: n }, (_, k) => 200 + 10 * i + k),
-      ),
-    )
-
-  it.each([
-    [[1], 60, 58],
-    [[4], 60, 56],
-    [[1, 1], 24, 20],
-    [[4, 4], 24, 17],
-    [[1], 24, 22],
-  ])('cables %j on a %i-module rail leave %i modules', (wires, width, expected) => {
-    expect(rowCapacity({ inputCables: cables(wires), railWidthModules: width })).toBe(expected)
+  it.each([[60], [24], [1]])('is the rail width (%i modules)', (width) => {
+    expect(rowCapacity({ railWidthModules: width })).toBe(width)
   })
 
-  it('equals railWidthModules - rowStartModules and the layout value', () => {
-    const c = content({ inputCables: cables([3, 2]), railWidthModules: 30 })
-    expect(rowCapacity(c)).toBe(30 - rowStartModules(c))
-    expect(rowCapacity(c)).toBe(computeLayout(c).rowCapacity)
+  it('equals the layout value, whatever the cables', () => {
+    const c = content({
+      inputCables: Array.from({ length: 5 }, (_, i) => inputCable(100 + i, [200 + i, 300 + i])),
+      outputCableSide: 'left',
+      railWidthModules: 30,
+    })
+    expect(rowCapacity(c)).toBe(30)
+    expect(rowCapacity(c)).toBe(computeLayout(c).railWidthModules)
   })
 
-  it('is zero when the cables fill the rail and negative when they overflow it', () => {
-    const c = cables([1])
-    expect(rowCapacity({ inputCables: c, railWidthModules: 2 })).toBe(0)
-    expect(rowCapacity({ inputCables: c, railWidthModules: 1 })).toBe(-1)
-  })
-
-  it('without input cables only the gap module is taken (ceil(CABLE_GAP / MODULE) = 1)', () => {
-    expect(rowCapacity({ inputCables: [], railWidthModules: 24 })).toBe(23)
+  it('no input cables take no space either', () => {
+    expect(rowCapacity(content({ inputCables: [], railWidthModules: 24 }))).toBe(24)
   })
 })

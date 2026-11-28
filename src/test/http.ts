@@ -83,7 +83,10 @@ export function panelContentJson() {
     outputCables: [
       { id: 'o1', label: '', description: 'Розетки', wires: [{ id: 'ow1', colour: 'black' }] },
     ],
+    inputCableSide: 'top',
+    outputCableSide: 'bottom',
     terminalRow: [],
+    bottomTerminalRow: [],
     rails: [
       {
         id: 'r1',

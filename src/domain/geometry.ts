@@ -2,15 +2,19 @@
  * Drawing geometry shared with the backend PDF renderer (panel-domain "Drawing geometry").
  * All derived points are integer tenths of a millimetre (u) computed with integer arithmetic only.
  */
-import type {
-  Bend,
-  CableWire,
-  ContactSide,
-  Endpoint,
-  PanelContent,
-  PanelWire,
-  WireColour,
-  WireCrossSection,
+import {
+  ROW_IDS,
+  rowBlocks,
+  type Bend,
+  type CableSide,
+  type CableWire,
+  type ContactSide,
+  type Endpoint,
+  type PanelContent,
+  type PanelWire,
+  type RowId,
+  type WireColour,
+  type WireCrossSection,
 } from './panelContent'
 import { busbarCover, railItems } from './busbars'
 import { ATS_INPUTS, ATS_OUTPUTS, busbarFeedCount } from './limits'
@@ -33,9 +37,6 @@ export const STUB = 100
 export const BUSBAR_H = 60
 /** x offsets of the busbar feeds (L, N) from the anchor's left edge. */
 export const BUSBAR_FEED_X = [30, 90] as const
-/** Cable label baselines inside the box, from its top: input under the caption, output above it. */
-export const CABLE_LABEL_INPUT_Y = 130
-export const CABLE_LABEL_OUTPUT_Y = 140
 /** Horizontal room kept free inside a cable box around the label (total, both sides). */
 export const CABLE_LABEL_INSET = 40
 /** y offset of rail-block contact 0 below the block top (centres the 12 contacts on the 900 body). */
@@ -51,9 +52,20 @@ export function tenthsToMm(u: number): number {
 /** Direction a wire leaves a terminal: away from the device body / cable box. */
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
+/** Direction a wire leaves a cable wire point, by the side of its box. */
+export const CABLE_WIRE_DIRECTION: Record<CableSide, Direction> = {
+  top: 'down',
+  bottom: 'up',
+  left: 'right',
+  right: 'left',
+}
+
 export interface CableBox {
   id: string
   kind: 'input' | 'output'
+  /** Side of the drawing the box stands on. Left/right boxes are `CABLE_BOX_H` wide and as tall as their wires need. */
+  side: CableSide
+  /** Index within its own kind (caption number − 1). */
   index: number
   label: string
   x: number
@@ -95,6 +107,8 @@ export interface ElementBox {
 export interface BlockBox {
   id: string
   railId: string | null
+  /** The terminal row of a row block; null for a rail block. */
+  row: RowId | null
   railIndex: number | null
   x: number
   y: number
@@ -128,21 +142,25 @@ export interface BusbarBox {
 export interface CableWireSpot {
   pt: Pt
   kind: 'input' | 'output'
+  side: CableSide
   cableId: string
 }
 
 export interface Layout {
+  /** x of the rail start: rails, elements, rail blocks, busbars, both terminal rows and the top/bottom cable rows. */
+  railsLeft: number
+  /** y of the top terminal row band (x = `railsLeft`, width = rail width, height `ROW_BLOCK_H`). */
+  topRowY: number
   railsTop: number
   railWidthModules: number
-  /** Width of the input-cable row in u. */
-  inputRowW: number
-  /** First module of the terminal row; row-block offsets count from here. */
-  rowStartModules: number
-  /** Modules available to row blocks (may be zero or negative). */
-  rowCapacity: number
+  /** y of the top edge of the bottom cable row (also defined when that side is empty). */
   outTop: number
+  /** y of the bottom terminal row band. */
+  bottomRowY: number
   width: number
   height: number
+  /** Every cable box, each on its own side. */
+  cableBoxes: CableBox[]
   inputBoxes: CableBox[]
   outputBoxes: CableBox[]
   rails: RailBox[]
@@ -157,27 +175,29 @@ export function terminalX(x0: number, widthModules: number, i: number, n: number
   return x0 + Math.floor((widthModules * MODULE * (2 * i + 1) + n) / (2 * n))
 }
 
+/** Length of a cable box along its side (width for top/bottom, height for left/right boxes). */
 export function cableBoxWidth(wireCount: number): number {
   return 2 * CABLE_PAD + wireCount * CABLE_PITCH
 }
 
-/** First module of the terminal row for an input-cable row of `inputRowW` u (module-aligned). */
-export function rowStartFor(inputRowW: number): number {
-  return Math.ceil((inputRowW + CABLE_GAP) / MODULE)
+/** Length of a row/column of cable boxes with the given wire counts (0 when empty). */
+function cablesLength(wireCounts: readonly number[]): number {
+  if (wireCounts.length === 0) return 0
+  return (
+    wireCounts.reduce((sum, n) => sum + cableBoxWidth(n), 0) + (wireCounts.length - 1) * CABLE_GAP
+  )
 }
 
-/** First module of the terminal row of a content (from its input cables only). */
-export function rowStartModules(content: Pick<PanelContent, 'inputCables'>): number {
-  const cables = content.inputCables
-  const width = cables.reduce((sum, c) => sum + cableBoxWidth(c.wires.length), 0)
-  return rowStartFor(cables.length === 0 ? 0 : width + (cables.length - 1) * CABLE_GAP)
+/** Modules available to the blocks of a terminal row: the rail width (cables never limit a row). */
+export function rowCapacity(content: Pick<PanelContent, 'railWidthModules'>): number {
+  return content.railWidthModules
 }
 
-/** Modules available to terminal-row blocks: the rail width minus the input-cable row (may be <= 0). */
-export function rowCapacity(
-  content: Pick<PanelContent, 'inputCables' | 'railWidthModules'>,
-): number {
-  return content.railWidthModules - rowStartModules(content)
+/** Baselines of the caption and the label inside a cable box, measured from the box top (top/bottom) or left edge (left/right). */
+export function cableTextOffsets(side: CableSide): { caption: number; label: number } {
+  return side === 'top' || side === 'left'
+    ? { caption: 80, label: 130 }
+    : { caption: 190, label: 140 }
 }
 
 // Boxes are reused while the item object and its position are unchanged, so components that
@@ -187,17 +207,42 @@ const elementBoxes = new WeakMap<object, ElementBox>()
 const blockBoxes = new WeakMap<object, BlockBox>()
 const cableBoxes = new WeakMap<object, CableBox>()
 
-function cableRow(
-  cables: { id: string; label: string; wires: CableWire[] }[],
-  kind: 'input' | 'output',
-  y: number,
-  wireY: number,
+interface CableItem {
+  cable: { id: string; label: string; wires: CableWire[] }
+  kind: 'input' | 'output'
+  index: number
+}
+
+/** Cables of a side: the input cables (in order) when they are on it, then the output cables (in order). */
+function cablesOnSide(content: PanelContent, side: CableSide): CableItem[] {
+  const items: CableItem[] = []
+  if (content.inputCableSide === side) {
+    content.inputCables.forEach((cable, index) => items.push({ cable, kind: 'input', index }))
+  }
+  if (content.outputCableSide === side) {
+    content.outputCables.forEach((cable, index) => items.push({ cable, kind: 'output', index }))
+  }
+  return items
+}
+
+/**
+ * Boxes of one side in list order, from `(x0, y0)` along the row (top/bottom) or column
+ * (left/right). `x0`/`y0` is the box origin of the first box; wire points sit on the edge facing
+ * the drawing.
+ */
+function placeCables(
+  items: readonly CableItem[],
+  side: CableSide,
+  x0: number,
+  y0: number,
   spots: Map<string, CableWireSpot>,
-): { boxes: CableBox[]; width: number } {
-  let x = MARGIN
-  const boxes: CableBox[] = []
-  cables.forEach((cable, index) => {
-    const w = cableBoxWidth(cable.wires.length)
+): CableBox[] {
+  const horizontal = side === 'top' || side === 'bottom'
+  let pos = horizontal ? x0 : y0
+  return items.map(({ cable, kind, index }) => {
+    const len = cableBoxWidth(cable.wires.length)
+    const x = horizontal ? pos : x0
+    const y = horizontal ? y0 : pos
     let box = cableBoxes.get(cable)
     if (
       !box ||
@@ -205,64 +250,82 @@ function cableRow(
       box.y !== y ||
       box.index !== index ||
       box.kind !== kind ||
+      box.side !== side ||
       box.label !== cable.label
     ) {
-      const wires = cable.wires.map((wire, i) => ({
-        id: wire.id,
-        colour: wire.colour,
-        pt: { x: x + CABLE_PAD + CABLE_PITCH * i + CABLE_PITCH / 2, y: wireY },
-      }))
-      box = { id: cable.id, kind, index, label: cable.label, x, y, w, h: CABLE_BOX_H, wires }
+      const edgeX = side === 'left' ? x + CABLE_BOX_H : x
+      const edgeY = side === 'top' ? y + CABLE_BOX_H : y
+      const wires = cable.wires.map((wire, i) => {
+        const along = CABLE_PAD + CABLE_PITCH * i + CABLE_PITCH / 2
+        return {
+          id: wire.id,
+          colour: wire.colour,
+          pt: horizontal ? { x: x + along, y: edgeY } : { x: edgeX, y: y + along },
+        }
+      })
+      box = {
+        id: cable.id,
+        kind,
+        side,
+        index,
+        label: cable.label,
+        x,
+        y,
+        w: horizontal ? len : CABLE_BOX_H,
+        h: horizontal ? CABLE_BOX_H : len,
+        wires,
+      }
       cableBoxes.set(cable, box)
     }
-    for (const wire of box.wires) spots.set(wire.id, { pt: wire.pt, kind, cableId: cable.id })
-    boxes.push(box)
-    x += w + CABLE_GAP
+    for (const wire of box.wires) spots.set(wire.id, { pt: wire.pt, kind, side, cableId: cable.id })
+    pos += len + CABLE_GAP
+    return box
   })
-  return { boxes, width: boxes.length === 0 ? 0 : x - CABLE_GAP - MARGIN }
 }
 
 export function computeLayout(content: PanelContent): Layout {
   const cableWires = new Map<string, CableWireSpot>()
-  const input = cableRow(content.inputCables, 'input', MARGIN, MARGIN + CABLE_BOX_H, cableWires)
-  const railsTop = MARGIN + CABLE_BOX_H + CABLE_ROW_GAP
   const railW = content.railWidthModules
-  const rowStart = rowStartFor(input.width)
+  const sides = {
+    top: cablesOnSide(content, 'top'),
+    bottom: cablesOnSide(content, 'bottom'),
+    left: cablesOnSide(content, 'left'),
+    right: cablesOnSide(content, 'right'),
+  }
+
+  const railsLeft = MARGIN + (sides.left.length > 0 ? CABLE_BOX_H + CABLE_ROW_GAP : 0)
+  const railsRight = railsLeft + railW * MODULE
+  const topBoxes = placeCables(sides.top, 'top', railsLeft, MARGIN, cableWires)
+  const topRowY = sides.top.length > 0 ? MARGIN + CABLE_BOX_H + CABLE_ROW_GAP : MARGIN
+  const railsTop = topRowY + ROW_BLOCK_H + CABLE_ROW_GAP
+  const leftBoxes = placeCables(sides.left, 'left', MARGIN, railsTop, cableWires)
+  const rightBoxes = placeCables(
+    sides.right,
+    'right',
+    railsRight + CABLE_ROW_GAP,
+    railsTop,
+    cableWires,
+  )
 
   const rails: RailBox[] = []
   const elements = new Map<string, ElementBox>()
   const blocks = new Map<string, BlockBox>()
-  for (const b of content.terminalRow) {
-    const cached = blockBoxes.get(b)
-    const x = MARGIN + (rowStart + b.offsetModules) * MODULE
-    if (cached && cached.railId === null && cached.x === x) {
-      blocks.set(b.id, cached)
-      continue
-    }
-    const box: BlockBox = {
-      id: b.id,
-      railId: null,
-      railIndex: null,
-      x,
-      y: MARGIN,
-      w: b.widthModules * MODULE,
-      h: ROW_BLOCK_H,
-      terminalCount: b.terminalCount,
-      widthModules: b.widthModules,
-    }
-    blockBoxes.set(b, box)
-    blocks.set(b.id, box)
-  }
   let cy = railsTop
   content.rails.forEach((rail, index) => {
     cy += Math.round(rail.spacingMm * 10)
     let railBox = railBoxes.get(rail)
-    if (!railBox || railBox.index !== index || railBox.cy !== cy || railBox.w !== railW * MODULE) {
+    if (
+      !railBox ||
+      railBox.index !== index ||
+      railBox.cy !== cy ||
+      railBox.x !== railsLeft ||
+      railBox.w !== railW * MODULE
+    ) {
       railBox = {
         id: rail.id,
         index,
         cy,
-        x: MARGIN,
+        x: railsLeft,
         y: cy - RAIL_H / 2,
         w: railW * MODULE,
         h: RAIL_H,
@@ -271,11 +334,13 @@ export function computeLayout(content: PanelContent): Layout {
     }
     rails.push(railBox)
     for (const e of rail.elements) {
+      const x = railsLeft + e.offsetModules * MODULE
       const cached = elementBoxes.get(e)
       if (
         cached &&
         cached.railId === rail.id &&
         cached.railIndex === index &&
+        cached.x === x &&
         cached.y === cy - ELEMENT_H / 2
       ) {
         elements.set(e.id, cached)
@@ -285,7 +350,7 @@ export function computeLayout(content: PanelContent): Layout {
         id: e.id,
         railId: rail.id,
         railIndex: index,
-        x: MARGIN + e.offsetModules * MODULE,
+        x,
         y: cy - ELEMENT_H / 2,
         w: e.widthModules * MODULE,
         h: ELEMENT_H,
@@ -298,11 +363,13 @@ export function computeLayout(content: PanelContent): Layout {
       elements.set(e.id, box)
     }
     for (const b of rail.terminalBlocks) {
+      const x = railsLeft + b.offsetModules * MODULE
       const cached = blockBoxes.get(b)
       if (
         cached &&
         cached.railId === rail.id &&
         cached.railIndex === index &&
+        cached.x === x &&
         cached.y === cy - ELEMENT_H / 2
       ) {
         blocks.set(b.id, cached)
@@ -311,8 +378,9 @@ export function computeLayout(content: PanelContent): Layout {
       const box: BlockBox = {
         id: b.id,
         railId: rail.id,
+        row: null,
         railIndex: index,
-        x: MARGIN + b.offsetModules * MODULE,
+        x,
         y: cy - ELEMENT_H / 2,
         w: MODULE,
         h: ELEMENT_H,
@@ -344,7 +412,7 @@ export function computeLayout(content: PanelContent): Layout {
         colour: busbar.colour,
         x: anchor.x,
         y: anchor.sidesSwapped ? edge : outer,
-        w: MARGIN + (lastItem.offset + lastItem.width) * MODULE - anchor.x,
+        w: railsLeft + (lastItem.offset + lastItem.width) * MODULE - anchor.x,
         h: BUSBAR_H,
         swapped: anchor.sidesSwapped,
         feeds: BUSBAR_FEED_X.slice(0, feedCount).map((dx) => ({ x: anchor.x + dx, y: outer })),
@@ -354,22 +422,65 @@ export function computeLayout(content: PanelContent): Layout {
     }
   })
 
-  const last = rails[rails.length - 1]
-  const outTop = (last ? last.cy + ELEMENT_H / 2 : railsTop) + CABLE_ROW_GAP
-  const output = cableRow(content.outputCables, 'output', outTop, outTop, cableWires)
+  const lastRail = rails[rails.length - 1]
+  const sideBottom = Math.max(
+    lastRail ? lastRail.cy + ELEMENT_H / 2 : railsTop,
+    railsTop + cablesLength(sides.left.map((i) => i.cable.wires.length)),
+    railsTop + cablesLength(sides.right.map((i) => i.cable.wires.length)),
+  )
+  const outTop = sideBottom + CABLE_ROW_GAP
+  const bottomBoxes = placeCables(sides.bottom, 'bottom', railsLeft, outTop, cableWires)
+  const bottomRowY = sides.bottom.length > 0 ? outTop + CABLE_BOX_H + CABLE_ROW_GAP : outTop
 
-  const width = 2 * MARGIN + Math.max(railW * MODULE, input.width, output.width)
+  const rowYs: Record<RowId, number> = { top: topRowY, bottom: bottomRowY }
+  for (const row of ROW_IDS) {
+    const y = rowYs[row]
+    for (const b of rowBlocks(content, row)) {
+      const x = railsLeft + b.offsetModules * MODULE
+      const cached = blockBoxes.get(b)
+      if (cached && cached.row === row && cached.x === x && cached.y === y) {
+        blocks.set(b.id, cached)
+        continue
+      }
+      const box: BlockBox = {
+        id: b.id,
+        railId: null,
+        row,
+        railIndex: null,
+        x,
+        y,
+        w: b.widthModules * MODULE,
+        h: ROW_BLOCK_H,
+        terminalCount: b.terminalCount,
+        widthModules: b.widthModules,
+      }
+      blockBoxes.set(b, box)
+      blocks.set(b.id, box)
+    }
+  }
+
+  const rowLength = (list: readonly CableItem[]) =>
+    cablesLength(list.map((i) => i.cable.wires.length))
+  const width =
+    MARGIN +
+    Math.max(
+      railsRight + (sides.right.length > 0 ? CABLE_ROW_GAP + CABLE_BOX_H : 0),
+      railsLeft + rowLength(sides.top),
+      railsLeft + rowLength(sides.bottom),
+    )
+  const all = [...topBoxes, ...leftBoxes, ...rightBoxes, ...bottomBoxes]
   return {
+    railsLeft,
+    topRowY,
     railsTop,
     railWidthModules: railW,
-    inputRowW: input.width,
-    rowStartModules: rowStart,
-    rowCapacity: railW - rowStart,
     outTop,
+    bottomRowY,
     width,
-    height: outTop + CABLE_BOX_H + MARGIN,
-    inputBoxes: input.boxes,
-    outputBoxes: output.boxes,
+    height: bottomRowY + ROW_BLOCK_H + MARGIN,
+    cableBoxes: all,
+    inputBoxes: all.filter((b) => b.kind === 'input'),
+    outputBoxes: all.filter((b) => b.kind === 'output'),
     rails,
     elements,
     blocks,
@@ -441,7 +552,7 @@ export function endpointDirection(layout: Layout, e: Endpoint): Direction | null
     case 'cableWire': {
       const spot = layout.cableWires.get(e.cableWireId)
       if (!spot) return null
-      return spot.kind === 'input' ? 'down' : 'up'
+      return CABLE_WIRE_DIRECTION[spot.side]
     }
     case 'busbar': {
       const box = layout.busbars.get(e.busbarId)

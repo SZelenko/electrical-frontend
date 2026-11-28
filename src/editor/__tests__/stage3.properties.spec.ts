@@ -158,8 +158,8 @@ describe('ATS properties', () => {
 describe('terminal block properties', () => {
   it('a row block has its own section and shows the width hint', async () => {
     const { wrapper } = await open(base, 'block', id(50))
-    const s = section(wrapper, 'Властивості клемника в рядку')
-    expect(s.text()).toContain('Клемник у рядку')
+    const s = section(wrapper, 'Властивості клемника в ряду')
+    expect(s.text()).toContain('Клемник у ряду')
     expect(s.text()).toContain('Ширина: 2 мод.')
     expect(wrapper.find('section[aria-label="Властивості клемного блока"]').exists()).toBe(false)
   })
@@ -172,7 +172,7 @@ describe('terminal block properties', () => {
 
   it('the colour select offers grey plus the five wire colours', async () => {
     const { wrapper } = await open(base, 'block', id(50))
-    const options = section(wrapper, 'Властивості клемника в рядку')
+    const options = section(wrapper, 'Властивості клемника в ряду')
       .get('select')
       .findAll('option')
       .map((o) => o.text())
@@ -181,7 +181,7 @@ describe('terminal block properties', () => {
 
   it('choosing a colour and going back to grey', async () => {
     const { wrapper, store } = await open(base, 'block', id(50))
-    const select = section(wrapper, 'Властивості клемника в рядку').get('select')
+    const select = section(wrapper, 'Властивості клемника в ряду').get('select')
     await select.setValue('red')
     expect(store.content?.terminalRow[0]?.colour).toBe('red')
     expect(store.undoLabel).toBe('Змінити колір клемника')
@@ -197,7 +197,7 @@ describe('terminal block properties', () => {
 
   it('the label commits on blur', async () => {
     const { wrapper, store } = await open(base, 'block', id(50))
-    const label = input(wrapper, 'Властивості клемника в рядку', 'Назва')
+    const label = input(wrapper, 'Властивості клемника в ряду', 'Назва')
     await label.setValue('PE')
     await label.trigger('blur')
     expect(store.content?.terminalRow[0]?.label).toBe('PE')
@@ -205,7 +205,7 @@ describe('terminal block properties', () => {
 
   it('growing a row block to 5 contacts makes it 3 modules wide (hint updates)', async () => {
     const { wrapper, store } = await open(base, 'block', id(50))
-    const count = input(wrapper, 'Властивості клемника в рядку', 'Кількість клем')
+    const count = input(wrapper, 'Властивості клемника в ряду', 'Кількість клем')
     await count.setValue('5')
     await count.trigger('blur')
     await nextTick()
@@ -215,7 +215,7 @@ describe('terminal block properties', () => {
 
   it('growing into the neighbour is rejected with a message and nothing changes', async () => {
     const { wrapper, store, ctx } = await open(base, 'block', id(50))
-    const count = input(wrapper, 'Властивості клемника в рядку', 'Кількість клем')
+    const count = input(wrapper, 'Властивості клемника в ряду', 'Кількість клем')
     await count.setValue('9') // 5 modules: [0,5) hits the block at 4
     await count.trigger('blur')
     await nextTick()
@@ -261,7 +261,7 @@ describe('terminal block properties', () => {
       ],
     }
     const { wrapper, store, ctx } = await open(wired, 'block', id(50))
-    const count = input(wrapper, 'Властивості клемника в рядку', 'Кількість клем')
+    const count = input(wrapper, 'Властивості клемника в ряду', 'Кількість клем')
     await count.setValue('2')
     await count.trigger('blur')
     await nextTick()
@@ -295,45 +295,91 @@ describe('toolbar: ATS and terminal-row blocks', () => {
     expect(b.attributes('disabled')).toBeDefined()
   })
 
-  it('"Додати клемник у рядок" adds a 1-module, 2-contact grey block at the first free offset', async () => {
-    const { wrapper, store } = await mountEditor(base, { toolbar: true })
-    await click(wrapper, 'Додати клемник у рядок')
-    expect(store.content?.terminalRow).toHaveLength(3)
-    const added = store.content!.terminalRow.find((b) => b.id !== id(50) && b.id !== id(51))!
-    expect(added).toMatchObject({
-      offsetModules: 2,
-      widthModules: 1,
-      terminalCount: 2,
-      colour: null,
-      label: '',
+  it.each([
+    ['top', 'terminalRow', 'верхній', 2],
+    ['bottom', 'bottomTerminalRow', 'нижній', 0],
+  ] as const)(
+    'the %s row button adds a 1-module, 2-contact grey block at the first free offset of that row',
+    async (row, key, word, offset) => {
+      const { wrapper, store } = await mountEditor(base, { toolbar: true })
+      const other = row === 'top' ? 'bottomTerminalRow' : 'terminalRow'
+      const otherBefore = store.content![other]
+      await wrapper.get(`[data-testid=add-row-block-${row}]`).trigger('click')
+      expect(store.content![key]).toHaveLength(row === 'top' ? 3 : 1)
+      expect(store.content![other]).toBe(otherBefore)
+      const added = store.content![key].find((b) => b.id !== id(50) && b.id !== id(51))!
+      expect(added).toMatchObject({
+        offsetModules: offset,
+        widthModules: 1,
+        terminalCount: 2,
+        colour: null,
+        label: '',
+      })
+      expect(store.selection).toEqual({ kind: 'block', id: added.id })
+      expect(store.undoLabel).toBe(`Додати клемник у ${word} ряд`)
+    },
+  )
+
+  it.each(['top', 'bottom'] as const)(
+    'the %s row button works without any rail (both rows are always there)',
+    async (row) => {
+      const { wrapper, store } = await mountEditor(content(), { toolbar: true })
+      await wrapper.get(`[data-testid=add-row-block-${row}]`).trigger('click')
+      expect(store.content?.[row === 'top' ? 'terminalRow' : 'bottomTerminalRow']).toHaveLength(1)
+    },
+  )
+
+  it('shows exactly two row buttons, one per row', async () => {
+    const { wrapper } = await mountEditor(base, { toolbar: true })
+    expect(wrapper.get('[data-testid=add-row-block-top]').text()).toBe('Клемник у верхній ряд')
+    expect(wrapper.get('[data-testid=add-row-block-bottom]').text()).toBe('Клемник у нижній ряд')
+    expect(wrapper.findAll('[data-testid^=add-row-block-]')).toHaveLength(2)
+  })
+
+  it.each([
+    ['top', 'terminalRow', 'верхньому'],
+    ['bottom', 'bottomTerminalRow', 'нижньому'],
+  ] as const)(
+    'a full %s row disables only its own button with the reason and adds nothing',
+    async (row, key, word) => {
+      const full = content({ [key]: [rowBlock(50, 0, 48)] }) // 24 modules = the default rail width
+      const { wrapper, store } = await mountEditor(full, { toolbar: true })
+      const b = wrapper.get(`[data-testid=add-row-block-${row}]`)
+      expect(b.attributes('disabled')).toBeDefined()
+      expect(b.attributes('title')).toBe(`У ${word} ряду немає вільного місця`)
+      const otherRow = row === 'top' ? 'bottom' : 'top'
+      expect(
+        wrapper.get(`[data-testid=add-row-block-${otherRow}]`).attributes('disabled'),
+      ).toBeUndefined()
+      await b.trigger('click')
+      expect(store.content?.[key]).toHaveLength(1)
+    },
+  )
+
+  it.each([
+    ['top', 'terminalRow', 'верхньому'],
+    ['bottom', 'bottomTerminalRow', 'нижньому'],
+  ] as const)(
+    '60 blocks in the %s row disable its button with the limit text',
+    async (row, key, word) => {
+      const sixty = content({
+        railWidthModules: 60,
+        [key]: Array.from({ length: 60 }, (_, i) => rowBlock(100 + i, i, 1)),
+      })
+      const { wrapper } = await mountEditor(sixty, { toolbar: true })
+      const b = wrapper.get(`[data-testid=add-row-block-${row}]`)
+      expect(b.attributes('title')).toBe(`Досягнуто ліміт: 60 клемників у ${word} ряду`)
+    },
+  )
+
+  it('both row buttons are disabled on a read-only panel', async () => {
+    const { wrapper } = await mountEditor(base, {
+      toolbar: true,
+      panel: { deletedAt: '2026-02-01T00:00:00+00:00' },
     })
-    expect(store.selection).toEqual({ kind: 'block', id: added.id })
-    expect(store.undoLabel).toBe('Додати клемник у рядок')
-  })
-
-  it('"Додати клемник у рядок" works without any rail (the row is always there)', async () => {
-    const { wrapper, store } = await mountEditor(content(), { toolbar: true })
-    await click(wrapper, 'Додати клемник у рядок')
-    expect(store.content?.terminalRow).toHaveLength(1)
-  })
-
-  it('a full row disables the button with the reason and adds nothing', async () => {
-    const full = content({ terminalRow: [rowBlock(50, 0, 120)] })
-    const { wrapper, store } = await mountEditor(full, { toolbar: true })
-    const b = wrapper.findAll('button').find((x) => x.text() === 'Додати клемник у рядок')!
-    expect(b.attributes('disabled')).toBeDefined()
-    expect(b.attributes('title')).toBe('У рядку немає вільного місця')
-    await b.trigger('click')
-    expect(store.content?.terminalRow).toHaveLength(1)
-  })
-
-  it('60 blocks in the row disable it with the limit text', async () => {
-    const sixty = content({
-      terminalRow: Array.from({ length: 60 }, (_, i) => rowBlock(100 + i, i, 1)),
-    })
-    const { wrapper } = await mountEditor(sixty, { toolbar: true })
-    const b = wrapper.findAll('button').find((x) => x.text() === 'Додати клемник у рядок')!
-    expect(b.attributes('title')).toContain('Досягнуто ліміт: 60')
+    for (const row of ['top', 'bottom']) {
+      expect(wrapper.get(`[data-testid=add-row-block-${row}]`).attributes('disabled')).toBeDefined()
+    }
   })
 
   it('"Додати клемний блок" adds a 1-module rail block with 2 contacts, undo removes it', async () => {

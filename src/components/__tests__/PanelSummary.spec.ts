@@ -115,3 +115,68 @@ describe('PanelSummary busbar colour', () => {
     expect(render(c).text()).toContain(`Шина L: апаратів 2, колір: ${name}`)
   })
 })
+
+describe('PanelSummary cable sides and terminal rows', () => {
+  const section = (c: PanelContent, id: string) => render(c).get(`section[aria-labelledby=${id}]`)
+
+  it.each([
+    ['top', 'зверху'],
+    ['bottom', 'знизу'],
+    ['left', 'зліва'],
+    ['right', 'справа'],
+  ] as const)('names the side %s as "%s" for input and output cables', (side, name) => {
+    const c = content()
+    c.inputCableSide = side
+    c.outputCableSide = side
+    expect(section(c, 'sum-input').text()).toContain(`Розташування: ${name}`)
+    expect(section(c, 'sum-output').text()).toContain(`Розташування: ${name}`)
+  })
+
+  it('shows the input and output side independently', () => {
+    const c = content()
+    c.inputCableSide = 'left'
+    c.outputCableSide = 'right'
+    expect(section(c, 'sum-input').text()).toContain('Розташування: зліва')
+    expect(section(c, 'sum-input').text()).not.toContain('справа')
+    expect(section(c, 'sum-output').text()).toContain('Розташування: справа')
+  })
+
+  it('has one section per terminal row with its own title', () => {
+    const w = render()
+    expect(w.get('#sum-row-top').text()).toBe('Верхній ряд клемників')
+    expect(w.get('#sum-row-bottom').text()).toBe('Нижній ряд клемників')
+    expect(w.find('#sum-row').exists()).toBe(false)
+  })
+
+  it('shows "Немає." for an empty row', () => {
+    const w = render()
+    expect(w.get('section[aria-labelledby=sum-row-top]').text()).toContain('Немає.')
+    expect(w.get('section[aria-labelledby=sum-row-bottom]').text()).toContain('Немає.')
+  })
+
+  it("lists each row's blocks only in its own section", () => {
+    const c = content()
+    c.terminalRow = [
+      { id: 'a', offsetModules: 0, widthModules: 2, terminalCount: 3, colour: null, label: 'PE' },
+    ]
+    c.bottomTerminalRow = [
+      { id: 'b', offsetModules: 4, widthModules: 1, terminalCount: 2, colour: 'blue', label: 'N' },
+    ]
+    const top = section(c, 'sum-row-top').text()
+    const bottom = section(c, 'sum-row-bottom').text()
+    expect(top).toContain('PE: 2 мод., клем: 3, колір: сірий')
+    expect(top).not.toContain('N:')
+    expect(top).not.toContain('Немає.')
+    expect(bottom).toContain('N: 1 мод., клем: 2, колір: синій')
+    expect(bottom).not.toContain('PE')
+    expect(bottom).not.toContain('Немає.')
+  })
+
+  it('an unlabelled row block is called "Клемник"', () => {
+    const c = content()
+    c.bottomTerminalRow = [
+      { id: 'b', offsetModules: 0, widthModules: 1, terminalCount: 2, colour: null, label: '' },
+    ]
+    expect(section(c, 'sum-row-bottom').text()).toContain('Клемник: 1 мод., клем: 2')
+  })
+})

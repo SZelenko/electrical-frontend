@@ -1,21 +1,27 @@
 /** Lookup maps over a content snapshot; build once per content identity (e.g. in a computed). */
-import type {
-  Busbar,
-  CableWire,
-  InputCable,
-  OutputCable,
-  PanelContent,
-  PanelElement,
-  PanelWire,
-  Rail,
-  TerminalBlock,
+import {
+  ROW_IDS,
+  rowBlocks,
+  type Busbar,
+  type CableWire,
+  type InputCable,
+  type OutputCable,
+  type PanelContent,
+  type PanelElement,
+  type PanelWire,
+  type Rail,
+  type RowId,
+  type TerminalBlock,
 } from './panelContent'
 
 export interface ContentIndex {
   rails: Map<string, { rail: Rail; index: number }>
   elements: Map<string, { element: PanelElement; rail: Rail; railIndex: number }>
-  /** `rail`/`railIndex` are null for a terminal-row block. */
-  blocks: Map<string, { block: TerminalBlock; rail: Rail | null; railIndex: number | null }>
+  /** `rail`/`railIndex` are null for a terminal-row block (`row` says which row; null for a rail block). */
+  blocks: Map<
+    string,
+    { block: TerminalBlock; rail: Rail | null; railIndex: number | null; row: RowId | null }
+  >
   busbars: Map<string, { busbar: Busbar; rail: Rail; railIndex: number }>
   inputCables: Map<string, { cable: InputCable; index: number }>
   outputCables: Map<string, { cable: OutputCable; index: number }>
@@ -43,13 +49,16 @@ export function buildIndex(content: PanelContent): ContentIndex {
     cableWires: new Map(),
     wires: new Map(),
   }
-  for (const block of content.terminalRow) {
-    idx.blocks.set(block.id, { block, rail: null, railIndex: null })
+  for (const row of ROW_IDS) {
+    for (const block of rowBlocks(content, row)) {
+      idx.blocks.set(block.id, { block, rail: null, railIndex: null, row })
+    }
   }
   content.rails.forEach((rail, railIndex) => {
     idx.rails.set(rail.id, { rail, index: railIndex })
     for (const element of rail.elements) idx.elements.set(element.id, { element, rail, railIndex })
-    for (const block of rail.terminalBlocks) idx.blocks.set(block.id, { block, rail, railIndex })
+    for (const block of rail.terminalBlocks)
+      idx.blocks.set(block.id, { block, rail, railIndex, row: null })
     for (const busbar of rail.busbars) idx.busbars.set(busbar.id, { busbar, rail, railIndex })
   })
   content.inputCables.forEach((cable, index) => {

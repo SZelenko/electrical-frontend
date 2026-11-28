@@ -83,9 +83,9 @@ function expectOrthogonalRoutes(c: PanelContent) {
 describe('the world fixture itself', () => {
   it('is valid and has the hand-computed auto routes', () => {
     expect(validateContent(world)).toEqual([])
-    expect(bendsOf(world, 30)).toEqual([p(300, 1050), p(288, 1050)])
+    expect(bendsOf(world, 30)).toEqual([p(300, 1250), p(288, 1250)])
     // rail-block contacts leave horizontally: the route takes a vertical channel left of the block
-    expect(bendsOf(world, 33)).toEqual([p(125, 2763), p(125, 1550), p(988, 1550)])
+    expect(bendsOf(world, 33)).toEqual([p(125, 3163), p(125, 1950), p(988, 1950)])
     expectOrthogonalRoutes(world)
   })
 })
@@ -281,8 +281,8 @@ describe('elements', () => {
     it('re-routes the wire whose terminal moved because the pole count changed', () => {
       const out = run(world, updateElement(id(20), { poleCount: 1 })).content
       // the single pole now sits at the element centre: floor((350 + 1) / 2) = 175 -> x 375
-      expect(endpointPoint(computeLayout(out), pole(id(20), 0, 'input'))).toEqual(p(375, 1650))
-      expect(bendsOf(out, 30)).toEqual([p(300, 1050), p(375, 1050)])
+      expect(endpointPoint(computeLayout(out), pole(id(20), 0, 'input'))).toEqual(p(375, 2050))
+      expect(bendsOf(out, 30)).toEqual([p(300, 1250), p(375, 1250)])
       expect(wireById(out, 32)).toBe(wireById(world, 32)) // untouched wire keeps its identity
       expectOrthogonalRoutes(out)
     })
@@ -311,7 +311,7 @@ describe('elements', () => {
     it('widening within the free space re-routes the wires on its poles', () => {
       const out = run(world, updateElement(id(20), { widthModules: 4 })).content // [0,4) touches E2
       expect(endpointPoint(computeLayout(out), pole(id(20), 0, 'input'))).toEqual(
-        p(200 + 175, 1650),
+        p(200 + 175, 2050),
       ) // 700/4 -> 175
       expect(bendsOf(out, 30)).toEqual(autoOf(out, 30))
       expectOrthogonalRoutes(out)
@@ -363,10 +363,10 @@ describe('elements', () => {
       expect(out.removedWires).toBe(0)
       expect(wireById(out.content, 30)?.end).toEqual(pole(id(20), 0, 'input'))
       expect(wireById(out.content, 31)?.start).toEqual(pole(id(20), 1, 'output'))
-      // input now at the bottom edge (288, 2550), leaving down: both stubs go down (2550 + 100)
-      expect(bendsOf(out.content, 30)).toEqual([p(300, 2650), p(288, 2650)])
-      // output now at the top edge (463, 1650), leaving up; B1.t2 is entered horizontally from the left
-      expect(bendsOf(out.content, 31)).toEqual([p(463, 1550), p(1525, 1550), p(1525, 1838)])
+      // input now at the bottom edge (288, 2950), leaving down: both stubs go down (2950 + 100)
+      expect(bendsOf(out.content, 30)).toEqual([p(300, 3050), p(288, 3050)])
+      // output now at the top edge (463, 2050), leaving up; B1.t2 is entered horizontally from the left
+      expect(bendsOf(out.content, 31)).toEqual([p(463, 1950), p(1525, 1950), p(1525, 2238)])
       expectOrthogonalRoutes(out.content)
       expect(validateContent(out.content)).toEqual([])
     })
@@ -453,7 +453,7 @@ describe('terminal blocks', () => {
       expect(out.content.wires.map((x) => x.id)).toEqual([id(30), id(32), id(33)])
       // rail-block contacts keep their place when the count changes: W3 is untouched
       expect(wireById(out.content, 32)).toBe(wireById(world, 32))
-      expect(endpointPoint(computeLayout(out.content), term(id(40), 0))).toEqual(p(1625, 1688))
+      expect(endpointPoint(computeLayout(out.content), term(id(40), 0))).toEqual(p(1625, 2088))
       expectOrthogonalRoutes(out.content)
     })
 
@@ -505,7 +505,7 @@ describe('moveItem', () => {
   it('moves an element within its rail and re-routes the wires on its poles', () => {
     const out = run(world, moveItem(id(21), id(10), 6))
     expect(out.content.rails[0]?.elements.find((e) => e.id === id(21))?.offsetModules).toBe(6)
-    expect(bendsOf(out.content, 33)).toEqual([p(125, 2763), p(125, 1550), p(1338, 1550)])
+    expect(bendsOf(out.content, 33)).toEqual([p(125, 3163), p(125, 1950), p(1338, 1950)])
     expect(wireById(out.content, 30)).toBe(wireById(world, 30))
     expectOrthogonalRoutes(out.content)
   })
@@ -522,7 +522,7 @@ describe('moveItem', () => {
     expect(out.content.rails[0]?.elements.map((e) => e.id)).toEqual([id(20)])
     expect(out.content.rails[1]?.elements.map((e) => e.id)).toEqual([id(21)])
     expect(out.content.rails[1]?.elements[0]?.offsetModules).toBe(4)
-    expect(bendsOf(out.content, 33)).toEqual([p(125, 2763), p(125, 2550), p(988, 2550)])
+    expect(bendsOf(out.content, 33)).toEqual([p(125, 3163), p(125, 2950), p(988, 2950)])
     expect(out.content.wires.map((x) => x.id)).toEqual(world.wires.map((x) => x.id))
     expectOrthogonalRoutes(out.content)
     expect(validateContent(out.content)).toEqual([])
@@ -532,7 +532,7 @@ describe('moveItem', () => {
     const out = run(world, moveItem(id(40), id(11), 5)).content
     expect(out.rails[0]?.terminalBlocks).toEqual([])
     expect(out.rails[1]?.terminalBlocks.map((b) => b.id)).toEqual([id(41), id(40)])
-    expect(endpointPoint(computeLayout(out), term(id(40), 0))).toEqual(p(200 + 5 * 175 + 25, 2688))
+    expect(endpointPoint(computeLayout(out), term(id(40), 0))).toEqual(p(200 + 5 * 175 + 25, 3088))
     expect(bendsOf(out, 31)).toEqual(autoOf(out, 31))
     expect(bendsOf(out, 32)).toEqual(autoOf(out, 32))
     expectOrthogonalRoutes(out)
@@ -585,20 +585,26 @@ describe('input cables', () => {
     expect(two.rails).toBe(world.rails)
   })
 
-  it('uses the defaults 230 V / 50 Hz / 4 mm² and one brown wire', () => {
-    expect(defaultInputCable(id(6), id(7))).toEqual({
+  it('uses the defaults 230 V / 50 Hz / 4 mm² and two wires: brown, blue', () => {
+    expect(defaultInputCable(id(6), id(7), id(8))).toEqual({
       id: id(6),
       label: '',
       voltage: 230,
       frequency: 50,
       crossSection: 4,
-      wires: [{ id: id(7), colour: 'brown' }],
+      wires: [
+        { id: id(7), colour: 'brown' },
+        { id: id(8), colour: 'blue' },
+      ],
     })
-    expect(defaultOutputCable(id(6), id(7))).toEqual({
+    expect(defaultOutputCable(id(6), id(7), id(8))).toEqual({
       id: id(6),
       label: '',
       description: '',
-      wires: [{ id: id(7), colour: 'brown' }],
+      wires: [
+        { id: id(7), colour: 'brown' },
+        { id: id(8), colour: 'blue' },
+      ],
     })
   })
 
@@ -745,7 +751,7 @@ describe('output cables', () => {
     const wired = run(two, addAuto(34, term(id(41), 0), cw(id(7)))).content
     const out = run(wired, removeOutputCable(id(4)))
     expect(out.removedWires).toBe(1)
-    expect(endpointPoint(computeLayout(out.content), cw(id(7)))).toEqual(p(300, 3700))
+    expect(endpointPoint(computeLayout(out.content), cw(id(7)))).toEqual(p(300, 4100))
     expect(bendsOf(out.content, 34)).toEqual(autoOf(out.content, 34))
     expectOrthogonalRoutes(out.content)
   })
@@ -952,7 +958,7 @@ describe('panel wires', () => {
     })
 
     it('moveBend to the same place is a no-op', () => {
-      expect(run(world, moveBend(id(30), 0, p(300, 1050))).content).toBe(world)
+      expect(run(world, moveBend(id(30), 0, p(300, 1250))).content).toBe(world)
     })
 
     it('moveBend rejects an unknown wire or bend index', () => {
@@ -962,7 +968,7 @@ describe('panel wires', () => {
 
     it('insertBend adds a collinear bend on the chosen segment', () => {
       const out = run(world, insertBend(id(30), 1, p(290, 1100))).content
-      expect(bendsOf(out, 30)).toEqual([p(300, 1050), p(290, 1050), p(288, 1050)])
+      expect(bendsOf(out, 30)).toEqual([p(300, 1250), p(290, 1250), p(288, 1250)])
       expectOrthogonalRoutes(out)
     })
 
@@ -1013,7 +1019,7 @@ describe('panel wires', () => {
     it('removeBend of a collinear bend keeps the route orthogonal', () => {
       const withExtra = run(world, insertBend(id(30), 1, p(290, 1100))).content
       const out = run(withExtra, removeBend(id(30), 1)).content
-      expect(bendsOf(out, 30)).toEqual([p(300, 1050), p(288, 1050)])
+      expect(bendsOf(out, 30)).toEqual([p(300, 1250), p(288, 1250)])
       expectOrthogonalRoutes(out)
     })
 

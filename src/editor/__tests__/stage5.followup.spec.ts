@@ -3,9 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import {
-  CABLE_LABEL_INPUT_Y,
   CABLE_LABEL_INSET,
-  CABLE_LABEL_OUTPUT_Y,
+  cableTextOffsets,
   WIRE_COLOUR_HEX,
   computeLayout,
 } from '@/domain/geometry'
@@ -62,7 +61,7 @@ describe('cable label inside the box', () => {
     const l = computeLayout(world())
     const box = l.inputBoxes[0]!
     const mark = wrapper.findAll('[data-testid=cable-mark]')[0]!
-    expect(mark.attributes('y')).toBe(String(box.y + CABLE_LABEL_INPUT_Y))
+    expect(mark.attributes('y')).toBe(String(box.y + cableTextOffsets('top').label))
     expect(mark.attributes('x')).toBe(String(box.x + box.w / 2))
     expect(mark.attributes('text-anchor')).toBe('middle')
     const caption = wrapper.findAll('text.cable-label')[0]!
@@ -75,7 +74,7 @@ describe('cable label inside the box', () => {
     const { wrapper } = await mountEditor(world())
     const box = computeLayout(world()).outputBoxes[0]!
     const mark = wrapper.findAll('[data-testid=cable-mark]')[1]!
-    expect(mark.attributes('y')).toBe(String(box.y + CABLE_LABEL_OUTPUT_Y))
+    expect(mark.attributes('y')).toBe(String(box.y + cableTextOffsets('bottom').label))
     const caption = wrapper.findAll('text.cable-label')[1]!
     expect(caption.attributes('y')).toBe(String(box.y + 190))
     expect(Number(mark.attributes('y'))).toBeLessThan(Number(caption.attributes('y')))

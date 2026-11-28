@@ -4,6 +4,8 @@ const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')
 
 const content = {
   railWidthModules: 20,
+  inputCableSide: 'top',
+  outputCableSide: 'bottom',
   inputCables: [
     {
       id: id(1),
@@ -19,6 +21,7 @@ const content = {
   ],
   outputCables: [],
   terminalRow: [],
+  bottomTerminalRow: [],
   rails: [
     {
       id: id(10),

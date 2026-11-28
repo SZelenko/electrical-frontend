@@ -152,9 +152,12 @@ describe('rename', () => {
             // The rename response must never replace the content held locally.
             content: {
               railWidthModules: 24,
+              inputCableSide: 'top',
+              outputCableSide: 'bottom',
               inputCables: [],
               outputCables: [],
               terminalRow: [],
+              bottomTerminalRow: [],
               rails: [],
               wires: [],
             },

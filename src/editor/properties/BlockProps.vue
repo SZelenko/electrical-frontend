@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { updateBlock } from '@/domain/commands'
+import { moveBlockToOtherRow, updateBlock } from '@/domain/commands'
 import {
   BLOCK_COLOURS,
   MAX_LABEL_LENGTH,
@@ -15,6 +15,7 @@ const props = defineProps<{ id: string }>()
 const { ctx, store, num, commit } = useCommit()
 const found = computed(() => store.index?.blocks.get(props.id))
 const row = computed(() => found.value?.rail === null)
+const rowId = computed(() => found.value?.row ?? null)
 const colourValue = computed(() => found.value?.block.colour ?? '')
 
 function setColour(value: string) {
@@ -26,9 +27,9 @@ function setColour(value: string) {
 <template>
   <section
     v-if="found"
-    :aria-label="row ? 'Властивості клемника в рядку' : 'Властивості клемного блока'"
+    :aria-label="row ? 'Властивості клемника в ряду' : 'Властивості клемного блока'"
   >
-    <h3>{{ row ? 'Клемник у рядку' : 'Клемний блок' }}</h3>
+    <h3>{{ row ? 'Клемник у ряду' : 'Клемний блок' }}</h3>
     <CommitField
       label="Назва"
       :maxlength="MAX_LABEL_LENGTH"
@@ -64,6 +65,19 @@ function setColour(value: string) {
       Ширина: {{ found.block.widthModules }} мод. (половина клем, з округленням угору).
     </p>
     <p v-else class="hint">Клемний блок на рейці завжди займає 1 модуль.</p>
+    <template v-if="rowId">
+      <p class="hint" data-testid="block-row">
+        {{ rowId === 'top' ? 'Верхній ряд клемників' : 'Нижній ряд клемників' }}
+      </p>
+      <button
+        type="button"
+        :disabled="store.readOnly || ctx.translucent.value"
+        data-testid="move-block-row"
+        @click="ctx.run(moveBlockToOtherRow(id), 'Перенести клемник в інший ряд')"
+      >
+        {{ rowId === 'top' ? 'Перенести у нижній ряд' : 'Перенести у верхній ряд' }}
+      </button>
+    </template>
     <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
       {{ row ? 'Видалити клемник' : 'Видалити клемний блок' }}
     </button>

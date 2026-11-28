@@ -25,20 +25,24 @@ import {
   MAX_BUSBARS_PER_RAIL,
   MIN_BUSBAR_COUNT,
 } from '@/domain/limits'
-import type {
-  BusbarType,
-  DeviceStyle,
-  Endpoint,
-  PanelContent,
-  PanelElement,
-  Rail,
-  WireColour,
-  WireCrossSection,
+import {
+  rowBlocks,
+  type BusbarType,
+  type DeviceStyle,
+  type Endpoint,
+  type PanelContent,
+  type PanelElement,
+  type Rail,
+  type RowId,
+  type WireColour,
+  type WireCrossSection,
 } from '@/domain/panelContent'
 import type { ItemRef } from '@/domain/validateContent'
 import { usePanelEditorStore } from '@/stores/panelEditor'
 import { rejectionText, removedWiresText } from './messages'
 import { newId } from './newId'
+
+const ROW_NAME = { top: 'верхньому', bottom: 'нижньому' } as const
 
 export interface Notice {
   text: string
@@ -178,13 +182,7 @@ export function createEditorContext() {
       voltageRelay: space(2),
       ats: space(ATS_MIN_WIDTH),
       block: space(1),
-      rowBlock:
-        base ??
-        (c && c.terminalRow.length >= MAX_ROW_BLOCKS
-          ? `Досягнуто ліміт: ${MAX_ROW_BLOCKS} клемників у рядку`
-          : c && firstFreeRowOffset(c.terminalRow, rowCapacity(c), 1) === null
-            ? 'У рядку немає вільного місця'
-            : null),
+      rowBlock: { top: rowReason(base, 'top'), bottom: rowReason(base, 'bottom') },
       inputCable:
         base ??
         (c && c.inputCables.length >= MAX_INPUT_CABLES
@@ -202,6 +200,17 @@ export function createEditorContext() {
       edit: base,
     }
   })
+
+  function rowReason(base: string | null, row: RowId): string | null {
+    const c = content.value
+    if (base || !c) return base
+    const blocks = rowBlocks(c, row)
+    if (blocks.length >= MAX_ROW_BLOCKS)
+      return `Досягнуто ліміт: ${MAX_ROW_BLOCKS} клемників у ${ROW_NAME[row]} ряду`
+    return firstFreeRowOffset(blocks, rowCapacity(c), 1) === null
+      ? `У ${ROW_NAME[row]} ряду немає вільного місця`
+      : null
+  }
 
   /** The device a busbar would be anchored at: the selected device. */
   const busbarAnchor = computed(() => {
@@ -287,10 +296,10 @@ export function createEditorContext() {
       store.select({ kind: 'block', id })
   }
 
-  function addRowBlock() {
+  function addRowBlock(row: RowId) {
     const c = content.value
-    const offset = c ? firstFreeRowOffset(c.terminalRow, rowCapacity(c), 1) : null
-    if (offset === null) return say('У рядку немає вільного місця', 'error')
+    const offset = c ? firstFreeRowOffset(rowBlocks(c, row), rowCapacity(c), 1) : null
+    if (offset === null) return say(`У ${ROW_NAME[row]} ряду немає вільного місця`, 'error')
     const id = newId()
     const block = {
       id,
@@ -300,7 +309,12 @@ export function createEditorContext() {
       colour: null,
       label: '',
     }
-    if (run(cmd.addRowBlock(block), 'Додати клемник у рядок').ok)
+    if (
+      run(
+        cmd.addRowBlock(row, block),
+        `Додати клемник у ${row === 'top' ? 'верхній' : 'нижній'} ряд`,
+      ).ok
+    )
       store.select({ kind: 'block', id })
   }
 
@@ -317,14 +331,22 @@ export function createEditorContext() {
 
   function addInputCable() {
     const id = newId()
-    if (run(cmd.addInputCable(cmd.defaultInputCable(id, newId())), 'Додати вхідний кабель').ok) {
+    if (
+      run(cmd.addInputCable(cmd.defaultInputCable(id, newId(), newId())), 'Додати вхідний кабель')
+        .ok
+    ) {
       store.select({ kind: 'inputCable', id })
     }
   }
 
   function addOutputCable() {
     const id = newId()
-    if (run(cmd.addOutputCable(cmd.defaultOutputCable(id, newId())), 'Додати вихідний кабель').ok) {
+    if (
+      run(
+        cmd.addOutputCable(cmd.defaultOutputCable(id, newId(), newId())),
+        'Додати вихідний кабель',
+      ).ok
+    ) {
       store.select({ kind: 'outputCable', id })
     }
   }

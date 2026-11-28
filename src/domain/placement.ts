@@ -1,6 +1,6 @@
 /** Placement of elements and terminal blocks on a rail: snapping, fit, overlap, width rules. */
 import type { Layout } from './geometry'
-import { ELEMENT_H, MARGIN, MODULE, ROW_BLOCK_H } from './geometry'
+import { ELEMENT_H, MODULE, ROW_BLOCK_H } from './geometry'
 import {
   ATS_MIN_WIDTH,
   MAX_RAIL_WIDTH,
@@ -8,7 +8,15 @@ import {
   maxPolesForWidth,
   minWidthForPoles,
 } from './limits'
-import type { PanelContent, PanelElement, Rail, TerminalBlock } from './panelContent'
+import {
+  ROW_IDS,
+  rowBlocks,
+  type PanelContent,
+  type PanelElement,
+  type Rail,
+  type RowId,
+  type TerminalBlock,
+} from './panelContent'
 
 export type PlacementError =
   | 'invalidSize'
@@ -62,8 +70,8 @@ export function checkPlacement(
 }
 
 /** Snaps a drawing x (tenths of mm) to a whole module offset on a rail (not clamped). */
-export function snapOffset(xU: number): number {
-  return Math.round((xU - MARGIN) / MODULE) || 0 // normalises -0
+export function snapOffset(layout: Pick<Layout, 'railsLeft'>, xU: number): number {
+  return Math.round((xU - layout.railsLeft) / MODULE) || 0 // normalises -0
 }
 
 /** Nearest valid offset to `wanted` for an item of `width`, or null when nothing fits on the rail. */
@@ -118,8 +126,8 @@ export function checkElementWidth(
 // ---- terminal row ----
 
 /**
- * Checks that a row block of `width` modules fits at `offset` (offsets count from the end of the input
- * cables; `capacity` = rail width minus that start), ignoring `ignoreId`.
+ * Checks that a row block of `width` modules fits at `offset` (offsets count from the rail start;
+ * `capacity` = rail width), ignoring `ignoreId`.
  */
 export function checkRowPlacement(
   row: readonly TerminalBlock[],
@@ -151,9 +159,30 @@ export function firstFreeRowOffset(
   return null
 }
 
-/** True when `yU` lies within the terminal-row band (the height of the input cable boxes). */
-export function inRowBand(yU: number): boolean {
-  return yU >= MARGIN && yU <= MARGIN + ROW_BLOCK_H
+/** The terminal row whose band (`ROW_BLOCK_H` high) contains `yU`, or null. */
+export function inRowBand(
+  layout: Pick<Layout, 'topRowY' | 'bottomRowY'>,
+  yU: number,
+): RowId | null {
+  if (yU >= layout.topRowY && yU <= layout.topRowY + ROW_BLOCK_H) return 'top'
+  if (yU >= layout.bottomRowY && yU <= layout.bottomRowY + ROW_BLOCK_H) return 'bottom'
+  return null
+}
+
+/** Nearest valid offset to `wanted` for a row block of `width`, or null when nothing fits in the row. */
+export function nearestFreeRowOffset(
+  row: readonly TerminalBlock[],
+  capacity: number,
+  ignoreId: string | null,
+  wanted: number,
+  width: number,
+): number | null {
+  let best: number | null = null
+  for (let o = 0; o + width <= capacity; o++) {
+    if (checkRowPlacement(row, capacity, ignoreId, o, width) !== null) continue
+    if (best === null || Math.abs(o - wanted) < Math.abs(best - wanted)) best = o
+  }
+  return best
 }
 
 /** True when every row block still fits into `capacity` modules. */
@@ -161,18 +190,11 @@ export function rowFits(row: readonly TerminalBlock[], capacity: number): boolea
   return row.every((b) => b.offsetModules + b.widthModules <= capacity)
 }
 
-/**
- * New panel-wide rail width: 1..60, not below the rightmost item end of any rail, and the terminal
- * row (capacity = width minus the row start) must still hold its blocks.
- */
-export function checkRailWidth(
-  content: PanelContent,
-  width: number,
-  rowStartModules: number,
-): PlacementError | null {
+/** New panel-wide rail width: 1..60, not below the rightmost item end of any rail or of either terminal row. */
+export function checkRailWidth(content: PanelContent, width: number): PlacementError | null {
   if (!Number.isInteger(width) || width < MIN_RAIL_WIDTH || width > MAX_RAIL_WIDTH)
     return 'invalidSize'
   if (content.rails.some((r) => width < rightmostEnd(r))) return 'railTooNarrow'
-  if (!rowFits(content.terminalRow, width - rowStartModules)) return 'rowOverflow'
+  if (ROW_IDS.some((row) => !rowFits(rowBlocks(content, row), width))) return 'rowOverflow'
   return null
 }

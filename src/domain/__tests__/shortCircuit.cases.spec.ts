@@ -84,6 +84,14 @@ describe('shared fixture: strict reading', () => {
       'busbar_does_not_cover_device_beyond_count_no_short',
       'busbar_l_feed_index_1_is_rejected',
       'busbar_count_beyond_the_rail_items_is_rejected',
+      'bottom_row_block_bar_joins_two_sources_short',
+      'both_terminal_rows_same_offset_and_index_no_false_join',
+      'top_and_bottom_row_blocks_joined_by_wire_short',
+      'bottom_row_block_wrong_width_is_rejected',
+      'bottom_row_block_past_rail_width_is_rejected',
+      'block_id_shared_by_both_rows_is_rejected',
+      'bottom_row_block_with_left_contact_side_is_rejected',
+      'cable_sides_left_and_right_do_not_change_the_check',
     ]) {
       expect(names).toContain(required)
     }

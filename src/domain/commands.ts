@@ -5,7 +5,7 @@
  * blocks stay sorted by offset (E6). Ids are supplied by the caller (crypto.randomUUID()).
  */
 import { busbarCover, busbarCovering, coveredDevices, maxBusbarCount, railItems } from './busbars'
-import { computeLayout, endpointPoint, rowCapacity, rowStartModules, type Pt } from './geometry'
+import { computeLayout, endpointPoint, rowCapacity, type Pt } from './geometry'
 import { buildIndex } from './contentIndex'
 import {
   CABLE_CROSS_SECTION_RULE,
@@ -49,7 +49,7 @@ import {
   checkPlacement,
   checkRailWidth,
   checkRowPlacement,
-  rowFits,
+  nearestFreeRowOffset,
   type PlacementError,
 } from './placement'
 import {
@@ -60,11 +60,16 @@ import {
   repairRoutes,
 } from './routes'
 import {
+  CABLE_SIDES,
   endpointKey,
+  ROW_IDS,
+  rowBlocks,
+  rowOfBlock,
   type AtsState,
   type AtsElement,
   type Busbar,
   type BusbarType,
+  type CableSide,
   type CableWire,
   type DeviceElement,
   type DeviceStyle,
@@ -75,6 +80,7 @@ import {
   type PanelElement,
   type PanelWire,
   type Rail,
+  type RowId,
   type TerminalBlock,
   type WireColour,
   type WireCrossSection,
@@ -92,6 +98,7 @@ export type Rejection =
   | 'readOnly'
   | 'busbarNoRoom'
   | 'busbarRange'
+  | 'rowNoRoom'
 
 export type CommandOutcome =
   | { ok: true; content: PanelContent; removedWires: number }
@@ -181,9 +188,16 @@ function sortedRail(rail: Rail): Rail {
   }
 }
 
-/** Keeps the terminal row ordered by offset; returns the same array when already ordered. */
+/** Keeps a terminal row ordered by offset; returns the same array when already ordered. */
 function sortedRow(row: TerminalBlock[]): TerminalBlock[] {
   return isSortedByOffset(row) ? row : [...row].sort((a, b) => a.offsetModules - b.offsetModules)
+}
+
+/** The content with the blocks of one terminal row replaced. */
+function withRow(content: PanelContent, row: RowId, blocks: TerminalBlock[]): PanelContent {
+  return row === 'top'
+    ? { ...content, terminalRow: blocks }
+    : { ...content, bottomTerminalRow: blocks }
 }
 
 function allIds(content: PanelContent): Set<string> {
@@ -196,7 +210,7 @@ function allIds(content: PanelContent): Set<string> {
     ids.add(c.id)
     c.wires.forEach((w) => ids.add(w.id))
   }
-  content.terminalRow.forEach((b) => ids.add(b.id))
+  for (const row of ROW_IDS) rowBlocks(content, row).forEach((b) => ids.add(b.id))
   for (const r of content.rails) {
     ids.add(r.id)
     r.elements.forEach((e) => ids.add(e.id))
@@ -253,13 +267,6 @@ function elementHasEndpoints(ids: ReadonlySet<string>) {
     (e.kind === 'busbar' && ids.has(e.busbarId))
 }
 
-/** The terminal row must still hold its blocks (the input cables set where it starts). */
-function requireRowFits(content: PanelContent): void {
-  if (!rowFits(content.terminalRow, rowCapacity(content))) {
-    reject('rowOverflow')
-  }
-}
-
 function cableWireEndpoints(ids: ReadonlySet<string>) {
   return (e: Endpoint) => e.kind === 'cableWire' && ids.has(e.cableWireId)
 }
@@ -275,19 +282,31 @@ export function totalBends(content: PanelContent): number {
 
 // ---- factories for defaults ----
 
-export function defaultInputCable(id: string, wireId: string): InputCable {
+/** The two default wires of a new cable: brown and blue. */
+function defaultWires(brownId: string, blueId: string): CableWire[] {
+  return [
+    { id: brownId, colour: 'brown' },
+    { id: blueId, colour: 'blue' },
+  ]
+}
+
+export function defaultInputCable(id: string, brownWireId: string, blueWireId: string): InputCable {
   return {
     id,
     label: '',
     voltage: DEFAULT_VOLTAGE,
     frequency: DEFAULT_FREQUENCY,
     crossSection: DEFAULT_CABLE_CROSS_SECTION,
-    wires: [{ id: wireId, colour: 'brown' }],
+    wires: defaultWires(brownWireId, blueWireId),
   }
 }
 
-export function defaultOutputCable(id: string, wireId: string): OutputCable {
-  return { id, label: '', description: '', wires: [{ id: wireId, colour: 'brown' }] }
+export function defaultOutputCable(
+  id: string,
+  brownWireId: string,
+  blueWireId: string,
+): OutputCable {
+  return { id, label: '', description: '', wires: defaultWires(brownWireId, blueWireId) }
 }
 
 // ---- rails ----
@@ -342,7 +361,7 @@ export function updateRail(railId: string, patch: { spacingMm?: number }): Comma
 export function setRailWidth(widthModules: number): Command {
   return define((content) => {
     if (widthModules === content.railWidthModules) return content
-    const error = checkRailWidth(content, widthModules, rowStartModules(content))
+    const error = checkRailWidth(content, widthModules)
     if (error) reject(error)
     return settle(content, { ...content, railWidthModules: widthModules }, 0)
   })
@@ -360,12 +379,16 @@ function elementLocation(content: PanelContent, id: string) {
 }
 
 function blockLocation(content: PanelContent, id: string) {
-  const rowIndex = content.terminalRow.findIndex((b) => b.id === id)
-  if (rowIndex !== -1) {
-    return {
-      zone: 'row' as const,
-      block: content.terminalRow[rowIndex] as TerminalBlock,
-      index: rowIndex,
+  for (const row of ROW_IDS) {
+    const blocks = rowBlocks(content, row)
+    const rowIndex = blocks.findIndex((b) => b.id === id)
+    if (rowIndex !== -1) {
+      return {
+        zone: 'row' as const,
+        row,
+        block: blocks[rowIndex] as TerminalBlock,
+        index: rowIndex,
+      }
     }
   }
   for (const [railIndex, rail] of content.rails.entries()) {
@@ -633,22 +656,22 @@ export function addBlock(railId: string, block: TerminalBlock): Command {
   })
 }
 
-/** Adds a block (1..60 contacts, width `ceil(contacts / 2)`) to the terminal row. */
-export function addRowBlock(block: TerminalBlock): Command {
+/** Adds a block (1..60 contacts, width `ceil(contacts / 2)`) to a terminal row. */
+export function addRowBlock(row: RowId, block: TerminalBlock): Command {
   return define((content) => {
-    if (content.terminalRow.length >= MAX_ROW_BLOCKS) reject('limit', 'row blocks')
+    const blocks = rowBlocks(content, row)
+    if (blocks.length >= MAX_ROW_BLOCKS) reject('limit', 'row blocks')
     requireFreeIds(content, block.id)
     checkBlockBasics(block, true)
     const placement = checkRowPlacement(
-      content.terminalRow,
+      blocks,
       rowCapacity(content),
       null,
       block.offsetModules,
       block.widthModules,
     )
     if (placement) reject(placement)
-    const terminalRow = sortedRow([...content.terminalRow, block])
-    return settle(content, { ...content, terminalRow }, 0)
+    return settle(content, withRow(content, row, sortedRow([...blocks, block])), 0)
   })
 }
 
@@ -680,7 +703,7 @@ export function updateBlock(id: string, patch: BlockPatch): Command {
     checkBlockBasics(updated, row)
     if (row && widthModules !== block.widthModules) {
       const error = checkRowPlacement(
-        content.terminalRow,
+        rowBlocks(content, found.row),
         rowCapacity(content),
         id,
         block.offsetModules,
@@ -690,10 +713,11 @@ export function updateBlock(id: string, patch: BlockPatch): Command {
     }
     const after =
       found.zone === 'row'
-        ? {
-            ...content,
-            terminalRow: content.terminalRow.map((b, i) => (i === found.index ? updated : b)),
-          }
+        ? withRow(
+            content,
+            found.row,
+            rowBlocks(content, found.row).map((b, i) => (i === found.index ? updated : b)),
+          )
         : replaceRail(content, found.railIndex, {
             ...found.rail,
             terminalBlocks: found.rail.terminalBlocks.map((b, i) =>
@@ -717,7 +741,11 @@ export function removeBlock(id: string): Command {
     const found = blockLocation(content, id)
     const after =
       found.zone === 'row'
-        ? { ...content, terminalRow: content.terminalRow.filter((_, i) => i !== found.index) }
+        ? withRow(
+            content,
+            found.row,
+            rowBlocks(content, found.row).filter((_, i) => i !== found.index),
+          )
         : replaceRail(content, found.railIndex, {
             ...found.rail,
             terminalBlocks: found.rail.terminalBlocks.filter((_, i) => i !== found.index),
@@ -783,25 +811,81 @@ export function moveItem(itemId: string, targetRailId: string, offsetModules: nu
   })
 }
 
-/** Moves a terminal-row block along the row; the id and its wires are preserved. */
-export function moveRowBlock(blockId: string, offsetModules: number): Command {
+/**
+ * Moves a terminal-row block to `offsetModules` of its row, or of the row `toRow` (a drag between
+ * rows: the exact drop offset, a taken place or a full row is rejected); the id and its wires are preserved.
+ */
+export function moveRowBlock(blockId: string, offsetModules: number, toRow?: RowId): Command {
   return define((content) => {
-    const index = content.terminalRow.findIndex((b) => b.id === blockId)
-    const block = content.terminalRow[index]
-    if (!block) reject('notFound', blockId)
-    if (block.offsetModules === offsetModules) return content
-    const error = checkRowPlacement(
-      content.terminalRow,
+    const from = rowOfBlock(content, blockId)
+    if (!from) return reject('notFound', blockId)
+    const to = toRow ?? from
+    const source = rowBlocks(content, from)
+    const block = source.find((b) => b.id === blockId) as TerminalBlock
+    if (to === from) {
+      if (block.offsetModules === offsetModules) return content
+      const error = checkRowPlacement(
+        source,
+        rowCapacity(content),
+        blockId,
+        offsetModules,
+        block.widthModules,
+      )
+      if (error) reject(error)
+      const row = sortedRow(source.map((b) => (b === block ? { ...block, offsetModules } : b)))
+      return settle(content, withRow(content, from, row), 0)
+    }
+    return settle(content, relocateRowBlock(content, block, from, to, offsetModules), 0)
+  })
+}
+
+/** Takes `block` out of row `from` and puts it into row `to` at `offsetModules` (checked there). */
+function relocateRowBlock(
+  content: PanelContent,
+  block: TerminalBlock,
+  from: RowId,
+  to: RowId,
+  offsetModules: number,
+): PanelContent {
+  const target = rowBlocks(content, to)
+  if (target.length >= MAX_ROW_BLOCKS) reject('limit', 'row blocks')
+  const error = checkRowPlacement(
+    target,
+    rowCapacity(content),
+    null,
+    offsetModules,
+    block.widthModules,
+  )
+  if (error) reject(error)
+  const removed = withRow(
+    content,
+    from,
+    rowBlocks(content, from).filter((b) => b !== block),
+  )
+  return withRow(removed, to, sortedRow([...target, { ...block, offsetModules }]))
+}
+
+/**
+ * Moves a terminal-row block to the other row (block properties action): the same offset when free,
+ * otherwise the nearest free offset; rejected when that row has no room or already holds 60 blocks.
+ */
+export function moveBlockToOtherRow(blockId: string): Command {
+  return define((content) => {
+    const from = rowOfBlock(content, blockId)
+    if (!from) return reject('notFound', blockId)
+    const to: RowId = from === 'top' ? 'bottom' : 'top'
+    const block = rowBlocks(content, from).find((b) => b.id === blockId) as TerminalBlock
+    const target = rowBlocks(content, to)
+    if (target.length >= MAX_ROW_BLOCKS) reject('limit', 'row blocks')
+    const offset = nearestFreeRowOffset(
+      target,
       rowCapacity(content),
-      blockId,
-      offsetModules,
+      null,
+      block.offsetModules,
       block.widthModules,
     )
-    if (error) reject(error)
-    const terminalRow = sortedRow(
-      content.terminalRow.map((b, i) => (i === index ? { ...block, offsetModules } : b)),
-    )
-    return settle(content, { ...content, terminalRow }, 0)
+    if (offset === null) return reject('rowNoRoom')
+    return settle(content, relocateRowBlock(content, block, from, to, offset), 0)
   })
 }
 
@@ -811,12 +895,12 @@ function unwrap(outcome: CommandOutcome): Done {
   return { content: outcome.content, removedWires: outcome.removedWires }
 }
 
-/** Where a copy is dropped: a rail (elements, ATS, rail blocks) or the terminal row (row blocks). */
-export type CopyTarget = { railId: string } | { row: true }
+/** Where a copy is dropped: a rail (elements, ATS, rail blocks) or a terminal row (row blocks). */
+export type CopyTarget = { railId: string } | { row: RowId }
 
 /**
  * Copies an element, ATS or terminal block (all settings, the new id, no wires) to the drop place.
- * Rail items go to rails, row blocks to the row; any other zone combination is rejected.
+ * Rail items go to rails, row blocks to either terminal row; any other zone combination is rejected.
  */
 export function copyItem(
   itemId: string,
@@ -838,11 +922,51 @@ export function copyItem(
     const fromRow = (block as NonNullable<typeof block>).rail === null
     if (fromRow !== intoRow) reject('invalid', 'zone')
     const copy = { ...source, id: newId, offsetModules }
-    return unwrap(intoRow ? addRowBlock(copy)(content) : addBlock(target.railId, copy)(content))
+    return unwrap(
+      'row' in target
+        ? addRowBlock(target.row, copy)(content)
+        : addBlock(target.railId, copy)(content),
+    )
   })
 }
 
 // ---- cables ----
+
+/**
+ * Sets the side of the input and/or output cables (one command). Wires with an endpoint on a cable
+ * whose side changed get a fresh automatic route (user bends dropped); all other wires are repaired
+ * like after any layout change.
+ */
+export function setCableSides(sides: { input?: CableSide; output?: CableSide }): Command {
+  return define((content) => {
+    const input = sides.input ?? content.inputCableSide
+    const output = sides.output ?? content.outputCableSide
+    if (!CABLE_SIDES.includes(input) || !CABLE_SIDES.includes(output)) reject('invalid', 'side')
+    if (input === content.inputCableSide && output === content.outputCableSide) return content
+    const after: PanelContent = { ...content, inputCableSide: input, outputCableSide: output }
+    requireDrawingInRange(after)
+    const moved = new Set<string>()
+    if (input !== content.inputCableSide) {
+      for (const c of content.inputCables) for (const w of c.wires) moved.add(w.id)
+    }
+    if (output !== content.outputCableSide) {
+      for (const c of content.outputCables) for (const w of c.wires) moved.add(w.id)
+    }
+    const touches = (e: Endpoint) => e.kind === 'cableWire' && moved.has(e.cableWireId)
+    const rerouted = new Set(
+      after.wires.filter((w) => touches(w.start) || touches(w.end)).map((w) => w.id),
+    )
+    const others = new Set(after.wires.filter((w) => !rerouted.has(w.id)).map((w) => w.id))
+    const repaired = repairRoutes(content, after, others)
+    if (rerouted.size === 0) return repaired
+    const layout = computeLayout(repaired)
+    const wires = repaired.wires.map((w) => {
+      if (!rerouted.has(w.id)) return w
+      return { ...w, bends: autoRouteFor(layout, w) ?? [] }
+    })
+    return { ...repaired, wires }
+  })
+}
 
 export function addInputCable(cable: InputCable): Command {
   return define((content) => {
@@ -857,7 +981,7 @@ export function addInputCable(cable: InputCable): Command {
     checkCableWires(cable.wires)
     requireText(cable.label, MAX_CABLE_LABEL_LENGTH)
     const after = { ...content, inputCables: [...content.inputCables, rounded] }
-    requireRowFits(after)
+    requireDrawingInRange(after)
     return settle(content, after, 0)
   })
 }
@@ -914,7 +1038,9 @@ export function addOutputCable(cable: OutputCable): Command {
     requireText(cable.description, MAX_DESCRIPTION_LENGTH)
     requireText(cable.label, MAX_CABLE_LABEL_LENGTH)
     checkCableWires(cable.wires)
-    return settle(content, { ...content, outputCables: [...content.outputCables, cable] }, 0)
+    const after = { ...content, outputCables: [...content.outputCables, cable] }
+    requireDrawingInRange(after)
+    return settle(content, after, 0)
   })
 }
 
@@ -995,8 +1121,7 @@ export function addCableWire(cableId: string, wire: CableWire): Command {
     if (!WIRE_COLOURS.includes(wire.colour)) reject('invalid', 'colour')
     const found = cableOfWire(content, (probe.wires[0] as CableWire).id)
     const after = withCable(content, found, [...probe.wires, wire])
-    // a wider input cable pushes the terminal row to the right
-    if (found.kind === 'input') requireRowFits(after)
+    requireDrawingInRange(after)
     return settle(content, after, 0)
   })
 }

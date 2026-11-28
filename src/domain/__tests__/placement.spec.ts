@@ -6,13 +6,25 @@ import {
   checkRailWidth,
   checkRowPlacement,
   firstFreeOffset,
+  inRowBand,
   nearestFreeOffset,
+  nearestFreeRowOffset,
   railAtY,
   railSpans,
   rightmostEnd,
   snapOffset,
 } from '../placement'
-import { block, buildWorld, content, element, id, rail, rowBlock } from './helpers'
+import {
+  block,
+  buildWorld,
+  content,
+  element,
+  id,
+  inputCable,
+  outputCable,
+  rail,
+  rowBlock,
+} from './helpers'
 
 /** 12 modules; E1 [0,2), E2 [4,7), block [8,10). Free: 2-3, 7, 10-11. */
 const r12 = rail(10, 12, 150, [element(20, 0, 2, 2), element(21, 4, 3, 2)], [block(40, 8, 2, 2)])
@@ -61,6 +73,7 @@ describe('checkPlacement', () => {
 })
 
 describe('snapOffset (drawing x in tenths of mm -> module offset)', () => {
+  const layout = { railsLeft: 200 }
   it.each([
     [200, 0],
     [287, 0], // 87/175 = 0.497
@@ -70,7 +83,22 @@ describe('snapOffset (drawing x in tenths of mm -> module offset)', () => {
     [10700, 60],
     [100, -1], // not clamped
     [0, -1],
-  ])('x=%i -> %i', (x, offset) => expect(snapOffset(x) + 0).toBe(offset))
+  ])('x=%i -> %i', (x, offset) => expect(snapOffset(layout, x) + 0).toBe(offset))
+
+  it.each([
+    [600, 0], // railsLeft 600 (cables on the left): the rail start
+    [687, 0],
+    [688, 1],
+    [200, -2], // x of the default rail start is now left of it
+  ])('with railsLeft 600: x=%i -> %i', (x, offset) =>
+    expect(snapOffset({ railsLeft: 600 }, x) + 0).toBe(offset),
+  )
+
+  it('follows the layout of a panel with input cables on the left', () => {
+    const left = computeLayout(content({ inputCableSide: 'left' }))
+    expect(left.railsLeft).toBe(600)
+    expect(snapOffset(left, left.railsLeft + 3 * 175)).toBe(3)
+  })
 })
 
 describe('nearestFreeOffset / firstFreeOffset', () => {
@@ -105,18 +133,18 @@ describe('nearestFreeOffset / firstFreeOffset', () => {
 })
 
 describe('railAtY (rail band = element height around the centre line)', () => {
-  const layout = computeLayout(buildWorld()) // centres 2100 and 3100 (railsTop 600)
+  const layout = computeLayout(buildWorld()) // centres 2500 and 3500 (railsTop 1000)
   it.each([
-    [2100, 0],
-    [1650, 0], // inclusive top edge
-    [2550, 0], // inclusive bottom edge
-    [3100, 1],
-    [2650, 1],
-    [3550, 1],
-    [1649, null],
-    [2551, null], // gap between the rails
-    [2649, null],
-    [3551, null],
+    [2500, 0],
+    [2050, 0], // inclusive top edge
+    [2950, 0], // inclusive bottom edge
+    [3500, 1],
+    [3050, 1],
+    [3950, 1],
+    [2049, null],
+    [2951, null], // gap between the rails
+    [3049, null],
+    [3951, null],
     [0, null],
   ])('y=%i -> %s', (y, expected) => expect(railAtY(layout, y)).toBe(expected))
 
@@ -173,10 +201,82 @@ describe('checkRailWidth', () => {
     ['fractional', 10.5, 'invalidSize'],
     ['negative', -3, 'invalidSize'],
   ])('%s', (_n, width, expected) =>
-    expect(checkRailWidth(content({ rails: [r12] }), width, 1)).toBe(expected),
+    expect(checkRailWidth(content({ rails: [r12] }), width)).toBe(expected),
   )
 
   it('an empty rail can shrink to 1 module', () => {
-    expect(checkRailWidth(content({ rails: [rail(1, 12)] }), 1, 1)).toBeNull()
+    expect(checkRailWidth(content({ rails: [rail(1, 12)] }), 1)).toBeNull()
+  })
+
+  it.each([
+    ['top', 'terminalRow'],
+    ['bottom', 'bottomTerminalRow'],
+  ] as const)('the %s terminal row limits the width by its rightmost end', (_row, key) => {
+    const c = content({ [key]: [rowBlock(40, 5, 4)] }) // ends at module 7
+    expect(checkRailWidth(c, 7)).toBeNull()
+    expect(checkRailWidth(c, 6)).toBe('rowOverflow')
+  })
+
+  it('input cables never limit the width (rows start at the rail start)', () => {
+    const c = content({ inputCables: [inputCable(1, [2, 3, 4, 5])], railWidthModules: 24 })
+    expect(checkRailWidth(c, 1)).toBeNull()
+  })
+
+  it('a rail item is reported before a row overflow', () => {
+    const c = content({ rails: [r12], terminalRow: [rowBlock(40, 0, 2)] })
+    expect(checkRailWidth(c, 9)).toBe('railTooNarrow')
+  })
+})
+
+describe('inRowBand (both terminal-row bands, inclusive edges)', () => {
+  // default panel: topRowY 600 (band 600..850), no rails, bottomRowY 1150 (band 1150..1400)
+  const layout = computeLayout(content())
+  it.each([
+    [599, null],
+    [600, 'top'],
+    [725, 'top'],
+    [850, 'top'],
+    [851, null],
+    [1149, null],
+    [1150, 'bottom'],
+    [1400, 'bottom'],
+    [1401, null],
+    [0, null],
+  ] as const)('y=%i -> %s', (y, expected) => expect(inRowBand(layout, y)).toBe(expected))
+
+  it('follows a taller drawing (output cables below the rails)', () => {
+    const tall = computeLayout(
+      content({
+        rails: [rail(10, 24, 150)],
+        outputCables: [outputCable(4, [5])],
+      }),
+    )
+    // rail cy 2500 -> sideBottom 2950; outTop 3100; bottomRowY 3500
+    expect(inRowBand(tall, 3500)).toBe('bottom')
+    expect(inRowBand(tall, 3750)).toBe('bottom')
+    expect(inRowBand(tall, 3751)).toBeNull()
+    expect(inRowBand(tall, 1150)).toBeNull()
+  })
+})
+
+describe('nearestFreeRowOffset', () => {
+  const row = [rowBlock(40, 2, 2), rowBlock(41, 5, 2)] // [2,3) and [5,6); capacity 8
+  it.each([
+    ['the wanted offset when free', 0, 1, 0],
+    ['a free offset between blocks', 3, 1, 3],
+    ['tie takes the left one', 4, 2, 3],
+    ['nearest to the right when the left is taken', 5, 1, 4],
+    ['clamps into the row', 20, 1, 7],
+  ])('%s', (_n, wanted, width, expected) =>
+    expect(nearestFreeRowOffset(row, 8, null, wanted, width)).toBe(expected),
+  )
+
+  it('ignores the block being moved', () => {
+    expect(nearestFreeRowOffset(row, 8, id(40), 2, 1)).toBe(2)
+  })
+
+  it('returns null when nothing fits', () => {
+    expect(nearestFreeRowOffset([rowBlock(40, 0, 6)], 3, null, 0, 1)).toBeNull()
+    expect(nearestFreeRowOffset([], 2, null, 0, 3)).toBeNull()
   })
 })
