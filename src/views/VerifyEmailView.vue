@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StatusNote from '@/components/StatusNote.vue'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FormField from '@/components/FormField.vue'
@@ -59,12 +60,25 @@ async function resendCode() {
         :errors="verify.fieldErrors.value.code"
         :normalize="normalizeCode"
       />
-      <p v-if="verify.message.value" class="form-error" role="alert">{{ verify.message.value }}</p>
-      <div class="actions">
-        <button type="submit" :disabled="verify.pending.value || !isCompleteCode(code)">
+      <v-alert
+        v-if="verify.message.value"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mb-3"
+      >
+        {{ verify.message.value }}
+      </v-alert>
+      <div class="d-flex flex-wrap ga-3 align-center">
+        <v-btn
+          type="submit"
+          color="primary"
+          variant="flat"
+          :disabled="verify.pending.value || !isCompleteCode(code)"
+        >
           {{ t('common.confirm') }}
-        </button>
-        <button
+        </v-btn>
+        <v-btn
           type="button"
           :disabled="resend.pending.value || countdown.active.value"
           @click="resendCode"
@@ -74,10 +88,20 @@ async function resendCode() {
               ? t('auth.resendIn', { seconds: countdown.remaining.value })
               : t('auth.resend')
           }}
-        </button>
+        </v-btn>
       </div>
-      <p v-if="resend.message.value" class="form-error" role="alert">{{ resend.message.value }}</p>
-      <p v-else-if="resent" class="form-info" role="status">{{ t('auth.resent') }}</p>
+      <v-alert
+        v-if="resend.message.value"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mb-3"
+      >
+        {{ resend.message.value }}
+      </v-alert>
+      <StatusNote v-else-if="resent" tone="success" class="mb-3">
+        {{ t('auth.resent') }}
+      </StatusNote>
     </form>
   </main>
 </template>

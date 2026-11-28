@@ -1,5 +1,15 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { element, id, mockApi, panelContent, press, rail, rowBlock, server } from './support'
+import {
+  element,
+  id,
+  mockApi,
+  panelContent,
+  pickOption,
+  press,
+  rail,
+  rowBlock,
+  server,
+} from './support'
 
 // the bottom row lies below the fold of the default 720 px viewport; mouse drags need it on screen
 test.use({ viewport: { width: 1280, height: 1100 } })
@@ -142,7 +152,7 @@ test('switching the input cables to the left re-lays the drawing, keeps the wire
   await expect(page.getByTestId('input-cable')).toHaveAttribute('data-side', 'top')
   const railBefore = (await page.getByTestId('rail').boundingBox())!
 
-  await page.getByLabel('Сторона вхідних кабелів').selectOption('left')
+  await pickOption(page, 'Сторона вхідних кабелів', 'Зліва')
   await expect(page.getByTestId('input-cable')).toHaveAttribute('data-side', 'left')
   const railAfter = (await page.getByTestId('rail').boundingBox())!
   expect(railAfter.x).toBeGreaterThan(railBefore.x) // the rails start right of the column
@@ -191,10 +201,11 @@ test('switching the input cables to the left re-lays the drawing, keeps the wire
 test('one undo returns the cables to their side and the layout to its place', async ({ page }) => {
   await open(page, panelContent({ rails: [rail(10, [element(20, 4, 2, 2)])] }))
   const before = (await page.getByTestId('rail').boundingBox())!
-  await page.getByLabel('Сторона вхідних кабелів').selectOption('right')
+  await pickOption(page, 'Сторона вхідних кабелів', 'Справа')
   await expect(page.getByTestId('input-cable')).toHaveAttribute('data-side', 'right')
   await button(page, /^Скасувати: Змінити сторону кабелів/).click()
   await expect(page.getByTestId('input-cable')).toHaveAttribute('data-side', 'top')
+  await page.evaluate(() => window.scrollTo(0, 0)) // opening the select scrolled the page to the field
   const after = (await page.getByTestId('rail').boundingBox())!
   expect(after.x).toBeCloseTo(before.x, 0)
   expect(after.y).toBeCloseTo(before.y, 0)
@@ -212,8 +223,8 @@ test('output cables on the right and inputs on the same side share one column', 
       ],
     }),
   )
-  await page.getByLabel('Сторона вхідних кабелів').selectOption('right')
-  await page.getByLabel('Сторона вихідних кабелів').selectOption('right')
+  await pickOption(page, 'Сторона вхідних кабелів', 'Справа')
+  await pickOption(page, 'Сторона вихідних кабелів', 'Справа')
   const input = (await page.getByTestId('input-cable').boundingBox())!
   const output = (await page.getByTestId('output-cable').boundingBox())!
   expect(output.y).toBeGreaterThan(input.y + input.height - 1) // one column, inputs first

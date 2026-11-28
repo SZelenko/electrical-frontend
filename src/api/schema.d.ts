@@ -181,6 +181,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/me/theme': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /**
+     * Sets the UI theme of the current user: `mode` (`light`, `dark` or `system`) and `palette` (`blue`, `green`, `orange` or `violet`), both required.
+     * @description Sets the UI theme of the current user: `mode` (`light`, `dark` or `system`) and `palette` (`blue`, `green`, `orange` or `violet`), both required.
+     */
+    put: operations['api_metheme_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/me/two-factor': {
     parameters: {
       query?: never
@@ -408,53 +428,6 @@ export interface components {
       id: string
       /** @enum {string} */
       colour: 'black' | 'brown' | 'red' | 'blue' | 'green-yellow'
-    }
-    /** @description Unprocessable entity */
-    ConstraintViolation: {
-      /** @default 422 */
-      status: number
-      violations?: {
-        /** @description The property path of the violation */
-        propertyPath: string
-        /** @description The message associated with the violation */
-        message: string
-        /** @description The code of the violation */
-        code?: string
-        /** @description An extra hint to understand the violation */
-        hint?: string
-        /** @description The serialized payload of the violation */
-        payload?: {
-          [key: string]: unknown
-        }
-      }[]
-      readonly detail?: string
-      readonly type?: string
-      readonly title?: string | null
-      readonly instance?: string | null
-    }
-    /** @description Unprocessable entity */
-    'ConstraintViolation.jsonld': components['schemas']['HydraItemBaseSchema'] & {
-      /** @default 422 */
-      status: number
-      violations?: {
-        /** @description The property path of the violation */
-        propertyPath: string
-        /** @description The message associated with the violation */
-        message: string
-        /** @description The code of the violation */
-        code?: string
-        /** @description An extra hint to understand the violation */
-        hint?: string
-        /** @description The serialized payload of the violation */
-        payload?: {
-          [key: string]: unknown
-        }
-      }[]
-      readonly detail?: string
-      readonly description?: string
-      readonly type?: string
-      readonly title?: string | null
-      readonly instance?: string | null
     }
     ElementDto: {
       /** @enum {string} */
@@ -692,10 +665,18 @@ export interface components {
       emailVerified?: boolean
       twoFactorEnabled?: boolean
       locale?: string | null
+      themeMode?: string | null
+      themePalette?: string | null
     }
     'Me.LocaleSettings': {
       /** @enum {string} */
       locale: 'uk' | 'en'
+    }
+    'Me.ThemeSettings': {
+      /** @enum {string} */
+      mode: 'light' | 'dark' | 'system'
+      /** @enum {string} */
+      palette: 'blue' | 'green' | 'orange' | 'violet'
     }
     'Me.TwoFactorSettings.jsonMergePatch': {
       enabled?: boolean
@@ -1114,13 +1095,14 @@ export interface operations {
           'application/problem+json': components['schemas']['AuthProblem']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed / `invalid_code`: Invalid or expired code. */
       422: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/problem+json': components['schemas']['ViolationProblem']
+          'application/problem+json':
+            components['schemas']['ViolationProblem'] | components['schemas']['AuthProblem']
         }
       }
       /** @description `rate_limited`: Too many requests. */
@@ -1202,7 +1184,7 @@ export interface operations {
           'application/problem+json': components['schemas']['AuthProblem']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown
@@ -1283,7 +1265,7 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown
@@ -1335,7 +1317,7 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown
@@ -1387,13 +1369,14 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed / `invalid_code`: Invalid or expired code. */
       422: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/problem+json': components['schemas']['ViolationProblem']
+          'application/problem+json':
+            components['schemas']['ViolationProblem'] | components['schemas']['AuthProblem']
         }
       }
       /** @description `rate_limited`: Too many requests. */
@@ -1539,7 +1522,72 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ViolationProblem']
+        }
+      }
+    }
+  }
+  api_metheme_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** @description The updated Me resource */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Me.ThemeSettings']
+      }
+    }
+    responses: {
+      /** @description Me resource updated */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Me']
+        }
+      }
+      /** @description Invalid input */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/ld+json': components['schemas']['Error.jsonld']
+          'application/problem+json': components['schemas']['Error']
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description `token_invalid`: Missing, expired or invalid token. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['AuthProblem']
+        }
+      }
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/ld+json': components['schemas']['Error.jsonld']
+          'application/problem+json': components['schemas']['Error']
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown
@@ -1605,7 +1653,7 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown
@@ -1711,7 +1759,7 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown
@@ -1910,7 +1958,7 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown
@@ -1982,7 +2030,7 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown
@@ -2080,7 +2128,7 @@ export interface operations {
           'application/json': components['schemas']['Error']
         }
       }
-      /** @description An error occurred */
+      /** @description Validation failed. */
       422: {
         headers: {
           [name: string]: unknown

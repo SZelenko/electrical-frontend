@@ -1,5 +1,6 @@
 /** Language switching in the UI: views and the editor re-render, and violations are translated by code. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { vuetify } from '@/plugins/vuetify'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
@@ -88,7 +89,7 @@ describe('editor undo/redo titles follow the locale', () => {
     const title = (name: RegExp) =>
       wrapper
         .findAll('button')
-        .find((b) => name.test(b.text()))!
+        .find((b) => name.test(b.attributes('aria-label') ?? b.text()))!
         .attributes('title')
     expect(title(/Скасувати/)).toBe('Скасувати: Змінити напругу')
     applyLocale('en')
@@ -130,7 +131,7 @@ describe('PanelView: a server 422 violation is translated by code', () => {
     await router.push('/panels/p1')
     await router.isReady()
     const wrapper = mount(defineComponent({ render: () => h(RouterView) }), {
-      global: { plugins: [pinia, router] },
+      global: { plugins: [pinia, router, vuetify] },
       attachTo: document.body,
     })
     mounted.push(wrapper)

@@ -27,14 +27,16 @@ async function submit() {
 </script>
 
 <template>
-  <form class="inline-form" @submit.prevent="submit">
+  <form class="my-4" @submit.prevent="submit">
     <FormField v-model="name" :label="label" :errors="fieldErrors.name" :maxlength="100" />
-    <p v-if="message" class="form-error" role="alert">{{ message }}</p>
-    <div class="actions">
-      <button type="submit" :disabled="pending">{{ submitLabel }}</button>
-      <button v-if="cancellable" type="button" @click="emit('cancel')">
+    <v-alert v-if="message" type="error" variant="tonal" density="compact" class="mb-3">
+      {{ message }}
+    </v-alert>
+    <div class="d-flex flex-wrap ga-3 align-center">
+      <v-btn type="submit" color="primary" :disabled="pending">{{ submitLabel }}</v-btn>
+      <v-btn v-if="cancellable" variant="text" @click="emit('cancel')">
         {{ t('common.cancel') }}
-      </button>
+      </v-btn>
     </div>
   </form>
 </template>

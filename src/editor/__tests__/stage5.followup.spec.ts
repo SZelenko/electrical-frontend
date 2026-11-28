@@ -22,6 +22,7 @@ import {
 import BusbarShape from '../BusbarShape.vue'
 import { mountEditor, stubLayout } from './harness'
 import { t } from '@/i18n'
+import { choose, selectIn, selectValue } from '@/test/vuetifySelect'
 
 beforeEach(() => {
   stubLayout()
@@ -171,14 +172,14 @@ describe('busbar properties: colour', () => {
     const m = await mountEditor(world(colour), { properties: true, toolbar: true })
     m.store.select({ kind: 'busbar', id: id(60) })
     await nextTick()
-    const selects = m.wrapper.get(`section[aria-label="${S}"]`).findAll('select')
-    return { ...m, colourSelect: selects[1]! }
+    const colourSelect = selectIn(m.wrapper.get(`section[aria-label="${S}"]`), 'Колір')
+    return { ...m, colourSelect }
   }
   const colourOf = (c: PanelContent | null) => c?.rails[0]?.busbars[0]?.colour
 
   it('offers grey plus the five wire colours and shows the stored one', async () => {
     const { colourSelect } = await open('blue')
-    expect(colourSelect.findAll('option').map((o) => o.text())).toEqual([
+    expect((colourSelect.props('items') as { title: string }[]).map((i) => i.title)).toEqual([
       'сірий',
       'чорний',
       'коричневий',
@@ -186,15 +187,15 @@ describe('busbar properties: colour', () => {
       'синій',
       'жовто-зелений',
     ])
-    expect((colourSelect.element as HTMLSelectElement).value).toBe('blue')
+    expect(selectValue(colourSelect)).toBe('blue')
   })
 
   it('choosing a colour is undoable; going back to grey stores null', async () => {
     const { store, colourSelect } = await open()
-    await colourSelect.setValue('red')
+    await choose(colourSelect, 'red')
     expect(colourOf(store.content)).toBe('red')
     expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити колір шини')
-    await colourSelect.setValue('')
+    await choose(colourSelect, '')
     expect(colourOf(store.content)).toBeNull()
     store.undo()
     expect(colourOf(store.content)).toBe('red')
@@ -207,18 +208,14 @@ describe('busbar properties: colour', () => {
 
   it('an unknown colour value is rejected and the model is unchanged', async () => {
     const { store, colourSelect } = await open('red')
-    const el = colourSelect.element as HTMLSelectElement
-    const option = document.createElement('option')
-    option.value = 'pink'
-    el.appendChild(option)
-    await colourSelect.setValue('pink')
+    await choose(colourSelect, 'pink')
     expect(colourOf(store.content)).toBe('red')
     expect(store.canUndo).toBe(false)
   })
 
   it('keeps the wires when only the colour changes', async () => {
     const { store, colourSelect } = await open()
-    await colourSelect.setValue('green-yellow')
+    await choose(colourSelect, 'green-yellow')
     expect(store.content?.wires).toEqual([])
     expect(colourOf(store.content)).toBe('green-yellow')
   })

@@ -9,6 +9,7 @@ import PanelView from '../PanelView.vue'
 import { addRail } from '@/domain/commands'
 import { useAuthStore } from '@/stores/auth'
 import { usePanelEditorStore } from '@/stores/panelEditor'
+import { alertText, hasAlert, alertsIn, fieldMessages } from '@/test/a11y'
 
 let confirm: ReturnType<typeof vi.spyOn>
 
@@ -31,7 +32,7 @@ function deferred<T>() {
 }
 const emptyOk = () => new Response(null, { status: 204 })
 const buttonByText = (w: VueWrapper, text: string) =>
-  w.findAll('button').find((b) => b.text() === text)!
+  w.findAll('button').find((b) => b.text() === text || b.attributes('aria-label') === text)!
 
 describe('HomeView', () => {
   it('shows the empty state for no panels', async () => {
@@ -56,7 +57,7 @@ describe('HomeView', () => {
     routeFetch({ 'GET /panels?page=1': () => jsonResponse(500, {}) })
     const { wrapper } = await mountView(HomeView)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(alertText(wrapper)).not.toBe('')
     expect(wrapper.text()).not.toContain('У вас ще немає щитів')
   })
 
@@ -89,7 +90,7 @@ describe('HomeView', () => {
     await wrapper.get('input').setValue('Dup')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('form [role=alert]').text()).toContain('вже існує')
+    expect(alertText(wrapper.get('form'))).toContain('вже існує')
     expect(router.currentRoute.value.name).toBe('test')
   })
 
@@ -105,8 +106,8 @@ describe('HomeView', () => {
     await wrapper.get('input').setValue('x')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('.field-error').text()).toBe('Занадто довга')
-    expect(wrapper.find('form [role=alert]').exists()).toBe(false)
+    expect(fieldMessages(wrapper)[0]).toBe('Занадто довга')
+    expect(hasAlert(wrapper.get('form'))).toBe(false)
   })
 
   it('renames a panel in place', async () => {
@@ -140,7 +141,7 @@ describe('HomeView', () => {
     await wrapper.get('.panel-list input').setValue('Dup')
     await wrapper.get('.panel-list form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('.panel-list form [role=alert]').text()).toContain('вже існує')
+    expect(alertText(wrapper.get('.panel-list form'))).toContain('вже існує')
     expect(wrapper.find('.panel-list form').exists()).toBe(true)
   })
 
@@ -156,7 +157,7 @@ describe('HomeView', () => {
     await wrapper.get('.panel-list input').setValue('x')
     await wrapper.get('.panel-list form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('.panel-list .field-error').text()).toBe('Bad name')
+    expect(fieldMessages(wrapper.get('.panel-list'))[0]).toBe('Bad name')
   })
 
   it('shows a generic message and no unhandled rejection when the rename payload is malformed', async () => {
@@ -170,7 +171,7 @@ describe('HomeView', () => {
     await wrapper.get('.panel-list input').setValue('New')
     await wrapper.get('.panel-list form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('Неочікувана відповідь сервера')
+    expect(alertText(wrapper)).toContain('Неочікувана відповідь сервера')
   })
 
   it('cancelling rename restores the link', async () => {
@@ -218,8 +219,8 @@ describe('HomeView', () => {
     await flushPromises()
     expect(f.count('DELETE /panels/a')).toBe(1)
     expect(wrapper.findAll('.panel-list a').map((a) => a.text())).toEqual(['Beta'])
-    expect(wrapper.findAll('[role=alert]')).toHaveLength(1)
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(alertsIn(wrapper)).toHaveLength(1)
+    expect(alertText(wrapper)).not.toBe('')
   })
 
   it('does not reload the list when the delete itself failed', async () => {
@@ -273,7 +274,7 @@ describe('HomeView', () => {
     await flushPromises()
     await buttonByText(wrapper, 'Видалити').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(alertText(wrapper)).not.toBe('')
     expect(wrapper.find('.panel-list a').exists()).toBe(true)
   })
 
@@ -281,7 +282,7 @@ describe('HomeView', () => {
     routeFetch({ 'GET /panels?page=1': () => ldList([p('a')], 30) })
     const { wrapper } = await mountView(HomeView)
     await flushPromises()
-    expect(wrapper.find('nav.pagination').exists()).toBe(false)
+    expect(wrapper.find('nav[aria-label="Сторінки"]').exists()).toBe(false)
   })
 
   it('shows pagination for several pages and loads the next one', async () => {
@@ -291,8 +292,12 @@ describe('HomeView', () => {
     })
     const { wrapper } = await mountView(HomeView)
     await flushPromises()
-    const nav = wrapper.get('nav.pagination')
-    expect(nav.text()).toContain('1 з 2')
+    const nav = wrapper.get('nav[aria-label="Сторінки"]')
+    expect(nav.get('button[aria-current]').text()).toBe('1')
+    expect(nav.get('button[aria-current]').attributes('aria-label')).toBe(
+      'Поточна сторінка, сторінка 1',
+    )
+    expect(nav.get('[aria-label="Перейти на сторінку 2"]').text()).toBe('2')
     expect(buttonByText(wrapper, 'Назад').attributes('disabled')).toBeDefined()
     await buttonByText(wrapper, 'Далі').trigger('click')
     await flushPromises()
@@ -338,7 +343,7 @@ describe('TrashView', () => {
     await flushPromises()
     await buttonByText(wrapper, 'Відновити').trigger('click')
     await flushPromises()
-    const alert = wrapper.get('[role=alert]').text()
+    const alert = alertText(wrapper)
     expect(alert).toContain('вже існує')
     expect(alert).toContain('Перейменуйте')
     expect(wrapper.get('.panel-list strong').text()).toBe('Old')
@@ -353,7 +358,7 @@ describe('TrashView', () => {
     await flushPromises()
     await buttonByText(wrapper, 'Відновити').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).not.toContain('Перейменуйте')
+    expect(alertText(wrapper)).not.toContain('Перейменуйте')
   })
 
   it.each([
@@ -369,15 +374,15 @@ describe('TrashView', () => {
     await flushPromises()
     await buttonByText(wrapper, 'Відновити').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
-    expect(wrapper.get('[role=alert]').text()).not.toContain('Перейменуйте')
+    expect(alertText(wrapper)).not.toBe('')
+    expect(alertText(wrapper)).not.toContain('Перейменуйте')
   })
 
   it('shows no rename hint when nothing failed', async () => {
     routeFetch({ 'GET /panels/trash?page=1': () => ldList([trashed('t')]) })
     const { wrapper } = await mountView(TrashView)
     await flushPromises()
-    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+    expect(hasAlert(wrapper)).toBe(false)
     expect(wrapper.text()).not.toContain('Перейменуйте')
   })
 
@@ -397,7 +402,7 @@ describe('TrashView', () => {
     await flushPromises()
     expect(f.count('POST /panels/t/restore')).toBe(1)
     expect(wrapper.findAll('.panel-list strong').map((s) => s.text())).toEqual(['Other'])
-    const alert = wrapper.get('[role=alert]').text()
+    const alert = alertText(wrapper)
     expect(alert).not.toBe('')
     expect(alert).not.toContain('Перейменуйте')
   })
@@ -418,7 +423,7 @@ describe('TrashView', () => {
     await buttonByText(wrapper, 'Видалити назавжди').trigger('click')
     await flushPromises()
     expect(wrapper.findAll('.panel-list strong').map((s) => s.text())).toEqual(['Other'])
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(alertText(wrapper)).not.toBe('')
   })
 
   it('does not reload the trash when the restore failed', async () => {
@@ -477,7 +482,7 @@ describe('TrashView', () => {
     routeFetch({ 'GET /panels/trash?page=1': () => ldList([trashed('t')], 61) })
     const { wrapper } = await mountView(TrashView)
     await flushPromises()
-    expect(wrapper.get('nav.pagination').text()).toContain('1 з 3')
+    expect(wrapper.get('nav[aria-label="Сторінки"]').findAll('li')).toHaveLength(5)
   })
 })
 
@@ -494,7 +499,7 @@ describe('PanelView', () => {
     expect(wrapper.text()).toContain('230 В / 50 Гц / 4 мм²')
     expect(wrapper.text()).toContain('2 проводи')
     expect(wrapper.text()).toContain('КЗ не виявлено')
-    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+    expect(hasAlert(wrapper)).toBe(false)
   })
 
   it('lists short circuits with human readable sources', async () => {
@@ -507,7 +512,7 @@ describe('PanelView', () => {
     })
     const { wrapper } = await mountView(PanelView, '/', { id: 'p1' })
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('1')
+    expect(alertText(wrapper)).toContain('1')
     expect(wrapper.text()).toContain('вхідний кабель 1, провід 1 (коричневий)')
     expect(wrapper.text()).toContain('провід №1')
     expect(wrapper.text()).not.toContain('КЗ не виявлено')
@@ -517,7 +522,7 @@ describe('PanelView', () => {
     routeFetch({ 'GET /panels/p1': () => problem(404, 'not_found') })
     const { wrapper } = await mountView(PanelView, '/', { id: 'p1' })
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toBe('Щит не знайдено.')
+    expect(alertText(wrapper)).toBe('Щит не знайдено.')
     expect(wrapper.find('h1').exists()).toBe(false)
   })
 
@@ -525,7 +530,7 @@ describe('PanelView', () => {
     routeFetch({ 'GET /panels/p1': () => jsonResponse(500, {}) })
     const { wrapper } = await mountView(PanelView, '/', { id: 'p1' })
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(alertText(wrapper)).not.toBe('')
     expect(wrapper.text()).not.toContain('Щит не знайдено')
   })
 
@@ -571,7 +576,8 @@ describe('PanelView', () => {
     await flushPromises()
     await buttonByText(wrapper, 'Видалити').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.name).toBe('home')
+    // the navigation settles a few ticks later now that the view contains a v-dialog
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('home'))
   })
 
   it('reuses unsaved editor state of the same user instead of fetching again', async () => {
@@ -637,7 +643,7 @@ describe('PanelView', () => {
     routeFetch({ 'GET /panels/p1': () => jsonResponse(200, full({ content: undefined })) })
     const { wrapper } = await mountView(PanelView, '/', { id: 'p1' })
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toBe('Не вдалося завантажити щит.')
+    expect(alertText(wrapper)).toBe('Не вдалося завантажити щит.')
     expect(wrapper.text()).not.toContain('Завантаження')
   })
 
@@ -662,10 +668,10 @@ describe('PanelView', () => {
     })
     const { wrapper } = await mountView(PanelView, '/', { id: 'p1' })
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toBe('Не вдалося завантажити щит.')
+    expect(alertText(wrapper)).toBe('Не вдалося завантажити щит.')
     await wrapper.setProps({ id: 'p2' })
     await flushPromises()
-    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+    expect(hasAlert(wrapper)).toBe(false)
     expect(wrapper.get('h1').text()).toBe('Другий')
   })
 
@@ -698,7 +704,7 @@ describe('PanelView', () => {
     await flushPromises()
     expect(wrapper.get('h1').text()).toBe('Panel B')
     expect(wrapper.text()).not.toContain('Щит не знайдено')
-    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+    expect(hasAlert(wrapper)).toBe(false)
   })
 
   it('race: A resolves late with a server error while B is still loading -> B result decides', async () => {
@@ -711,7 +717,7 @@ describe('PanelView', () => {
     a.resolve(jsonResponse(500, {}))
     await flushPromises()
     expect(wrapper.text()).toContain('Завантаження')
-    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+    expect(hasAlert(wrapper)).toBe(false)
     b.resolve(jsonResponse(200, p('b', 'Panel B')))
     await flushPromises()
     expect(wrapper.get('h1').text()).toBe('Panel B')
@@ -729,7 +735,7 @@ describe('PanelView', () => {
     a.resolve(jsonResponse(200, p('a', 'Panel A')))
     await flushPromises()
     expect(wrapper.find('h1').exists()).toBe(false)
-    expect(wrapper.get('[role=alert]').text()).toBe('Не вдалося завантажити щит.')
+    expect(alertText(wrapper)).toBe('Не вдалося завантажити щит.')
   })
 
   it('shows an error and stays when the soft delete fails', async () => {
@@ -743,7 +749,7 @@ describe('PanelView', () => {
     await buttonByText(wrapper, 'Видалити').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('test')
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(alertText(wrapper)).not.toBe('')
     expect(wrapper.get('h1').text()).toBe('Щит А')
   })
 

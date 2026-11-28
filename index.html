@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:," />
+    <script>
+      // Before the app boots: native colour scheme and background follow the stored theme (no flash).
+      try {
+        var c = JSON.parse(localStorage.getItem('electrical.theme') || 'null')
+        var m = c && c.mode
+        var dark =
+          m === 'dark' ||
+          (m !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var root = document.documentElement
+        root.style.colorScheme = dark ? 'dark' : 'light'
+        root.style.background = dark ? '#121417' : '#f6f7f9'
+      } catch (e) {}
+    </script>
     <title>Конструктор електрощитів</title>
   </head>
   <body>

@@ -17,6 +17,7 @@ import {
 } from '@/domain/__tests__/helpers'
 import { mountEditor, stubLayout } from './harness'
 import { t } from '@/i18n'
+import { choose, selectDisabled, selectIn, selectValue } from '@/test/vuetifySelect'
 
 const base: PanelContent = content({
   inputCables: [inputCable(1, [2, 3], ['brown', 'blue'])],
@@ -55,7 +56,7 @@ describe('ATS properties', () => {
     const { wrapper } = await open(base, 'element', id(21))
     expect(wrapper.find('section[aria-label="Властивості апарата"]').exists()).toBe(false)
     expect((input(wrapper, S, 'Ширина, модулів').element as HTMLInputElement).value).toBe('2')
-    expect((section(wrapper, S).get('select').element as HTMLSelectElement).value).toBe('A')
+    expect(selectValue(selectIn(section(wrapper, S)))).toBe('A')
     expect(
       (section(wrapper, S).get('input[type=checkbox]').element as HTMLInputElement).checked,
     ).toBe(false)
@@ -88,7 +89,7 @@ describe('ATS properties', () => {
       ),
     }
     const { wrapper, store } = await open(c, 'element', id(21))
-    await section(wrapper, S).get('select').setValue(value)
+    await choose(selectIn(section(wrapper, S)), value)
     expect(store.content?.rails[0]?.elements[0]).toMatchObject({ state: expected })
     expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити стан АВР')
   })
@@ -148,10 +149,12 @@ describe('ATS properties', () => {
     m.store.select({ kind: 'element', id: id(21) })
     await nextTick()
     const s = section(m.wrapper, S)
-    expect(s.get('select').attributes('disabled')).toBeDefined()
+    expect(selectDisabled(selectIn(s))).toBe(true)
     expect(s.get('input[type=checkbox]').attributes('disabled')).toBeDefined()
     expect(
-      s.findAll('input:not([type=checkbox])').every((i) => i.attributes('disabled') !== undefined),
+      s
+        .findAll('input:not([type=checkbox]):not([type=hidden])')
+        .every((i) => i.attributes('disabled') !== undefined),
     ).toBe(true)
   })
 })
@@ -173,26 +176,26 @@ describe('terminal block properties', () => {
 
   it('the colour select offers grey plus the five wire colours', async () => {
     const { wrapper } = await open(base, 'block', id(50))
-    const options = section(wrapper, 'Властивості клемника в ряду')
-      .get('select')
-      .findAll('option')
-      .map((o) => o.text())
+    const items = selectIn(section(wrapper, 'Властивості клемника в ряду')).props('items') as {
+      title: string
+    }[]
+    const options = items.map((i) => i.title)
     expect(options).toEqual(['сірий', 'чорний', 'коричневий', 'червоний', 'синій', 'жовто-зелений'])
   })
 
   it('choosing a colour and going back to grey', async () => {
     const { wrapper, store } = await open(base, 'block', id(50))
-    const select = section(wrapper, 'Властивості клемника в ряду').get('select')
-    await select.setValue('red')
+    const select = selectIn(section(wrapper, 'Властивості клемника в ряду'))
+    await choose(select, 'red')
     expect(store.content?.terminalRow[0]?.colour).toBe('red')
     expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити колір клемника')
-    await select.setValue('')
+    await choose(select, '')
     expect(store.content?.terminalRow[0]?.colour).toBeNull()
   })
 
   it('a rail block takes a colour too', async () => {
     const { wrapper, store } = await open(base, 'block', id(40))
-    await section(wrapper, 'Властивості клемного блока').get('select').setValue('blue')
+    await choose(selectIn(section(wrapper, 'Властивості клемного блока')), 'blue')
     expect(store.content?.rails[0]?.terminalBlocks[0]?.colour).toBe('blue')
   })
 

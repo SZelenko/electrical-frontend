@@ -3,25 +3,31 @@ import { computed } from 'vue'
 import {
   GREEN_YELLOW_OVERLAY,
   SHORT_CIRCUIT_HIGHLIGHT,
+  WIRE_CASING_EXTRA_MM,
   WIRE_COLOUR_HEX,
   WIRE_STROKE_MM,
 } from '@/domain/geometry'
+import { isDarkTheme } from '@/appTheme'
 import type { PanelWire } from '@/domain/panelContent'
 
 /** One wire; `wire` is a frozen snapshot, `d` the polyline path in tenths of a millimetre. */
-const props = defineProps<{
-  wire: Readonly<PanelWire>
-  d: string
-  selected: boolean
-  shortCircuit: boolean
-  focused: boolean
-  violation: boolean
-  /** Draw the clickable hit stroke (off in translucent mode, where the canvas draws it above the bodies). */
-  hit?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    wire: Readonly<PanelWire>
+    d: string
+    selected: boolean
+    shortCircuit: boolean
+    focused: boolean
+    violation: boolean
+    /** Draw the clickable hit stroke (off in translucent mode, where the canvas draws it above the bodies). */
+    hit?: boolean
+  }>(),
+  { hit: true },
+)
 
 // Stroke widths are drawn in tenths of a millimetre (the model group is scaled by 0.1).
 const width = computed(() => WIRE_STROKE_MM[props.wire.crossSection] * 10)
+const casing = computed(() => (WIRE_STROKE_MM[props.wire.crossSection] + WIRE_CASING_EXTRA_MM) * 10)
 const halo = computed(
   () => (WIRE_STROKE_MM[props.wire.crossSection] + SHORT_CIRCUIT_HIGHLIGHT.extraWidthMm) * 10,
 )
@@ -43,11 +49,21 @@ const halo = computed(
       v-if="selected || violation"
       :d="d"
       fill="none"
-      :stroke="violation ? '#b00020' : '#0a64d6'"
+      :style="{ stroke: violation ? 'var(--schematic-error)' : 'var(--schematic-selection)' }"
       stroke-opacity="0.45"
       :stroke-width="width + 24"
       stroke-linejoin="round"
       pointer-events="none"
+    />
+    <path
+      v-if="isDarkTheme"
+      :d="d"
+      fill="none"
+      :style="{ stroke: 'var(--schematic-casing)' }"
+      :stroke-width="casing"
+      stroke-linejoin="round"
+      pointer-events="none"
+      data-testid="wire-casing"
     />
     <path
       :d="d"
@@ -73,7 +89,7 @@ const halo = computed(
       pointer-events="none"
     />
     <path
-      v-if="hit !== false"
+      v-if="hit"
       :d="d"
       fill="none"
       stroke="transparent"

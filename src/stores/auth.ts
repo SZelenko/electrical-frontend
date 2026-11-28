@@ -3,7 +3,9 @@ import { defineStore } from 'pinia'
 import { authApi, type Me } from '@/api/auth'
 import { ApiError } from '@/api/problem'
 import { configureApi, refreshSession } from '@/api/client'
+import { applyTheme } from '@/appTheme'
 import { applyLocale, isLocale, type Locale } from '@/i18n'
+import { isThemeMode, isThemePalette, type ThemeChoice } from '@/theme'
 
 /**
  * unknown: bootstrap not finished; anonymous: no session; authenticated: token in memory;
@@ -43,6 +45,11 @@ export const useAuthStore = defineStore('auth', () => {
     status.value = 'authenticated'
     // The profile language wins when it is set; null keeps the current one (it is not saved here).
     if (isLocale(data.locale)) applyLocale(data.locale)
+    // The profile theme is applied once, here. Nothing watches `user`: saveLocale/saveTheme replace
+    // it, and a stale copy must never revert what the user chose since.
+    if (isThemeMode(data.themeMode) && isThemePalette(data.themePalette)) {
+      applyTheme({ mode: data.themeMode, palette: data.themePalette })
+    }
   }
 
   /** Loads /me right after a login; on failure no half session (token without user) is kept. */
@@ -151,6 +158,12 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value) user.value = data
   }
 
+  /** Saves the theme to the profile (the UI theme is changed by the caller). */
+  async function saveTheme(theme: ThemeChoice) {
+    const { data } = await authApi.setTheme(theme)
+    if (user.value) user.value = data
+  }
+
   return {
     user,
     status,
@@ -167,5 +180,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     setTwoFactor,
     saveLocale,
+    saveTheme,
   }
 })

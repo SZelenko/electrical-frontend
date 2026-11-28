@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { vuetify } from '@/plugins/vuetify'
+import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import { defineComponent, h, nextTick } from 'vue'
@@ -14,6 +15,7 @@ import { usePanelEditorStore } from '@/stores/panelEditor'
 import { mountView } from '@/test/mountView'
 import AccountView from '../AccountView.vue'
 import PanelView from '../PanelView.vue'
+import { hasDialog } from '@/test/a11y'
 
 const world = buildWorld()
 const Stub = defineComponent({ render: () => h('div', 'stub') })
@@ -78,7 +80,7 @@ async function mountPanel(): Promise<Mounted> {
   await router.push('/panels/p1')
   await router.isReady()
   const wrapper = mount(defineComponent({ render: () => h(RouterView) }), {
-    global: { plugins: [pinia, router] },
+    global: { plugins: [pinia, router, vuetify] },
     attachTo: document.body,
   })
   mounted.push(wrapper)
@@ -86,7 +88,9 @@ async function mountPanel(): Promise<Mounted> {
   return { wrapper, pinia, router, editor: usePanelEditorStore(), auth }
 }
 
-const button = (w: VueWrapper, name: string | RegExp) =>
+/** The conflict dialog is teleported to the body. */
+const body = () => new DOMWrapper(document.body)
+const button = (w: VueWrapper | DOMWrapper<Element>, name: string | RegExp) =>
   w
     .findAll('button')
     .find((b) => (typeof name === 'string' ? b.text() === name : name.test(b.text())))!
@@ -151,7 +155,8 @@ describe('PanelView: saving', () => {
       save.mockRejectedValueOnce(conflict())
       await button(m.wrapper, 'Зберегти').trigger('click')
       await flushPromises()
-      const dialog = m.wrapper.get('[role=alertdialog]')
+      expect(hasDialog(body())).toBe(true)
+      const dialog = body().get('[role=alertdialog]')
       expect(dialog.text()).toContain('Щит змінено в іншому місці')
       expect(m.editor.dirty).toBe(true)
       expect(m.editor.content?.inputCables[0]?.voltage).toBe(400)
@@ -164,10 +169,10 @@ describe('PanelView: saving', () => {
       await button(m.wrapper, 'Зберегти').trigger('click')
       await flushPromises()
       get.mockResolvedValueOnce(panelOf(world, { version: 9, name: 'Нова версія' }))
-      await button(m.wrapper, /^Завантажити останню версію/).trigger('click')
+      await button(body(), /^Завантажити останню версію/).trigger('click')
       await flushPromises()
       expect(get).toHaveBeenCalledTimes(2)
-      expect(m.wrapper.find('[role=alertdialog]').exists()).toBe(false)
+      expect(hasDialog(body())).toBe(false)
       expect(m.editor.dirty).toBe(false)
       expect(m.editor.baseVersion).toBe(9)
       expect(m.wrapper.get('h1').text()).toBe('Нова версія')
@@ -181,9 +186,9 @@ describe('PanelView: saving', () => {
       await button(m.wrapper, 'Зберегти').trigger('click')
       await flushPromises()
       get.mockRejectedValueOnce(apiError({ status: 0, type: 'network', message: 'n' }))
-      await button(m.wrapper, /^Завантажити останню версію/).trigger('click')
+      await button(body(), /^Завантажити останню версію/).trigger('click')
       await flushPromises()
-      expect(m.wrapper.find('[role=alertdialog]').text()).toContain('Не вдалося завантажити щит')
+      expect(body().find('[role=alertdialog]').text()).toContain('Не вдалося завантажити щит')
       expect(m.editor.dirty).toBe(true)
     })
 
@@ -193,8 +198,8 @@ describe('PanelView: saving', () => {
       save.mockRejectedValueOnce(conflict())
       await button(m.wrapper, 'Зберегти').trigger('click')
       await flushPromises()
-      await button(m.wrapper, /^Продовжити редагування/).trigger('click')
-      expect(m.wrapper.find('[role=alertdialog]').exists()).toBe(false)
+      await button(body(), /^Продовжити редагування/).trigger('click')
+      expect(hasDialog(body())).toBe(false)
       expect(m.wrapper.text()).toContain('Збереження вимкнено')
       expect(button(m.wrapper, 'Зберегти').attributes('disabled')).toBeDefined()
       // editing still works
@@ -220,7 +225,7 @@ describe('PanelView: saving', () => {
     )
     await button(m.wrapper, 'Зберегти').trigger('click')
     await flushPromises()
-    expect(m.wrapper.find('[role=alertdialog]').exists()).toBe(false)
+    expect(hasDialog(body())).toBe(false)
     expect(m.wrapper.text()).toContain('Конфлікт ідентифікаторів')
     expect(button(m.wrapper, 'Зберегти').attributes('disabled')).toBeUndefined()
     expect(m.editor.dirty).toBe(true)
@@ -478,7 +483,8 @@ describe('PanelView: delete confirmation', () => {
     await flushPromises()
     expect(panelsApi.remove).toHaveBeenCalledWith('p1')
     expect(confirm).toHaveBeenCalledTimes(1)
-    expect(m.router.currentRoute.value.name).toBe('home')
+    // the navigation settles a few ticks later now that the view contains a v-dialog
+    await vi.waitFor(() => expect(m.router.currentRoute.value.name).toBe('home'))
   })
 })
 

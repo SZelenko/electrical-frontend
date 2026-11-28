@@ -136,8 +136,8 @@ const spots = computed<Spot[]>(() => {
 
 <style scoped>
 .terminal {
-  fill: #fff;
-  stroke: #3b4658;
+  fill: var(--schematic-sheet);
+  stroke: var(--schematic-frame);
   stroke-width: 6;
 }
 .terminal-hit {
@@ -145,6 +145,6 @@ const spots = computed<Spot[]>(() => {
   cursor: crosshair;
 }
 .terminal-hit:hover {
-  fill: rgb(10 100 214 / 0.3);
+  fill: color-mix(in srgb, var(--schematic-selection) 30%, transparent);
 }
 </style>

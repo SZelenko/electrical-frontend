@@ -171,36 +171,36 @@ const atsName = computed(() =>
 
 <style scoped>
 .body {
-  fill: #fafbfc;
-  stroke: #3b4658;
+  fill: var(--schematic-device);
+  stroke: var(--schematic-frame);
   stroke-width: 6;
   cursor: grab;
 }
 .body.selected {
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 14;
 }
 .body.violation {
-  stroke: #b00020;
+  stroke: var(--schematic-error);
   stroke-dasharray: 20 10;
   stroke-width: 14;
 }
 .strip {
-  fill: #e1e5ea;
+  fill: var(--schematic-device-alt);
 }
 .cover {
-  fill: #aeb4bd;
+  fill: var(--schematic-part-strong);
 }
 .front {
-  fill: #fff;
-  stroke: #c9ced6;
+  fill: var(--schematic-sheet);
+  stroke: var(--schematic-rail);
   stroke-width: 4;
 }
 .group,
 .pos {
   font-size: 32px;
   font-weight: 700;
-  fill: #33415c;
+  fill: var(--schematic-caption);
   user-select: none;
 }
 .pos {
@@ -217,8 +217,8 @@ const atsName = computed(() =>
   stroke-linecap: round;
 }
 .led {
-  fill: #9aa3b0;
-  stroke: #3b4658;
+  fill: var(--schematic-part-strong);
+  stroke: var(--schematic-frame);
   stroke-width: 3;
 }
 .led.a {
@@ -230,12 +230,12 @@ const atsName = computed(() =>
 .marking {
   font-size: 36px;
   font-weight: 600;
-  fill: #1f2733;
+  fill: var(--schematic-caption);
   user-select: none;
 }
 .label {
   font-size: 28px;
-  fill: #33415c;
+  fill: var(--schematic-caption);
   user-select: none;
 }
 </style>

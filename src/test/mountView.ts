@@ -2,13 +2,14 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { createMemoryHistory, createRouter, matchedRouteKey, type Router } from 'vue-router'
 import { computed, type Component } from 'vue'
+import { vuetify } from '@/plugins/vuetify'
 
 const Stub = { template: '<div />' }
 
 /** `global` mount options for a route view mounted without a RouterView (see `mountView`). */
 export function viewGlobal(pinia: Pinia, router: Router) {
   const matched = computed(() => router.currentRoute.value.matched[0])
-  return { plugins: [pinia, router], provide: { [matchedRouteKey as symbol]: matched } }
+  return { plugins: [pinia, router, vuetify], provide: { [matchedRouteKey as symbol]: matched } }
 }
 
 /** Mounts a route view with a real Pinia store and a memory router that has all auth route names. */

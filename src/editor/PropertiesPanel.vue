@@ -61,33 +61,22 @@ const elementKind = computed(() =>
 <style scoped>
 .properties {
   min-width: 15rem;
+  min-height: 0;
+  overflow-y: auto;
 }
 .properties :deep(h3) {
   margin-top: 0;
 }
 .properties :deep(.field) {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
   margin-bottom: 0.6rem;
 }
-.properties :deep(.check) {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-  margin-bottom: 0.4rem;
-}
-.properties :deep(.row) {
-  display: flex;
-  gap: 0.5rem;
-  align-items: end;
-  margin-bottom: 0.5rem;
-}
 .properties :deep(.hint) {
-  color: #55606f;
-  font-size: 0.85rem;
+  margin: 0 0 0.4rem;
 }
 .properties :deep(fieldset) {
   margin: 0.5rem 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgb(var(--v-theme-schematic-border));
+  border-radius: 4px;
 }
 </style>

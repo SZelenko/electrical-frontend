@@ -15,14 +15,16 @@ import {
   MAX_DESCRIPTION_LENGTH,
   WIRE_COLOURS,
 } from '@/domain/limits'
-import { colourName, type WireColour } from '@/domain/panelContent'
+import { colourName } from '@/domain/panelContent'
 import { t } from '@/i18n'
 import { newId } from '../newId'
 import CommitField from './CommitField.vue'
+import SelectField from './SelectField.vue'
 import { useCommit } from './useCommit'
 
 const props = defineProps<{ kind: 'inputCable' | 'outputCable'; id: string }>()
 const { ctx, store, num, commit } = useCommit()
+const colourItems = computed(() => WIRE_COLOURS.map((c) => ({ title: colourName(c, t), value: c })))
 const inputCount = computed(() => store.content?.inputCables.length ?? 0)
 
 const input = computed(() =>
@@ -51,7 +53,7 @@ function removeCable() {
       kind === 'inputCable' ? t('props.cable.ariaLabelInput') : t('props.cable.ariaLabelOutput')
     "
   >
-    <h3>
+    <h3 class="text-subtitle-1 mb-2">
       {{ kind === 'inputCable' ? t('props.cable.titleInput') : t('props.cable.titleOutput') }}
       {{ index + 1 }}
     </h3>
@@ -131,29 +133,22 @@ function removeCable() {
           )
       "
     />
-    <fieldset>
-      <legend>{{ t('props.cable.wires') }}</legend>
-      <div v-for="(wire, i) in cable.wires" :key="wire.id" class="row">
-        <label>
-          {{ t('props.cable.wireColour', { n: i + 1 }) }}
-          <select
-            :value="wire.colour"
-            :disabled="store.readOnly"
-            @change="
-              (e) =>
-                ctx.run(
-                  updateCableWire(wire.id, {
-                    colour: (e.target as HTMLSelectElement).value as WireColour,
-                  }),
-                  'editor.history.changeCableWireColour',
-                )
-            "
-          >
-            <option v-for="c in WIRE_COLOURS" :key="c" :value="c">{{ colourName(c, t) }}</option>
-          </select>
-        </label>
-        <button
+    <fieldset class="wires">
+      <legend class="text-body-2">{{ t('props.cable.wires') }}</legend>
+      <div v-for="(wire, i) in cable.wires" :key="wire.id" class="d-flex ga-2 align-center mb-2">
+        <SelectField
+          :label="t('props.cable.wireColour', { n: i + 1 })"
+          :model-value="wire.colour"
+          :items="colourItems"
+          :disabled="store.readOnly"
+          @update:model-value="
+            (colour) =>
+              ctx.run(updateCableWire(wire.id, { colour }), 'editor.history.changeCableWireColour')
+          "
+        />
+        <v-btn
           type="button"
+          size="small"
           :disabled="store.readOnly || cable.wires.length <= 1"
           :title="
             cable.wires.length <= 1 ? t('props.cable.deleteWireLast') : t('props.cable.deleteWire')
@@ -162,10 +157,11 @@ function removeCable() {
           @click="ctx.run(removeCableWire(wire.id), 'editor.history.removeCableWire')"
         >
           {{ t('common.delete') }}
-        </button>
+        </v-btn>
       </div>
-      <button
+      <v-btn
         type="button"
+        size="small"
         :disabled="store.readOnly || cable.wires.length >= MAX_CABLE_WIRES"
         :title="
           cable.wires.length >= MAX_CABLE_WIRES
@@ -177,10 +173,13 @@ function removeCable() {
         "
       >
         {{ t('props.cable.addWire') }}
-      </button>
+      </v-btn>
     </fieldset>
-    <button
+    <v-btn
       type="button"
+      size="small"
+      color="error"
+      class="mt-2"
       :disabled="store.readOnly || (kind === 'inputCable' && inputCount <= 1)"
       :title="
         kind === 'inputCable' && inputCount <= 1 ? t('props.cable.deleteLastInput') : undefined
@@ -188,6 +187,6 @@ function removeCable() {
       @click="removeCable"
     >
       {{ t('props.cable.delete') }}
-    </button>
+    </v-btn>
   </section>
 </template>

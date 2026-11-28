@@ -12,6 +12,8 @@ export default defineConfig({
     trace: 'on-first-retry',
     // the app picks its language from the browser: the specs assert Ukrainian text
     locale: 'uk-UA',
+    // the default theme is `system`: pin it so the runs do not depend on the container
+    colorScheme: 'light',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 })

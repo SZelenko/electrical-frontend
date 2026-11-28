@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { codePointLength } from '@/domain/limits'
 import { tryEditorContext } from '../useEditor'
 
@@ -22,7 +22,6 @@ const props = defineProps<{
 const emit = defineEmits<{ commit: [value: string] }>()
 
 const editor = tryEditorContext()
-const id = useId()
 const draft = ref(String(props.modelValue))
 watch(
   () => props.modelValue,
@@ -51,31 +50,27 @@ function revert() {
 
 <template>
   <div class="field">
-    <label :for="id">{{ label }}</label>
-    <input
-      :id="id"
-      :value="draft"
+    <v-text-field
+      :model-value="draft"
+      :label="label"
       :type="type ?? 'text'"
       :min="min"
       :max="max"
       :step="step"
       :disabled="disabled"
-      @input="draft = ($event.target as HTMLInputElement).value"
+      :error="maxlength !== undefined && count > maxlength"
+      @update:model-value="draft = String($event ?? '')"
       @blur="commit"
       @keydown.enter.prevent="commit"
       @keydown.esc.stop="revert"
     />
-    <small v-if="maxlength !== undefined" :class="{ over: count > maxlength }" aria-live="polite">
+    <small
+      v-if="maxlength !== undefined"
+      class="text-caption"
+      :class="count > maxlength ? ['over', 'text-error'] : 'text-medium-emphasis'"
+      aria-live="polite"
+    >
       {{ count }}/{{ maxlength }}
     </small>
   </div>
 </template>
-
-<style scoped>
-small {
-  color: #55606f;
-}
-small.over {
-  color: #b00020;
-}
-</style>

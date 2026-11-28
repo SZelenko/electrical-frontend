@@ -7,6 +7,7 @@ import { colourName, type BusbarType, type WireColour } from '@/domain/panelCont
 import { t } from '@/i18n'
 import { busbarIssueText } from '../messages'
 import CommitField from './CommitField.vue'
+import SelectField from './SelectField.vue'
 import { useCommit } from './useCommit'
 
 const props = defineProps<{ id: string }>()
@@ -31,38 +32,36 @@ function setColour(value: string) {
   ctx.run(updateBusbar(props.id, { colour }), 'editor.history.changeBusbarColour')
 }
 
-function onTypeChange(e: Event) {
-  const select = e.target as HTMLSelectElement
-  const outcome = ctx.run(
-    updateBusbar(props.id, { type: select.value as BusbarType }),
-    'editor.history.changeBusbarType',
-  )
-  // a rejected change leaves the model as it was: show the stored type again
-  if (!outcome.ok && found.value) select.value = found.value.busbar.type
+// a rejected change leaves the model as it was, so the select keeps showing the stored type
+function onTypeChange(type: BusbarType) {
+  ctx.run(updateBusbar(props.id, { type }), 'editor.history.changeBusbarType')
 }
+const typeItems = typeOptions.map((o) => ({ title: o.label, value: o.value }))
+const colourItems = computed(() =>
+  BLOCK_COLOURS.map((c) => ({
+    title: c ? colourName(c, t) : t('domain.colour.grey'),
+    value: c ?? '',
+  })),
+)
 </script>
 
 <template>
   <section v-if="found" :aria-label="t('props.busbar.ariaLabel')">
-    <h3>{{ t('props.busbar.title') }}</h3>
-    <label class="field">
-      {{ t('props.busbar.type') }}
-      <select :value="found.busbar.type" :disabled="store.readOnly" @change="onTypeChange">
-        <option v-for="o in typeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-      </select>
-    </label>
-    <label class="field">
-      {{ t('props.colour') }}
-      <select
-        :value="found.busbar.colour ?? ''"
-        :disabled="store.readOnly"
-        @change="(e) => setColour((e.target as HTMLSelectElement).value)"
-      >
-        <option v-for="c in BLOCK_COLOURS" :key="c ?? 'grey'" :value="c ?? ''">
-          {{ c ? colourName(c, t) : t('domain.colour.grey') }}
-        </option>
-      </select>
-    </label>
+    <h3 class="text-subtitle-1 mb-2">{{ t('props.busbar.title') }}</h3>
+    <SelectField
+      :label="t('props.busbar.type')"
+      :model-value="found.busbar.type"
+      :items="typeItems"
+      :disabled="store.readOnly"
+      @update:model-value="onTypeChange"
+    />
+    <SelectField
+      :label="t('props.colour')"
+      :model-value="found.busbar.colour ?? ''"
+      :items="colourItems"
+      :disabled="store.readOnly"
+      @update:model-value="setColour"
+    />
     <CommitField
       :label="t('props.busbar.count')"
       type="number"
@@ -75,13 +74,31 @@ function onTypeChange(e: Event) {
           commit(num(v), (n) => updateBusbar(id, { count: n }), 'editor.history.changeBusbarLength')
       "
     />
-    <p class="hint">{{ t('props.busbar.hint', { max: maxCount }) }}</p>
-    <p v-if="found.busbar.type === 'LN'" class="hint">{{ t('props.busbar.hintLN') }}</p>
-    <ul v-if="issues.length > 0" class="form-error" role="alert">
-      <li v-for="issue in issues" :key="issue.kind">{{ busbarIssueText(issue.kind, t) }}</li>
-    </ul>
-    <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
+    <p class="hint text-caption text-medium-emphasis">
+      {{ t('props.busbar.hint', { max: maxCount }) }}
+    </p>
+    <p v-if="found.busbar.type === 'LN'" class="hint text-caption text-medium-emphasis">
+      {{ t('props.busbar.hintLN') }}
+    </p>
+    <v-alert
+      v-if="issues.length > 0"
+      type="error"
+      variant="tonal"
+      density="compact"
+      class="mb-2 text-body-2"
+    >
+      <ul class="ps-4">
+        <li v-for="issue in issues" :key="issue.kind">{{ busbarIssueText(issue.kind, t) }}</li>
+      </ul>
+    </v-alert>
+    <v-btn
+      type="button"
+      size="small"
+      color="error"
+      :disabled="store.readOnly"
+      @click="ctx.deleteSelected"
+    >
       {{ t('props.busbar.delete') }}
-    </button>
+    </v-btn>
   </section>
 </template>

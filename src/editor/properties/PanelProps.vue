@@ -1,55 +1,46 @@
 <script setup lang="ts">
 import { setCableSides } from '@/domain/commands'
-import { CABLE_SIDES } from '@/domain/panelContent'
+import { computed } from 'vue'
+import { CABLE_SIDES, type CableSide } from '@/domain/panelContent'
 import { t } from '@/i18n'
 import RailWidthField from './RailWidthField.vue'
+import SelectField from './SelectField.vue'
 import { useCommit } from './useCommit'
 
 const { ctx, store } = useCommit()
 
-function setSide(kind: 'input' | 'output', e: Event) {
-  const select = e.target as HTMLSelectElement
-  const side = CABLE_SIDES.find((s) => s === select.value)
-  if (!side) return
-  const outcome = ctx.run(setCableSides({ [kind]: side }), 'editor.history.changeCableSides')
-  // a rejected change must not leave the rejected option showing
-  if (!outcome.ok && store.content) select.value = store.content[`${kind}CableSide`]
+// a rejected change leaves the model as it was, so the select keeps showing the stored side
+function setSide(kind: 'input' | 'output', side: CableSide) {
+  ctx.run(setCableSides({ [kind]: side }), 'editor.history.changeCableSides')
 }
+const sideItems = computed(() =>
+  CABLE_SIDES.map((s) => ({ title: t(`props.panel.side.${s}`), value: s })),
+)
 </script>
 
 <template>
   <section :aria-label="t('props.panel.ariaLabel')">
-    <h3>{{ t('props.panel.title') }}</h3>
+    <h3 class="text-subtitle-1 mb-2">{{ t('props.panel.title') }}</h3>
     <RailWidthField />
     <template v-if="store.content">
-      <label class="field">
-        {{ t('props.panel.inputSide') }}
-        <select
-          :value="store.content.inputCableSide"
-          :disabled="store.readOnly"
-          data-testid="input-cable-side"
-          @change="(e) => setSide('input', e)"
-        >
-          <option v-for="s in CABLE_SIDES" :key="s" :value="s">
-            {{ t(`props.panel.side.${s}`) }}
-          </option>
-        </select>
-      </label>
-      <label class="field">
-        {{ t('props.panel.outputSide') }}
-        <select
-          :value="store.content.outputCableSide"
-          :disabled="store.readOnly"
-          data-testid="output-cable-side"
-          @change="(e) => setSide('output', e)"
-        >
-          <option v-for="s in CABLE_SIDES" :key="s" :value="s">
-            {{ t(`props.panel.side.${s}`) }}
-          </option>
-        </select>
-      </label>
+      <SelectField
+        :label="t('props.panel.inputSide')"
+        :model-value="store.content.inputCableSide"
+        :items="sideItems"
+        :disabled="store.readOnly"
+        data-testid="input-cable-side"
+        @update:model-value="(side) => setSide('input', side)"
+      />
+      <SelectField
+        :label="t('props.panel.outputSide')"
+        :model-value="store.content.outputCableSide"
+        :items="sideItems"
+        :disabled="store.readOnly"
+        data-testid="output-cable-side"
+        @update:model-value="(side) => setSide('output', side)"
+      />
     </template>
-    <p class="hint">{{ t('props.panel.hintWidth') }}</p>
-    <p class="hint">{{ t('props.panel.hintSelect') }}</p>
+    <p class="hint text-caption text-medium-emphasis">{{ t('props.panel.hintWidth') }}</p>
+    <p class="hint text-caption text-medium-emphasis">{{ t('props.panel.hintSelect') }}</p>
   </section>
 </template>

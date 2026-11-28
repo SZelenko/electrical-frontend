@@ -137,7 +137,7 @@ describe('toggle zones sit above the wires', () => {
       clientY: 5,
     })
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointerup', { button: 0, pointerId: 1, clientX: 5, clientY: 5 })
     expect(on(store.content)).toBe(false)
     expect(store.selection).toEqual({ kind: 'element', id: id(20) })

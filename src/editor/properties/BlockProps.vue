@@ -10,6 +10,7 @@ import {
 import { colourName, type WireColour } from '@/domain/panelContent'
 import { t } from '@/i18n'
 import CommitField from './CommitField.vue'
+import SelectField from './SelectField.vue'
 import { useCommit } from './useCommit'
 
 const props = defineProps<{ id: string }>()
@@ -18,6 +19,12 @@ const found = computed(() => store.index?.blocks.get(props.id))
 const row = computed(() => found.value?.rail === null)
 const rowId = computed(() => found.value?.row ?? null)
 const colourValue = computed(() => found.value?.block.colour ?? '')
+const colourItems = computed(() =>
+  BLOCK_COLOURS.map((c) => ({
+    title: c ? colourName(c, t) : t('domain.colour.grey'),
+    value: c ?? '',
+  })),
+)
 
 function setColour(value: string) {
   const colour = value === '' ? null : (value as WireColour)
@@ -30,7 +37,9 @@ function setColour(value: string) {
     v-if="found"
     :aria-label="row ? t('props.block.ariaLabelRow') : t('props.block.ariaLabelRail')"
   >
-    <h3>{{ row ? t('props.block.titleRow') : t('props.block.titleRail') }}</h3>
+    <h3 class="text-subtitle-1 mb-2">
+      {{ row ? t('props.block.titleRow') : t('props.block.titleRail') }}
+    </h3>
     <CommitField
       :label="t('props.name')"
       :maxlength="MAX_LABEL_LENGTH"
@@ -38,18 +47,13 @@ function setColour(value: string) {
       :disabled="store.readOnly"
       @commit="(v) => ctx.run(updateBlock(id, { label: v }), 'editor.history.changeBlockLabel')"
     />
-    <label class="field">
-      {{ t('props.colour') }}
-      <select
-        :value="colourValue"
-        :disabled="store.readOnly"
-        @change="(e) => setColour((e.target as HTMLSelectElement).value)"
-      >
-        <option v-for="c in BLOCK_COLOURS" :key="c ?? 'grey'" :value="c ?? ''">
-          {{ c ? colourName(c, t) : t('domain.colour.grey') }}
-        </option>
-      </select>
-    </label>
+    <SelectField
+      :label="t('props.colour')"
+      :model-value="colourValue"
+      :items="colourItems"
+      :disabled="store.readOnly"
+      @update:model-value="setColour"
+    />
     <CommitField
       :label="t('props.block.terminalCount')"
       type="number"
@@ -66,23 +70,33 @@ function setColour(value: string) {
           )
       "
     />
-    <p v-if="row" class="hint">{{ t('props.block.rowWidth', { n: found.block.widthModules }) }}</p>
-    <p v-else class="hint">{{ t('props.block.railWidth') }}</p>
+    <p v-if="row" class="hint text-caption text-medium-emphasis">
+      {{ t('props.block.rowWidth', { n: found.block.widthModules }) }}
+    </p>
+    <p v-else class="hint text-caption text-medium-emphasis">{{ t('props.block.railWidth') }}</p>
     <template v-if="rowId">
-      <p class="hint" data-testid="block-row">
+      <p class="hint text-caption text-medium-emphasis" data-testid="block-row">
         {{ t(`domain.rowTitle.${rowId}`) }}
       </p>
-      <button
+      <v-btn
         type="button"
+        size="small"
+        class="mr-2 mb-2"
         :disabled="store.readOnly || ctx.translucent.value"
         data-testid="move-block-row"
         @click="ctx.run(moveBlockToOtherRow(id), 'editor.history.moveBlockRow')"
       >
         {{ rowId === 'top' ? t('props.block.moveToBottom') : t('props.block.moveToTop') }}
-      </button>
+      </v-btn>
     </template>
-    <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
+    <v-btn
+      type="button"
+      size="small"
+      color="error"
+      :disabled="store.readOnly"
+      @click="ctx.deleteSelected"
+    >
       {{ row ? t('props.block.deleteRow') : t('props.block.deleteRail') }}
-    </button>
+    </v-btn>
   </section>
 </template>

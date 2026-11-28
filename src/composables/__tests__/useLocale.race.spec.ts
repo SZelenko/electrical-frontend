@@ -1,12 +1,18 @@
 /** Rapid language changes while signed in, and the switcher while the session is being checked. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, DOMWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { i18n, LOCALE_STORAGE_KEY } from '@/i18n'
+import { vuetify } from '@/plugins/vuetify'
 import { useAuthStore } from '@/stores/auth'
 import { jsonResponse, ME } from '@/test/http'
 import { useLocale } from '../useLocale'
+import { choose, selectDisabled, selectIn } from '@/test/vuetifySelect'
+import { shown } from '@/test/a11y'
+
+/** The snackbar is teleported to the body. */
+const body = () => new DOMWrapper(document.body)
 
 interface Pending {
   locale: string
@@ -41,6 +47,7 @@ beforeEach(() => {
   useAuthStore().status = 'authenticated'
 })
 afterEach(() => {
+  document.body.innerHTML = '' // teleported snackbars of earlier tests
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   localStorage.clear()
@@ -100,60 +107,60 @@ describe('LanguageSwitcher with quick changes', () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     useAuthStore().status = 'authenticated'
-    return mount(LanguageSwitcher, { global: { plugins: [pinia] } })
+    return mount(LanguageSwitcher, { global: { plugins: [pinia, vuetify] } })
   }
-  const notice = (w: ReturnType<typeof mountIt>) => w.find('[data-testid=locale-not-saved]')
+  const notice = () => shown(body(), '[data-testid=locale-not-saved]')
 
   it('a stale failure neither sets the notice nor hides the newer success', async () => {
     const pending = controlledFetch()
     const w = mountIt()
-    const select = w.get('select')
-    await select.setValue('en')
+    const select = selectIn(w)
+    await choose(select, 'en')
     await tick()
-    await select.setValue('uk')
+    await choose(select, 'uk')
     pending[0]!.respond(false) // the older save failed after a newer choice was made
     await tick()
-    expect(notice(w).exists()).toBe(false)
+    expect(notice().exists()).toBe(false)
     pending[1]!.respond(true)
     await tick()
-    expect(notice(w).exists()).toBe(false)
+    expect(notice().exists()).toBe(false)
   })
 
   it('a stale success does not clear the notice of the newest failure', async () => {
     const pending = controlledFetch()
     const w = mountIt()
-    const select = w.get('select')
-    await select.setValue('en')
+    const select = selectIn(w)
+    await choose(select, 'en')
     await tick()
-    await select.setValue('uk')
+    await choose(select, 'uk')
     pending[0]!.respond(true)
     await tick()
-    expect(notice(w).exists()).toBe(false)
+    expect(notice().exists()).toBe(false)
     pending[1]!.respond(false)
     await tick()
-    expect(notice(w).exists()).toBe(true)
+    expect(notice().exists()).toBe(true)
   })
 
   it('the dismiss button hides the notice', async () => {
     const pending = controlledFetch()
     const w = mountIt()
-    await w.get('select').setValue('en')
+    await choose(selectIn(w), 'en')
     await tick()
     pending[0]!.respond(false)
     await tick()
-    expect(notice(w).exists()).toBe(true)
-    await notice(w).get('button').trigger('click')
-    expect(notice(w).exists()).toBe(false)
+    expect(notice().exists()).toBe(true)
+    await notice().get('button').trigger('click')
+    expect(notice().exists()).toBe(false)
   })
 
   it('the dismiss button is labelled in the current language', async () => {
     const pending = controlledFetch()
     const w = mountIt()
-    await w.get('select').setValue('en')
+    await choose(selectIn(w), 'en')
     await tick()
     pending[0]!.respond(false)
     await tick()
-    expect(notice(w).get('button').attributes('aria-label')).toBe('Close')
+    expect(notice().get('button').attributes('aria-label')).toBe('Close')
   })
 })
 
@@ -163,11 +170,11 @@ describe('LanguageSwitcher while the session status is unknown', () => {
     setActivePinia(pinia)
     const auth = useAuthStore()
     expect(auth.status).toBe('unknown')
-    const w = mount(LanguageSwitcher, { global: { plugins: [pinia] } })
-    expect(w.get('select').attributes('disabled')).toBeDefined()
+    const w = mount(LanguageSwitcher, { global: { plugins: [pinia, vuetify] } })
+    expect(selectDisabled(selectIn(w))).toBe(true)
     auth.status = 'anonymous'
     await tick()
-    expect(w.get('select').attributes('disabled')).toBeUndefined()
+    expect(selectDisabled(selectIn(w))).toBe(false)
   })
 
   it.each(['anonymous', 'authenticated', 'reloginNeeded'] as const)(
@@ -176,8 +183,8 @@ describe('LanguageSwitcher while the session status is unknown', () => {
       const pinia = createPinia()
       setActivePinia(pinia)
       useAuthStore().status = status
-      const w = mount(LanguageSwitcher, { global: { plugins: [pinia] } })
-      expect(w.get('select').attributes('disabled')).toBeUndefined()
+      const w = mount(LanguageSwitcher, { global: { plugins: [pinia, vuetify] } })
+      expect(selectDisabled(selectIn(w))).toBe(false)
     },
   )
 })

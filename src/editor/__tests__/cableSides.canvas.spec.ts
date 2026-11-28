@@ -21,6 +21,7 @@ import {
 import CableRow from '../CableRow.vue'
 import { mountEditor, pointer, stubLayout } from './harness'
 import { t } from '@/i18n'
+import { choose, selectDisabled, selectsIn, selectValue } from '@/test/vuetifySelect'
 
 type Wrapper = Awaited<ReturnType<typeof mountEditor>>['wrapper']
 const CTRL = { ctrlKey: true }
@@ -56,8 +57,8 @@ async function drag(
   mods: { up?: object } = {},
 ) {
   await wrapper.get(selector).trigger('pointerdown', pointer(wrapper, from))
-  await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to))
-  await wrapper.get('svg').trigger('pointerup', pointer(wrapper, to, mods.up ?? {}))
+  await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to))
+  await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, to, mods.up ?? {}))
 }
 function historyLength(store: { undo: () => string | null }): number {
   let n = 0
@@ -288,9 +289,9 @@ describe('dragging a block between the rows', () => {
     const { wrapper, store } = await mountEditor(base)
     const from = centreOf(50)
     await wrapper.get(blockSel(50)).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x, y: 900 }))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: from.x, y: 900 }))
     expect(wrapper.get('.hint').text()).toBe('Перетягніть у ряд клемників')
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x, y: 900 }))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: from.x, y: 900 }))
     expect(store.canUndo).toBe(false)
   })
 
@@ -302,11 +303,11 @@ describe('dragging a block between the rows', () => {
       .get(`[data-testid=element][data-id="${id(20)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointermove', pointer(wrapper, { x: from.x, y: rowMid(layout.bottomRowY) }))
     expect(wrapper.get('.hint').text()).toBe('Елемент рейки не можна перенести в ряд клемників')
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointerup', pointer(wrapper, { x: from.x, y: rowMid(layout.bottomRowY) }))
     expect(store.canUndo).toBe(false)
   })
@@ -390,16 +391,15 @@ describe('panel properties: cable side selects', () => {
     await nextTick()
     return m
   }
-  const select = (w: Wrapper, kind: 'input' | 'output') => w.get(`[data-testid=${kind}-cable-side]`)
+  const select = (w: Wrapper, kind: 'input' | 'output') =>
+    selectsIn(w).find((s) => s.attributes('data-testid') === `${kind}-cable-side`)!
 
   it('shows the current sides', async () => {
     const { wrapper } = await open()
-    expect((select(wrapper, 'input').element as HTMLSelectElement).value).toBe('top')
-    expect((select(wrapper, 'output').element as HTMLSelectElement).value).toBe('bottom')
+    expect(selectValue(select(wrapper, 'input'))).toBe('top')
+    expect(selectValue(select(wrapper, 'output'))).toBe('bottom')
     expect(
-      select(wrapper, 'input')
-        .findAll('option')
-        .map((o) => o.attributes('value')),
+      (select(wrapper, 'input').props('items') as { value: string }[]).map((i) => i.value),
     ).toEqual(['top', 'bottom', 'left', 'right'])
   })
 
@@ -411,7 +411,7 @@ describe('panel properties: cable side selects', () => {
     'changing the %s select to %s calls setCableSides: only that side changes',
     async (kind, value, key) => {
       const { wrapper, store } = await open()
-      await select(wrapper, kind).setValue(value)
+      await choose(select(wrapper, kind), value)
       expect(store.content?.[key]).toBe(value)
       const otherKey = key === 'inputCableSide' ? 'outputCableSide' : 'inputCableSide'
       expect(store.content?.[otherKey]).toBe(base[otherKey])
@@ -424,32 +424,32 @@ describe('panel properties: cable side selects', () => {
     const { wrapper, store } = await open(wired)
     store.apply(addAuto(30, cw(id(2)), pole(id(20), 0, 'input')), 'editor.history.addWire')
     const before = store.content
-    await select(wrapper, 'input').setValue('left')
+    await choose(select(wrapper, 'input'), 'left')
     expect(store.content?.inputCableSide).toBe('left')
     expect(store.content?.wires[0]?.bends).not.toEqual(before?.wires[0]?.bends)
     expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити сторону кабелів')
     store.undo()
     expect(store.content).toBe(before)
     await nextTick()
-    expect((select(wrapper, 'input').element as HTMLSelectElement).value).toBe('top')
+    expect(selectValue(select(wrapper, 'input'))).toBe('top')
   })
 
   it('selecting the same side records nothing', async () => {
     const { wrapper, store } = await open()
-    await select(wrapper, 'input').setValue('top')
+    await choose(select(wrapper, 'input'), 'top')
     expect(store.canUndo).toBe(false)
   })
 
   it('both selects may name the same side', async () => {
     const { wrapper, store } = await open()
-    await select(wrapper, 'output').setValue('top')
+    await choose(select(wrapper, 'output'), 'top')
     expect(store.content).toMatchObject({ inputCableSide: 'top', outputCableSide: 'top' })
   })
 
   it('both selects are disabled on a read-only panel and change nothing', async () => {
     const { wrapper, store } = await open(base, { deletedAt: '2026-02-01T00:00:00+00:00' })
-    expect(select(wrapper, 'input').attributes('disabled')).toBeDefined()
-    expect(select(wrapper, 'output').attributes('disabled')).toBeDefined()
+    expect(selectDisabled(select(wrapper, 'input'))).toBe(true)
+    expect(selectDisabled(select(wrapper, 'output'))).toBe(true)
     expect(store.canUndo).toBe(false)
   })
 
@@ -461,7 +461,7 @@ describe('panel properties: cable side selects', () => {
       rails: [rail(10, 24, 99770, [element(20, 0, 2, 2)])],
     })
     const { wrapper, store, ctx } = await open(huge)
-    await select(wrapper, 'output').setValue('bottom')
+    await choose(select(wrapper, 'output'), 'bottom')
     expect(store.content?.outputCableSide).toBe('right')
     expect(store.canUndo).toBe(false)
     expect(ctx.notice.value?.tone).toBe('error')
@@ -499,17 +499,17 @@ describe('panel properties: rejected side change resets the select', () => {
 
   it('the select shows the stored side again after a rejection', async () => {
     const { wrapper, store } = await mountEditor(huge, { properties: true })
-    const el = wrapper.get('[data-testid=output-cable-side]')
-    await el.setValue('bottom')
+    const el = selectsIn(wrapper).find((s) => s.attributes('data-testid') === 'output-cable-side')!
+    await choose(el, 'bottom')
     expect(store.content?.outputCableSide).toBe('right')
-    expect((el.element as HTMLSelectElement).value).toBe('right')
+    expect(selectValue(el)).toBe('right')
   })
 
   it('an accepted change keeps the chosen value', async () => {
     const { wrapper, store } = await mountEditor(huge, { properties: true })
-    const el = wrapper.get('[data-testid=output-cable-side]')
-    await el.setValue('left')
+    const el = selectsIn(wrapper).find((s) => s.attributes('data-testid') === 'output-cable-side')!
+    await choose(el, 'left')
     expect(store.content?.outputCableSide).toBe('left')
-    expect((el.element as HTMLSelectElement).value).toBe('left')
+    expect(selectValue(el)).toBe('left')
   })
 })

@@ -63,7 +63,7 @@ const handleY = computed(() => props.box.y + props.box.h / 2)
         :cy="pt.y"
         r="18"
         :fill="WIRE_COLOUR_HEX[i === 0 ? 'brown' : 'blue']"
-        stroke="#fff"
+        style="stroke: var(--schematic-sheet)"
         stroke-width="6"
         pointer-events="none"
       />
@@ -100,7 +100,7 @@ const handleY = computed(() => props.box.y + props.box.h / 2)
 
 <style scoped>
 .bar {
-  fill: #cfd4dc;
+  fill: var(--schematic-part);
   stroke: #5c4306;
   stroke-width: 4;
   cursor: pointer;
@@ -112,11 +112,11 @@ const handleY = computed(() => props.box.y + props.box.h / 2)
   stroke-dasharray: 30 30;
 }
 .bar.selected {
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 12;
 }
 .bar.violation {
-  stroke: #b00020;
+  stroke: var(--schematic-error);
   stroke-dasharray: 20 10;
   stroke-width: 12;
 }
@@ -125,11 +125,11 @@ const handleY = computed(() => props.box.y + props.box.h / 2)
   cursor: crosshair;
 }
 .terminal-hit:hover {
-  fill: rgb(10 100 214 / 0.3);
+  fill: color-mix(in srgb, var(--schematic-selection) 30%, transparent);
 }
 .handle {
-  fill: #fff;
-  stroke: #0a64d6;
+  fill: var(--schematic-sheet);
+  stroke: var(--schematic-selection);
   stroke-width: 8;
   cursor: ew-resize;
 }

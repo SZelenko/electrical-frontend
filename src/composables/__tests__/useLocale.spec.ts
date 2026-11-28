@@ -1,11 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, DOMWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { applyLocale, i18n, LOCALE_STORAGE_KEY } from '@/i18n'
+import { vuetify } from '@/plugins/vuetify'
 import { useAuthStore } from '@/stores/auth'
 import { jsonResponse, ME, problem, routeFetch } from '@/test/http'
 import { useLocale } from '../useLocale'
+import { choose, selectIn } from '@/test/vuetifySelect'
+import { shown } from '@/test/a11y'
+
+/** The snackbar is teleported to the body. */
+const body = () => new DOMWrapper(document.body)
 
 const PUT = 'PUT /me/locale'
 
@@ -15,6 +21,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
 })
 afterEach(() => {
+  document.body.innerHTML = '' // teleported snackbars of earlier tests
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   localStorage.clear()
@@ -116,17 +123,17 @@ describe('LanguageSwitcher', () => {
     setActivePinia(pinia)
     // the select is disabled while the session bootstrap is pending ('unknown')
     useAuthStore().status = 'anonymous'
-    return mount(LanguageSwitcher, { global: { plugins: [pinia] } })
+    return mount(LanguageSwitcher, { global: { plugins: [pinia, vuetify] } })
   }
 
   it('changes the language and re-renders its own label', async () => {
     const w = mountIt()
     expect(w.text()).toContain('Мова')
-    await w.get('[data-testid=language-switcher]').setValue('en')
+    await choose(selectIn(w), 'en')
     await flushPromises()
     expect(current()).toBe('en')
     expect(w.text()).toContain('Language')
-    expect(w.find('[data-testid=locale-not-saved]').exists()).toBe(false)
+    expect(shown(body(), '[data-testid=locale-not-saved]').exists()).toBe(false)
   })
 
   it('shows a status notice when saving to the profile fails, and clears it on success', async () => {
@@ -137,33 +144,31 @@ describe('LanguageSwitcher', () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     useAuthStore().status = 'authenticated'
-    const w = mount(LanguageSwitcher, { global: { plugins: [pinia] } })
-    const select = w.get('[data-testid=language-switcher]')
-    await select.setValue('en')
+    const w = mount(LanguageSwitcher, { global: { plugins: [pinia, vuetify] } })
+    const select = selectIn(w)
+    await choose(select, 'en')
     await flushPromises()
-    const notice = w.get('[data-testid=locale-not-saved]')
-    expect(notice.attributes('role')).toBe('status')
+    const notice = shown(body(), '[data-testid=locale-not-saved]')
+    expect(notice.find('[role=status]').exists()).toBe(true)
     expect(notice.text()).toContain('Could not save the language to your profile')
     expect(current()).toBe('en')
     fail = false
-    await select.setValue('uk')
+    await choose(select, 'uk')
     await flushPromises()
-    expect(w.find('[data-testid=locale-not-saved]').exists()).toBe(false)
+    expect(shown(body(), '[data-testid=locale-not-saved]').exists()).toBe(false)
   })
 
   it('signed out: no request and no notice', async () => {
     const f = routeFetch({})
     const w = mountIt()
-    await w.get('[data-testid=language-switcher]').setValue('en')
+    await choose(selectIn(w), 'en')
     await flushPromises()
     expect(f.calls).toHaveLength(0)
-    expect(w.find('[data-testid=locale-not-saved]').exists()).toBe(false)
+    expect(shown(body(), '[data-testid=locale-not-saved]').exists()).toBe(false)
   })
 
   it('offers exactly the supported languages', () => {
-    const values = mountIt()
-      .findAll('option')
-      .map((o) => o.attributes('value'))
-    expect(values).toEqual(['uk', 'en'])
+    const items = selectIn(mountIt()).props('items') as { value: string }[]
+    expect(items.map((i) => i.value)).toEqual(['uk', 'en'])
   })
 })

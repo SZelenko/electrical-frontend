@@ -21,6 +21,7 @@ import {
 } from '@/domain/__tests__/helpers'
 import { mountEditor, pointer, stubLayout } from './harness'
 import { t } from '@/i18n'
+import { choose, selectDisabled, selectIn, selectValue } from '@/test/vuetifySelect'
 
 const dev = (n: number, offset: number, poles = 2) => element(n, offset, 1, poles)
 
@@ -143,7 +144,7 @@ describe('busbar properties', () => {
 
   it('shows the type and the count', async () => {
     const { wrapper } = await open()
-    expect((section(wrapper, S).get('select').element as HTMLSelectElement).value).toBe('LN')
+    expect(selectValue(selectIn(section(wrapper, S), 'Тип'))).toBe('LN')
     expect((fieldInput(wrapper, S, 'Кількість апаратів').element as HTMLInputElement).value).toBe(
       '3',
     )
@@ -152,7 +153,7 @@ describe('busbar properties', () => {
 
   it('LN to L deletes the wires on feed N as one entry; undo restores them', async () => {
     const { wrapper, store } = await open()
-    await section(wrapper, S).get('select').setValue('L')
+    await choose(selectIn(section(wrapper, S), 'Тип'), 'L')
     expect(store.content?.rails[0]?.busbars[0]?.type).toBe('L')
     expect(store.content?.wires.map((w) => w.id)).toEqual([id(30)])
     expect(store.undoLabel && t(store.undoLabel)).toBe('Змінити тип шини')
@@ -217,7 +218,7 @@ describe('busbar properties', () => {
     })
     m.store.select({ kind: 'busbar', id: id(60) })
     await nextTick()
-    expect(section(m.wrapper, S).get('select').attributes('disabled')).toBeDefined()
+    expect(selectDisabled(selectIn(section(m.wrapper, S), 'Тип'))).toBe(true)
   })
 })
 
@@ -302,10 +303,10 @@ describe('translucent mode', () => {
     const from = { x: b.x + b.w / 2, y: b.y + b.h / 2 }
     await wrapper.get(elSel(n)).trigger('pointerdown', pointer(wrapper, from, extra))
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointermove', pointer(wrapper, { x: from.x + dx, y: from.y + dy }, extra))
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointerup', pointer(wrapper, { x: from.x + dx, y: from.y + dy }, extra))
   }
 
@@ -338,7 +339,7 @@ describe('translucent mode', () => {
     const b = computeLayout(noBus()).elements.get(id(23))!
     const at = { x: b.x + b.w / 2, y: b.y + b.h / 2 }
     await wrapper.get(elSel(23)).trigger('pointerdown', pointer(wrapper, at))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, at))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, at))
     expect(store.selection).toEqual({ kind: 'element', id: id(23) })
   })
 
@@ -475,10 +476,10 @@ describe('busbar edge drag', () => {
     const y = 600
     await edge(m.wrapper).trigger('pointerdown', pointer(m.wrapper, { x: edgeX(22), y }))
     for (const x of xs) {
-      await m.wrapper.get('svg').trigger('pointermove', pointer(m.wrapper, { x, y }))
+      await m.wrapper.get('svg.canvas').trigger('pointermove', pointer(m.wrapper, { x, y }))
     }
     await m.wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointerup', pointer(m.wrapper, { x: xs[xs.length - 1] ?? 0, y }))
   }
   const count = (m: Awaited<ReturnType<typeof open>>) =>
@@ -641,8 +642,12 @@ describe('translucent wire-hit layer', () => {
     await wrapper
       .get('[data-testid=bend][data-index="0"]')
       .trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x, y: from.y - 60 }))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x, y: from.y - 60 }))
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointermove', pointer(wrapper, { x: from.x, y: from.y - 60 }))
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointerup', pointer(wrapper, { x: from.x, y: from.y - 60 }))
     expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити злам')
     expect(store.content!.wires[0]!.bends[0]!.y).toBe(from.y - 60)
     store.undo()
@@ -659,13 +664,13 @@ describe('translucent wire-hit layer', () => {
       const from = { x: b.x + b.w / 2, y: b.y + b.h / 2 }
       await wrapper.get(elSel(23)).trigger('pointerdown', pointer(wrapper, from))
       await wrapper
-        .get('svg')
+        .get('svg.canvas')
         .trigger('pointermove', pointer(wrapper, { x: from.x + 5 * 175, y: from.y }))
       press()
       await nextTick()
       const ghosts = wrapper.findAll('[data-testid=copy-ghost],[data-testid=invalid-ghost]')
       expect(ghosts.length > 0).toBe(!translucent)
-      await wrapper.get('svg').trigger('pointercancel')
+      await wrapper.get('svg.canvas').trigger('pointercancel')
       wrapper.unmount()
     }
   })
@@ -676,23 +681,21 @@ describe('busbar type select after a rejected change', () => {
     const m = await mountEditor(world(), { properties: true })
     m.store.select({ kind: 'busbar', id: id(60) })
     await nextTick()
-    const select = m.wrapper.get('section[aria-label="Властивості шини"] select')
-    const el = select.element as HTMLSelectElement
-    el.value = 'XX' // not an option: the DOM yields '' and the command rejects it
-    await select.trigger('change')
+    const select = selectIn(m.wrapper.get('section[aria-label="Властивості шини"]'), 'Тип')
+    await choose(select, 'XX') // not an item: the command rejects it
     expect(m.store.content?.rails[0]?.busbars[0]?.type).toBe('LN')
     expect(m.store.canUndo).toBe(false)
     expect(m.ctx.notice.value?.tone).toBe('error')
-    expect(el.value).toBe('LN')
+    expect(selectValue(select)).toBe('LN')
   })
 
   it('an accepted change keeps the new value', async () => {
     const m = await mountEditor(world(), { properties: true })
     m.store.select({ kind: 'busbar', id: id(60) })
     await nextTick()
-    const select = m.wrapper.get('section[aria-label="Властивості шини"] select')
-    await select.setValue('L')
-    expect((select.element as HTMLSelectElement).value).toBe('L')
+    const select = selectIn(m.wrapper.get('section[aria-label="Властивості шини"]'), 'Тип')
+    await choose(select, 'L')
+    expect(selectValue(select)).toBe('L')
     expect(m.store.content?.rails[0]?.busbars[0]?.type).toBe('L')
   })
 })

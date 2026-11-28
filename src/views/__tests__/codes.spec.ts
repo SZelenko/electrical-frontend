@@ -6,6 +6,7 @@ import { mountView } from '@/test/mountView'
 import { RESEND_COOLDOWN_SECONDS } from '@/domain/authCode'
 import VerifyEmailView from '../VerifyEmailView.vue'
 import TwoFactorView from '../TwoFactorView.vue'
+import { alertText, hasAlert, fieldMessages } from '@/test/a11y'
 
 beforeEach(() => {
   vi.stubEnv('VITE_API_URL', 'https://api.test/api/v1')
@@ -68,7 +69,7 @@ describe('VerifyEmailView', () => {
     await wrapper.findAll('input')[1]!.setValue('AAAAAAAA')
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('код')
+    expect(alertText(wrapper)).toContain('код')
     expect(router.currentRoute.value.name).toBe('test')
   })
 
@@ -86,7 +87,7 @@ describe('VerifyEmailView', () => {
     await wrapper.findAll('input')[1]!.setValue('A')
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.findAll('.field-error').map((e) => e.text())).toEqual(['Bad email', 'Bad code'])
+    expect(fieldMessages(wrapper)).toEqual(['Bad email', 'Bad code'])
   })
 
   it('disables submit while pending', async () => {
@@ -137,7 +138,7 @@ describe('VerifyEmailView', () => {
     await vi.advanceTimersByTimeAsync(RESEND_COOLDOWN_SECONDS * 1000)
     await resendBtn(wrapper).trigger('click')
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('20')
+    expect(alertText(wrapper)).toContain('20')
     expect(resendBtn(wrapper).text()).toContain('20')
     expect(resendBtn(wrapper).attributes('disabled')).toBeDefined()
     await vi.advanceTimersByTimeAsync(20_000)
@@ -183,7 +184,7 @@ describe('TwoFactorView', () => {
     await wrapper.get('input').setValue('AAAAAAAA')
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('код')
+    expect(alertText(wrapper)).toContain('код')
     expect(submitBtn(wrapper).attributes('disabled')).toBeUndefined()
     expect(router.currentRoute.value.name).toBe('test')
   })
@@ -207,8 +208,8 @@ describe('TwoFactorView', () => {
     await wrapper.get('input').setValue('AAAAAAAA')
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('.field-error').text()).toBe('Bad code')
-    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+    expect(fieldMessages(wrapper)[0]).toBe('Bad code')
+    expect(hasAlert(wrapper)).toBe(false)
   })
 
   it('keeps submit disabled until the code is complete', async () => {
@@ -229,7 +230,7 @@ describe('TwoFactorView', () => {
     await wrapper.get('input').setValue('AAAAAAAA')
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('30')
+    expect(alertText(wrapper)).toContain('30')
   })
 
   it('disables submit while pending', async () => {
@@ -274,7 +275,7 @@ describe('TwoFactorView', () => {
     await vi.advanceTimersByTimeAsync(RESEND_COOLDOWN_SECONDS * 1000)
     await resendBtn(wrapper).trigger('click')
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('15')
+    expect(alertText(wrapper)).toContain('15')
     expect(resendBtn(wrapper).text()).toContain('15')
   })
 })

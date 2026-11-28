@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mountPlugins } from '@/test/mountWithPlugins'
 import { normalizeCode } from '@/domain/authCode'
 import FormField from '../FormField.vue'
+import { fieldMessages } from '@/test/a11y'
 
 function mountField(props: Record<string, unknown> = {}, modelValue = '') {
-  return mount(FormField, {
+  return mountPlugins(FormField, {
     props: {
       label: 'Код',
       modelValue,
@@ -49,12 +50,13 @@ describe('FormField', () => {
 
   it('renders the first error with aria wiring, and none without errors', async () => {
     wrapper = mountField({ errors: ['bad', 'worse'] })
-    expect(wrapper.get('.field-error').text()).toBe('bad')
+    expect(fieldMessages(wrapper)).toEqual(['bad']) // only the first error is shown
     const input = wrapper.get('input')
     expect(input.attributes('aria-invalid')).toBe('true')
-    expect(input.attributes('aria-describedby')).toBe(wrapper.get('.field-error').attributes('id'))
+    const described = wrapper.get(`[id="${input.attributes('aria-describedby')}"]`)
+    expect(described.text()).toBe('bad')
     await wrapper.setProps({ errors: [] })
-    expect(wrapper.find('.field-error').exists()).toBe(false)
-    expect(input.attributes('aria-describedby')).toBeUndefined()
+    expect(fieldMessages(wrapper)).toEqual([])
+    expect(input.attributes('aria-invalid')).toBe('false')
   })
 })

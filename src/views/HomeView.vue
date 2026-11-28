@@ -44,10 +44,10 @@ async function remove(id: string, name: string) {
 <template>
   <main class="wide">
     <h1>{{ t('panels.myPanels') }}</h1>
-    <nav class="actions" :aria-label="t('common.navigation')">
-      <button v-if="!creating" type="button" @click="creating = true">
+    <nav class="d-flex flex-wrap ga-3 align-center mb-2" :aria-label="t('common.navigation')">
+      <v-btn v-if="!creating" type="button" @click="creating = true">
         {{ t('panels.home.create') }}
-      </button>
+      </v-btn>
       <RouterLink :to="{ name: 'trash' }">{{ t('panels.home.trash') }}</RouterLink>
       <RouterLink :to="{ name: 'account' }">{{ t('panels.home.account') }}</RouterLink>
     </nav>
@@ -61,14 +61,16 @@ async function remove(id: string, name: string) {
       @cancel="creating = false"
     />
 
-    <p v-if="message" class="form-error" role="alert">{{ message }}</p>
+    <v-alert v-if="message" type="error" variant="tonal" density="compact" class="mb-3">
+      {{ message }}
+    </v-alert>
 
     <p v-if="!loaded && pending">{{ t('common.loading') }}</p>
     <p v-else-if="loaded && panels.items.length === 0 && !message">
       {{ t('panels.home.empty') }}
     </p>
-    <ul v-else class="panel-list">
-      <li v-for="panel in panels.items" :key="panel.id">
+    <v-list v-else lines="one" border rounded class="panel-list">
+      <v-list-item v-for="panel in panels.items" :key="panel.id">
         <PanelNameForm
           v-if="renamingId === panel.id"
           :label="t('panels.newName')"
@@ -79,24 +81,24 @@ async function remove(id: string, name: string) {
           @done="renamingId = null"
           @cancel="renamingId = null"
         />
-        <template v-else>
+        <div v-else class="d-flex flex-wrap align-center ga-4">
           <RouterLink :to="{ name: 'panel', params: { id: panel.id } }">{{
             panel.name
           }}</RouterLink>
-          <small>{{
+          <small class="text-medium-emphasis">{{
             t('panels.home.updated', { date: formatDateTime(panel.updatedAt, locale) })
           }}</small>
-          <span class="actions">
-            <button type="button" @click="renamingId = panel.id">
+          <span class="d-flex flex-wrap ga-2 align-center ms-auto">
+            <v-btn type="button" @click="renamingId = panel.id">
               {{ t('common.rename') }}
-            </button>
-            <button type="button" :disabled="pending" @click="remove(panel.id, panel.name)">
+            </v-btn>
+            <v-btn type="button" :disabled="pending" @click="remove(panel.id, panel.name)">
               {{ t('common.delete') }}
-            </button>
+            </v-btn>
           </span>
-        </template>
-      </li>
-    </ul>
+        </div>
+      </v-list-item>
+    </v-list>
 
     <PanelPagination :page="panels.page" :pages="panels.pages" @change="changePage" />
   </main>

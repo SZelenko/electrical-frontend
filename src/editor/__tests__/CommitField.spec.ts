@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { vuetify } from '@/plugins/vuetify'
 import CommitField from '../properties/CommitField.vue'
 import {
   content,
@@ -19,6 +20,7 @@ function mountField(props: Record<string, unknown> = {}) {
   const onCommit = vi.fn()
   const wrapper = mount(CommitField, {
     props: { label: 'Назва', modelValue: 'QF1', onCommit, ...props },
+    global: { plugins: [vuetify] },
     attachTo: document.body,
   })
   return { wrapper, onCommit, input: wrapper.get('input') }
@@ -135,7 +137,7 @@ describe('CommitField: one commit per edit session', () => {
     const { wrapper, input } = mountField({ disabled: true })
     expect(wrapper.get('label').text()).toBe('Назва')
     expect(input.attributes('disabled')).toBeDefined()
-    expect(wrapper.get('label').attributes('for')).toBe(input.attributes('id'))
+    expect(wrapper.get('label[for]').attributes('for')).toBe(input.attributes('id'))
   })
 })
 

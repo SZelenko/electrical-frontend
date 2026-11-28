@@ -26,8 +26,8 @@ defineProps<{ wireId: string; bends: readonly Pt[] }>()
 
 <style scoped>
 .bend {
-  fill: #fff;
-  stroke: #0a64d6;
+  fill: var(--schematic-sheet);
+  stroke: var(--schematic-selection);
   stroke-width: 10;
   cursor: move;
 }

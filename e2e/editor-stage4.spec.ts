@@ -5,6 +5,7 @@ import {
   id,
   mockApi,
   panelContent,
+  pickOption,
   poleEnd,
   rail,
   server,
@@ -192,7 +193,7 @@ test('selecting an element by its corner and changing the style keeps its parame
   await open(page, panelContent({ rails: [rail(10, [element(20, 2, 2, 2)])] }))
   await page.getByTestId('element').click({ position: { x: 6, y: 6 } })
   const region = page.getByRole('region', { name: 'Властивості апарата' })
-  await region.getByLabel('Стиль').selectOption({ label: 'ПЗВ' })
+  await pickOption(region, 'Стиль', 'ПЗВ')
   await expect(page.locator('[data-testid="element"][data-element-style="rcd"]')).toHaveCount(1)
   await expect(
     page.getByRole('button', { name: /^Скасувати: Змінити стиль апарата/ }),

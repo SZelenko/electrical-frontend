@@ -4,6 +4,7 @@ import { t } from '@/i18n'
 import { fitText } from './shapes/fitText'
 import {
   CABLE_LABEL_INSET,
+  GREEN_YELLOW_OVERLAY,
   WIRE_COLOUR_HEX,
   cableTextOffsets,
   type CableBox,
@@ -117,7 +118,10 @@ const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) 
         :cy="wire.pt.y"
         r="22"
         :fill="WIRE_COLOUR_HEX[wire.colour]"
-        :stroke="wire.colour === 'green-yellow' ? '#f2c200' : '#fff'"
+        :style="{
+          stroke:
+            wire.colour === 'green-yellow' ? GREEN_YELLOW_OVERLAY.stroke : 'var(--schematic-sheet)',
+        }"
         stroke-width="8"
         pointer-events="none"
       />
@@ -137,28 +141,28 @@ const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) 
 
 <style scoped>
 .cable-box {
-  fill: #eef2f7;
-  stroke: #6b7a90;
+  fill: var(--schematic-device-alt);
+  stroke: var(--schematic-muted);
   stroke-width: 6;
   cursor: pointer;
 }
 .cable-box.selected {
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 12;
 }
 .cable-box.violation {
-  stroke: #b00020;
+  stroke: var(--schematic-error);
   stroke-dasharray: 20 10;
   stroke-width: 12;
 }
 .cable-label {
   font-size: 40px;
-  fill: #33415c;
+  fill: var(--schematic-caption);
   user-select: none;
 }
 .user-label {
   font-size: 35px;
-  fill: #1f2733;
+  fill: var(--schematic-caption);
   user-select: none;
 }
 .terminal-hit {
@@ -166,6 +170,6 @@ const items = computed(() => props.boxes.map((box) => ({ box, text: textOf(box) 
   cursor: crosshair;
 }
 .terminal-hit:hover {
-  fill: rgb(10 100 214 / 0.3);
+  fill: color-mix(in srgb, var(--schematic-selection) 30%, transparent);
 }
 </style>

@@ -1,18 +1,26 @@
 <script setup lang="ts">
-import { t } from '@/i18n'
+import { mdiChevronLeft, mdiChevronRight } from '@mdi/js'
 
+/** The aria-label props take message keys: Vuetify translates them through the vue-i18n adapter. */
 defineProps<{ page: number; pages: number }>()
 defineEmits<{ change: [page: number] }>()
 </script>
 
 <template>
-  <nav v-if="pages > 1" class="pagination" :aria-label="t('panels.pagination.label')">
-    <button type="button" :disabled="page <= 1" @click="$emit('change', page - 1)">
-      {{ t('common.back') }}
-    </button>
-    <span aria-current="page">{{ t('panels.pagination.page', { page, pages }) }}</span>
-    <button type="button" :disabled="page >= pages" @click="$emit('change', page + 1)">
-      {{ t('common.next') }}
-    </button>
-  </nav>
+  <v-pagination
+    v-if="pages > 1"
+    :model-value="page"
+    :length="pages"
+    :total-visible="5"
+    aria-label="panels.pagination.label"
+    previous-aria-label="common.back"
+    next-aria-label="common.next"
+    page-aria-label="panels.pagination.goToPage"
+    current-page-aria-label="panels.pagination.currentPage"
+    :prev-icon="mdiChevronLeft"
+    :next-icon="mdiChevronRight"
+    density="comfortable"
+    class="mt-4"
+    @update:model-value="$emit('change', $event)"
+  />
 </template>

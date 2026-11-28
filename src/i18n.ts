@@ -1,5 +1,6 @@
 import { watch } from 'vue'
 import { createI18n } from 'vue-i18n'
+import { en as vuetifyEn, uk as vuetifyUk } from 'vuetify/locale'
 import type { Translate, TranslateParams } from '@/domain/translate'
 import en from './locales/en.json'
 import uk from './locales/uk.json'
@@ -49,7 +50,8 @@ export const i18n = createI18n({
   // violation texts fall back to the server's English message for a code we have no key for
   missingWarn: /^(?!violations\.)/,
   fallbackWarn: /^(?!violations\.)/,
-  messages: { uk, en },
+  // Vuetify's own texts (`$vuetify.*`) ride along; the app's files stay plain JSON
+  messages: { uk: { ...uk, $vuetify: vuetifyUk }, en: { ...en, $vuetify: vuetifyEn } },
   pluralRules: { uk: pluralRuleUk },
 })
 

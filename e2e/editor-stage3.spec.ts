@@ -1,5 +1,15 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { element, id, mockApi, panelContent, press, rail, rowBlock, server } from './support'
+import {
+  element,
+  id,
+  mockApi,
+  panelContent,
+  pickOption,
+  press,
+  rail,
+  rowBlock,
+  server,
+} from './support'
 
 async function open(page: Page, content = panelContent()) {
   const s = server(content)
@@ -65,18 +75,12 @@ test('adds an ATS, wires two sources through it and switches the state to clear 
 
   // state Б feeds the output from the source B only: the loop closes on one source, the short circuit goes
   await ats.click({ position: { x: 6, y: 6 } })
-  await page
-    .getByRole('region', { name: 'Властивості АВР' })
-    .locator('select')
-    .selectOption({ label: 'Б' })
+  await pickOption(page.getByRole('region', { name: 'Властивості АВР' }), 'Стан', 'Б')
   await expect(page.getByTestId('ats-state')).toHaveAttribute('data-state', 'B')
   await expect(page.getByText('КЗ не виявлено.')).toBeVisible()
   await expect(page.locator('path[stroke="#ff00ff"]')).toHaveCount(0)
 
-  await page
-    .getByRole('region', { name: 'Властивості АВР' })
-    .locator('select')
-    .selectOption({ label: '0' })
+  await pickOption(page.getByRole('region', { name: 'Властивості АВР' }), 'Стан', '0')
   await expect(page.getByText('КЗ не виявлено.')).toBeVisible()
 
   // undo twice steps back to the state А and the short circuit is back
@@ -139,10 +143,11 @@ test('a coloured rail block gives its colour to a wire started on it', async ({ 
   const blockEl = page.locator('[data-testid="block"][data-block-zone="rail"]')
   await expect(blockEl).toHaveCount(1)
   const blockId = await itemId(blockEl)
-  await page
-    .getByRole('region', { name: 'Властивості клемного блока' })
-    .locator('select')
-    .selectOption({ label: 'червоний' })
+  await pickOption(
+    page.getByRole('region', { name: 'Властивості клемного блока' }),
+    'Колір',
+    'червоний',
+  )
   await press(
     page.locator(
       `[data-ep-kind="terminal"][data-ep-a="${blockId}"][data-ep-b="0"][data-ep-cs="left"]`,

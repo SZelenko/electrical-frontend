@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
-
+import { computed, useTemplateRef, type ComponentPublicInstance } from 'vue'
 const props = defineProps<{
   label: string
   type?: string
@@ -11,32 +10,36 @@ const props = defineProps<{
   maxlength?: number
 }>()
 
-const model = defineModel<string>({ required: true })
-const id = useId()
-const errorId = `${id}-error`
-function onInput(event: Event) {
-  const input = event.target as HTMLInputElement
-  const value = props.normalize ? props.normalize(input.value) : input.value
-  input.value = value
-  model.value = value
-}
 const hasErrors = computed(() => (props.errors?.length ?? 0) > 0)
+const model = defineModel<string>({ required: true })
+
+const field = useTemplateRef<ComponentPublicInstance>('field')
+
+function onUpdate(raw: string | null) {
+  const typed = raw ?? ''
+  const value = props.normalize ? props.normalize(typed) : typed
+  model.value = value
+  // the model may be unchanged (a rejected character), so the DOM value is rewritten by hand
+  const input = field.value?.$el.querySelector('input')
+  if (input && input.value !== value) input.value = value
+}
 </script>
 
 <template>
-  <div class="field">
-    <label :for="id">{{ label }}</label>
-    <input
-      :id="id"
-      :value="model"
-      :type="type ?? 'text'"
-      :autocomplete="autocomplete"
-      :maxlength="maxlength"
-      :aria-invalid="hasErrors"
-      :aria-describedby="hasErrors ? errorId : undefined"
-      required
-      @input="onInput"
-    />
-    <p v-if="hasErrors" :id="errorId" class="field-error">{{ errors?.[0] }}</p>
-  </div>
+  <v-text-field
+    ref="field"
+    :model-value="model"
+    :aria-invalid="hasErrors"
+    :label="label"
+    :type="type ?? 'text'"
+    :autocomplete="autocomplete"
+    :maxlength="maxlength"
+    :error-messages="errors?.slice(0, 1)"
+    variant="outlined"
+    density="comfortable"
+    hide-details="auto"
+    class="mb-3"
+    required
+    @update:model-value="onUpdate"
+  />
 </template>

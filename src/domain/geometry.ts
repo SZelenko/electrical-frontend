@@ -616,6 +616,12 @@ export const SHORT_CIRCUIT_HIGHLIGHT = {
   extraWidthMm: 2,
 } as const
 
+/**
+ * Dark themes only (screen only, never stored or exported): a light casing is drawn under each wire,
+ * this much wider than the wire (mm) - well inside the halo's margin, so the halo stays visible.
+ */
+export const WIRE_CASING_EXTRA_MM = 0.6
+
 export function haloWidthMm(crossSection: WireCrossSection): number {
   return WIRE_STROKE_MM[crossSection] + SHORT_CIRCUIT_HIGHLIGHT.extraWidthMm
 }

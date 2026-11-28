@@ -134,29 +134,29 @@ const markBottom = computed(() => props.box.y + props.box.h - 58 - screwR.value 
 
 <style scoped>
 .body {
-  fill: #fafbfc;
-  stroke: #3b4658;
+  fill: var(--schematic-device);
+  stroke: var(--schematic-frame);
   stroke-width: 6;
   cursor: grab;
 }
 .body.off {
-  fill: #f1f2f4;
+  fill: var(--schematic-device-alt);
 }
 .body.selected {
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 14;
 }
 .body.violation {
-  stroke: #b00020;
+  stroke: var(--schematic-error);
   stroke-dasharray: 20 10;
   stroke-width: 14;
 }
 .strip {
-  fill: #e1e5ea;
+  fill: var(--schematic-device-alt);
 }
 .front {
-  fill: #fff;
-  stroke: #c9ced6;
+  fill: var(--schematic-sheet);
+  stroke: var(--schematic-rail);
   stroke-width: 4;
 }
 .transit-mark {
@@ -165,12 +165,12 @@ const markBottom = computed(() => props.box.y + props.box.h - 58 - screwR.value 
 .marking {
   font-size: 36px;
   font-weight: 600;
-  fill: #1f2733;
+  fill: var(--schematic-caption);
   user-select: none;
 }
 .label {
   font-size: 28px;
-  fill: #33415c;
+  fill: var(--schematic-caption);
   user-select: none;
 }
 </style>

@@ -45,23 +45,23 @@ function removePermanently(id: string, name: string) {
 <template>
   <main class="wide">
     <h1>{{ t('panels.trash.title') }}</h1>
-    <nav class="actions" :aria-label="t('common.navigation')">
+    <nav class="d-flex flex-wrap ga-3 align-center mb-2" :aria-label="t('common.navigation')">
       <RouterLink :to="{ name: 'home' }">{{ t('panels.myPanels') }}</RouterLink>
     </nav>
 
-    <p v-if="message" class="form-error" role="alert">
+    <v-alert v-if="message" type="error" variant="tonal" density="compact" class="mb-3">
       {{ message }}
       <template v-if="error?.type === 'panel_name_conflict'">
         {{ t('panels.trash.renameHint') }}</template
       >
-    </p>
+    </v-alert>
 
     <p v-if="!loaded && pending">{{ t('common.loading') }}</p>
     <p v-else-if="loaded && panels.trashItems.length === 0 && !message">
       {{ t('panels.trash.empty') }}
     </p>
-    <ul v-else class="panel-list">
-      <li v-for="panel in panels.trashItems" :key="panel.id">
+    <v-list v-else lines="one" border rounded class="panel-list">
+      <v-list-item v-for="panel in panels.trashItems" :key="panel.id">
         <PanelNameForm
           v-if="renamingId === panel.id"
           :label="t('panels.newName')"
@@ -72,29 +72,29 @@ function removePermanently(id: string, name: string) {
           @done="renamingId = null"
           @cancel="renamingId = null"
         />
-        <template v-else>
+        <div v-else class="d-flex flex-wrap align-center ga-4">
           <strong>{{ panel.name }}</strong>
-          <small v-if="panel.deletedAt">{{
+          <small v-if="panel.deletedAt" class="text-medium-emphasis">{{
             t('panels.trash.deleted', { date: formatDateTime(panel.deletedAt, locale) })
           }}</small>
-          <span class="actions">
-            <button type="button" :disabled="pending" @click="restore(panel.id)">
+          <span class="d-flex flex-wrap ga-2 align-center ms-auto">
+            <v-btn type="button" :disabled="pending" @click="restore(panel.id)">
               {{ t('panels.trash.restore') }}
-            </button>
-            <button type="button" @click="renamingId = panel.id">
+            </v-btn>
+            <v-btn type="button" @click="renamingId = panel.id">
               {{ t('common.rename') }}
-            </button>
-            <button
+            </v-btn>
+            <v-btn
               type="button"
               :disabled="pending"
               @click="removePermanently(panel.id, panel.name)"
             >
               {{ t('panels.trash.deleteForever') }}
-            </button>
+            </v-btn>
           </span>
-        </template>
-      </li>
-    </ul>
+        </div>
+      </v-list-item>
+    </v-list>
 
     <PanelPagination :page="panels.trashPage" :pages="panels.trashPages" @change="changePage" />
   </main>

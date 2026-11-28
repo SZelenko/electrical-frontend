@@ -15,12 +15,12 @@ const slot = computed(() => props.r * 0.63)
 
 <style scoped>
 .head {
-  fill: #d5d9df;
-  stroke: #8d96a3;
+  fill: var(--schematic-part);
+  stroke: var(--schematic-part-edge);
   stroke-width: 4;
 }
 .slot {
-  stroke: #5d6572;
+  stroke: var(--schematic-frame);
   stroke-width: 6;
   stroke-linecap: round;
 }

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onUnmounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, RouterLink, useRouter } from 'vue-router'
 import PanelNameForm from '@/components/PanelNameForm.vue'
+import StatusNote from '@/components/StatusNote.vue'
 import PanelSummary from '@/components/PanelSummary.vue'
 import { useAsyncForm } from '@/composables/useAsyncForm'
 import { ApiError } from '@/api/problem'
@@ -172,16 +173,18 @@ const errorText = computed(() => {
 
 <template>
   <main class="wide editor-page">
-    <nav class="actions" :aria-label="t('common.navigation')">
+    <nav class="d-flex flex-wrap ga-3 align-center mb-2" :aria-label="t('common.navigation')">
       <RouterLink :to="{ name: 'home' }">{{ t('panels.myPanels') }}</RouterLink>
     </nav>
 
     <p v-if="loading">{{ t('common.loading') }}</p>
-    <p v-else-if="notFound" role="alert">{{ t('panels.view.notFound') }}</p>
+    <v-alert v-else-if="notFound" type="error" variant="tonal" density="compact">
+      {{ t('panels.view.notFound') }}
+    </v-alert>
     <template v-else-if="hasPanel || deleted">
-      <p v-if="editor.deletedAt" class="form-info">
+      <StatusNote v-if="editor.deletedAt" tone="info" class="mb-2">
         {{ t('panels.view.inTrash') }}
-      </p>
+      </StatusNote>
       <PanelNameForm
         v-if="renaming"
         :label="t('panels.newName')"
@@ -194,61 +197,86 @@ const errorText = computed(() => {
       />
       <template v-else>
         <h1>{{ name }}</h1>
-        <div class="actions">
-          <button type="button" @click="renaming = true">
+        <div class="d-flex flex-wrap ga-3 align-center">
+          <v-btn type="button" @click="renaming = true">
             {{ t('common.rename') }}
-          </button>
-          <button v-if="!editor.deletedAt" type="button" :disabled="pending" @click="remove">
+          </v-btn>
+          <v-btn v-if="!editor.deletedAt" type="button" :disabled="pending" @click="remove">
             {{ t('common.delete') }}
-          </button>
-          <button
+          </v-btn>
+          <v-btn
             v-if="!editor.deletedAt"
             type="button"
             class="save"
+            color="primary"
+            variant="flat"
             :disabled="!editor.canSave"
             :title="editor.conflict ? t('panels.view.conflictSaveTitle') : undefined"
             @click="save"
           >
             {{ editor.saving ? t('panels.view.saving') : t('common.save') }}
-          </button>
-          <span v-if="!editor.deletedAt" class="dirty" :class="{ on: editor.dirty }" role="status">
+          </v-btn>
+          <span
+            v-if="!editor.deletedAt"
+            class="dirty text-medium-emphasis"
+            :class="{ on: editor.dirty }"
+            role="status"
+          >
             {{ editor.dirty ? t('panels.view.dirty') : t('panels.view.clean') }}
           </span>
         </div>
       </template>
-      <p v-if="message" class="form-error" role="alert">{{ message }}</p>
+      <v-alert v-if="message" type="error" variant="tonal" density="compact" class="mb-3">
+        {{ message }}
+      </v-alert>
 
       <template v-if="hasPanel">
-        <p v-if="ctx.notice.value" class="notice" :class="ctx.notice.value.tone" role="status">
+        <StatusNote
+          v-if="ctx.notice.value"
+          :tone="ctx.notice.value.tone === 'error' ? 'error' : 'info'"
+          class="notice my-2"
+        >
           {{ ctx.notice.value.text }}
-        </p>
+        </StatusNote>
 
-        <div
+        <v-alert
           v-if="editor.conflict && conflictAcknowledged"
-          class="form-error conflict-banner"
-          role="alert"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="conflict-banner mb-3"
         >
           {{ t('panels.view.conflictBanner') }}
-          <button type="button" :disabled="reloading" @click="reloadDiscard">
+          <v-btn type="button" :disabled="reloading" @click="reloadDiscard">
             {{ t('panels.view.reloadDiscard') }}
-          </button>
-        </div>
-        <p v-if="errorText" class="form-error" role="alert">{{ errorText }}</p>
-        <div v-if="editor.generalViolations.length" class="form-error" role="alert">
+          </v-btn>
+        </v-alert>
+        <v-alert v-if="errorText" type="error" variant="tonal" density="compact" class="mb-3">
+          {{ errorText }}
+        </v-alert>
+        <v-alert
+          v-if="editor.generalViolations.length"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mb-3"
+        >
           {{ t('panels.view.serverRejected') }}
           <ul>
             <li v-for="v in editor.generalViolations" :key="v.propertyPath">
               {{ v.propertyPath }} — {{ v.details.map((d) => violationText(d, t)).join('; ') }}
             </li>
           </ul>
-        </div>
-        <p
+        </v-alert>
+        <v-alert
           v-if="editor.saveError?.kind === 'validation' && editor.violationItems.size"
-          class="form-error"
-          role="alert"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mb-3"
         >
           {{ t('panels.view.violationsHighlighted') }}
-        </p>
+        </v-alert>
 
         <EditorToolbar v-if="!editor.deletedAt" />
 
@@ -262,9 +290,9 @@ const errorText = computed(() => {
             <h2>{{ t('panels.view.shortCircuitsHeading', { n: circuits.length }) }}</h2>
             <ul>
               <li v-for="(c, i) in circuits" :key="i">
-                <button type="button" @click="focusGroup(c.group.wireIds)">
+                <v-btn type="button" @click="focusGroup(c.group.wireIds)">
                   {{ t('panels.view.showOnDiagram') }}
-                </button>
+                </v-btn>
                 {{
                   t('panels.view.shortCircuitGroup', {
                     sources: c.view.sources.join('; '),
@@ -275,13 +303,15 @@ const errorText = computed(() => {
               </li>
             </ul>
           </div>
-          <p v-else class="form-info">{{ t('panels.view.noShortCircuits') }}</p>
+          <StatusNote v-else tone="success">
+            {{ t('panels.view.noShortCircuits') }}
+          </StatusNote>
         </section>
 
         <section>
-          <button type="button" :aria-expanded="showTable" @click="showTable = !showTable">
+          <v-btn type="button" :aria-expanded="showTable" @click="showTable = !showTable">
             {{ showTable ? t('panels.view.hideTable') : t('panels.view.showTable') }}
-          </button>
+          </v-btn>
           <PanelSummary
             v-if="showTable && editor.content"
             :content="editor.content"
@@ -290,84 +320,80 @@ const errorText = computed(() => {
         </section>
       </template>
     </template>
-    <p v-else-if="loadFailed" class="form-error" role="alert">
+    <v-alert v-else-if="loadFailed" type="error" variant="tonal" density="compact">
       {{ t('panels.view.loadFailed') }}
-    </p>
+    </v-alert>
 
-    <div
-      v-if="showConflictDialog"
-      class="backdrop"
+    <v-dialog
+      :model-value="!!showConflictDialog"
+      persistent
+      max-width="28rem"
       role="alertdialog"
-      aria-modal="true"
       aria-labelledby="conflict-title"
     >
-      <div class="dialog">
-        <h2 id="conflict-title">{{ t('panels.view.conflictTitle') }}</h2>
-        <p>{{ t('panels.view.conflictBody') }}</p>
-        <p v-if="reloadFailed" class="form-error" role="alert">
-          {{ t('panels.view.loadFailed') }}
-        </p>
-        <div class="actions">
-          <button type="button" :disabled="reloading" @click="reloadDiscard">
+      <v-card>
+        <v-card-title id="conflict-title" class="text-wrap">
+          {{ t('panels.view.conflictTitle') }}
+        </v-card-title>
+        <v-card-text>
+          <p>{{ t('panels.view.conflictBody') }}</p>
+          <v-alert v-if="reloadFailed" type="error" variant="tonal" density="compact" class="mt-3">
+            {{ t('panels.view.loadFailed') }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions class="flex-wrap">
+          <v-btn type="button" :disabled="reloading" @click="reloadDiscard">
             {{ t('panels.view.reloadDiscard') }}
-          </button>
-          <button type="button" @click="conflictAcknowledged = true">
+          </v-btn>
+          <v-btn type="button" @click="conflictAcknowledged = true">
             {{ t('panels.view.continueEditing') }}
-          </button>
-        </div>
-      </div>
-    </div>
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </main>
 </template>
 
 <style scoped>
 .editor-page {
   max-width: none;
+  /* the app bar already separates the page from the top edge */
+  margin-block: 0;
   padding: 0 1rem;
+  /* a column as tall as the viewport under the app bar: the editor takes what is left */
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--v-layout-top, 0px));
+}
+.editor-page h1 {
+  margin: 0.25rem 0;
 }
 .editor-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 17rem;
+  grid-template-rows: minmax(0, 1fr);
   gap: 1rem;
-  align-items: start;
+  flex: 1 1 0;
+  min-height: 24rem;
 }
 @media (max-width: 60rem) {
+  .editor-page {
+    height: auto;
+  }
   .editor-grid {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
+    flex: none;
+  }
+  .editor-grid :deep(.canvas-wrap) {
+    height: 70vh;
   }
 }
-.dirty {
-  color: #55606f;
-}
 .dirty.on {
-  color: #b35c00;
+  color: rgb(var(--v-theme-warning));
   font-weight: 600;
 }
-.notice {
-  margin: 0.5rem 0;
-  padding: 0.4rem 0.75rem;
-  border-radius: 4px;
-  background: #e8f1fd;
-}
-.notice.error {
-  background: #fdeaea;
-  color: #b00020;
-}
-.backdrop {
-  position: fixed;
-  z-index: 20;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgb(0 0 0 / 0.45);
-}
-.dialog {
-  max-width: 28rem;
-  padding: 1.25rem;
-  background: #fff;
-  border-radius: 6px;
-}
 .short-circuits {
-  margin: 1rem 0;
+  margin: 0.25rem 0;
 }
 </style>

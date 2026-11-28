@@ -6,6 +6,7 @@ import type { VueWrapper } from '@vue/test-utils'
 import RegisterView from '../RegisterView.vue'
 import LoginView from '../LoginView.vue'
 import AccountView from '../AccountView.vue'
+import { alertText, hasAlert, fieldMessages } from '@/test/a11y'
 
 beforeEach(() => vi.stubEnv('VITE_API_URL', 'https://api.test/api/v1'))
 afterEach(() => {
@@ -64,9 +65,9 @@ describe('RegisterView', () => {
     await fill(wrapper, ['a@b.c', 'x'])
     await submit(wrapper)
     await flushPromises()
-    const errors = wrapper.findAll('.field-error').map((e) => e.text())
+    const errors = fieldMessages(wrapper)
     expect(errors).toEqual(['Already registered', 'Too weak'])
-    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+    expect(hasAlert(wrapper)).toBe(false)
     expect(router.currentRoute.value.name).toBe('test')
     expect(wrapper.findAll('input')[0]!.attributes('aria-invalid')).toBe('true')
   })
@@ -79,7 +80,7 @@ describe('RegisterView', () => {
     await fill(wrapper, ['a@b.c', 'Str0ng!pass'])
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('45')
+    expect(alertText(wrapper)).toContain('45')
   })
 
   it('shows a network error message', async () => {
@@ -88,7 +89,7 @@ describe('RegisterView', () => {
     await fill(wrapper, ['a@b.c', 'Str0ng!pass'])
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(alertText(wrapper)).not.toBe('')
   })
 })
 
@@ -145,7 +146,7 @@ describe('LoginView', () => {
     await fill(wrapper, ['a@b.c', 'bad'])
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(alertText(wrapper)).not.toBe('')
     expect(router.currentRoute.value.name).toBe('test')
   })
 
@@ -163,11 +164,8 @@ describe('LoginView', () => {
     await fill(wrapper, ['x', 'y'])
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.findAll('.field-error').map((e) => e.text())).toEqual([
-      'Bad email',
-      'Bad password',
-    ])
-    expect(wrapper.find('[role=alert]').exists()).toBe(false)
+    expect(fieldMessages(wrapper)).toEqual(['Bad email', 'Bad password'])
+    expect(hasAlert(wrapper)).toBe(false)
   })
 
   it('shows the generic message for a violation on an unknown field', async () => {
@@ -179,8 +177,8 @@ describe('LoginView', () => {
     await fill(wrapper, ['x', 'y'])
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.find('.field-error').exists()).toBe(false)
-    expect(wrapper.get('[role=alert]').text()).not.toBe('')
+    expect(fieldMessages(wrapper).length > 0).toBe(false)
+    expect(alertText(wrapper)).not.toBe('')
   })
 
   it('disables submit while pending', async () => {
@@ -207,7 +205,7 @@ describe('LoginView', () => {
     await fill(wrapper, ['a@b.c', 'pw'])
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toMatch(/пізніше/)
+    expect(alertText(wrapper)).toMatch(/пізніше/)
   })
 })
 
@@ -244,7 +242,7 @@ describe('AccountView', () => {
     await fill(wrapper, ['bad'])
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('Невірний пароль')
+    expect(alertText(wrapper)).toContain('Невірний пароль')
     expect(wrapper.text()).toContain('вимкнена')
   })
 
@@ -255,7 +253,7 @@ describe('AccountView', () => {
     await fill(wrapper, ['pw'])
     await submit(wrapper)
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('9')
+    expect(alertText(wrapper)).toContain('9')
   })
 
   it('logs out and goes to /login, even when the server fails', async () => {

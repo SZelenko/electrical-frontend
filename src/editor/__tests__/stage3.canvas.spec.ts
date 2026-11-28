@@ -66,8 +66,8 @@ async function drag(
   mods: { move?: object; up?: object; down?: object } = {},
 ) {
   await wrapper.get(selector).trigger('pointerdown', pointer(wrapper, from, mods.down ?? {}))
-  await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to, mods.move ?? {}))
-  await wrapper.get('svg').trigger('pointerup', pointer(wrapper, to, mods.up ?? {}))
+  await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to, mods.move ?? {}))
+  await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, to, mods.up ?? {}))
 }
 
 describe('rendering of the new kinds', () => {
@@ -142,9 +142,9 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     const { wrapper, store } = await mountEditor(base)
     const from = centreOf(id(50))
     await wrapper.get(blockSel(50)).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x, y: 1000 })) // below the row band (200..450), above the rails
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: from.x, y: 1000 })) // below the row band (200..450), above the rails
     expect(wrapper.get('.hint').text()).toBe('Перетягніть у ряд клемників')
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x, y: 1000 }))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: from.x, y: 1000 }))
     expect(store.canUndo).toBe(false)
   })
 
@@ -153,12 +153,12 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     const from = centreOf(id(50))
     await wrapper.get(blockSel(50)).trigger('pointerdown', pointer(wrapper, from))
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointermove', pointer(wrapper, { x: from.x, y: layout.rails[1]!.cy }))
     expect(wrapper.get('.hint').text()).toBe('Клемник ряду не можна перенести на рейку')
     expect(wrapper.find('[data-testid=invalid-ghost]').exists()).toBe(true)
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointerup', pointer(wrapper, { x: from.x, y: layout.rails[1]!.cy }))
     expect(store.canUndo).toBe(false)
   })
@@ -167,9 +167,9 @@ describe('dragging ATS, rail blocks and row blocks (move)', () => {
     const { wrapper, store } = await mountEditor(base)
     const from = centreOf(id(40))
     await wrapper.get(blockSel(40)).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x, y: 725 })) // inside the top row band (600..850)
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: from.x, y: 725 })) // inside the top row band (600..850)
     expect(wrapper.get('.hint').text()).toBe('Елемент рейки не можна перенести в ряд клемників')
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x, y: 725 }))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: from.x, y: 725 }))
     expect(store.canUndo).toBe(false)
   })
 
@@ -281,12 +281,12 @@ describe('copy by Ctrl/Cmd + drag', () => {
     const from = centreOf(id(20))
     const to = { x: from.x, y: layout.rails[1]!.cy }
     await wrapper.get(itemSel(20)).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to, CTRL))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to, CTRL))
     expect(wrapper.find('[data-testid=copy-ghost]').exists()).toBe(true)
     expect(wrapper.find('[data-testid=invalid-ghost]').exists()).toBe(false)
     expect(store.content?.rails[0]?.elements.map((e) => e.id)).toContain(id(20))
     // releasing the modifier before the drop turns the ghost into a normal move preview
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to))
     expect(wrapper.find('[data-testid=copy-ghost]').exists()).toBe(false)
   })
 
@@ -295,10 +295,10 @@ describe('copy by Ctrl/Cmd + drag', () => {
     const from = centreOf(id(20))
     const to = { x: from.x, y: from.y + 100 } // same rail, same offset
     await wrapper.get(itemSel(20)).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to, CTRL))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to, CTRL))
     expect(wrapper.find('[data-testid=invalid-ghost]').exists()).toBe(true)
     expect(wrapper.find('[data-testid=copy-ghost]').exists()).toBe(false)
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, to, CTRL))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, to, CTRL))
     expect(store.canUndo).toBe(false)
     expect(ctx.notice.value?.text).toContain('Копію не створено')
   })
@@ -332,9 +332,9 @@ describe('copy by Ctrl/Cmd + drag', () => {
     const { wrapper, store, ctx } = await mountEditor(base)
     const before = store.content
     await wrapper.get(sel).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to, CTRL))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to, CTRL))
     expect(wrapper.find('[data-testid=invalid-ghost]').exists()).toBe(true)
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, to, CTRL))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, to, CTRL))
     expect(store.content).toBe(before)
     expect(store.canUndo).toBe(false)
     expect(ctx.notice.value?.text).toContain('Копію не створено')
@@ -344,7 +344,7 @@ describe('copy by Ctrl/Cmd + drag', () => {
     const { wrapper, store } = await mountEditor(base)
     const from = centreOf(id(20))
     await wrapper.get(itemSel(20)).trigger('pointerdown', pointer(wrapper, from, CTRL))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, from, CTRL))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, from, CTRL))
     expect(store.selection).toEqual({ kind: 'element', id: id(20) })
     expect(store.canUndo).toBe(false)
     expect(store.content?.rails[0]?.elements).toHaveLength(2)
@@ -353,7 +353,7 @@ describe('copy by Ctrl/Cmd + drag', () => {
   it('the browser context menu is prevented over the canvas', async () => {
     const { wrapper } = await mountEditor(base)
     const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    wrapper.get('svg').element.dispatchEvent(e)
+    wrapper.get('svg.canvas').element.dispatchEvent(e)
     expect(e.defaultPrevented).toBe(true)
   })
 

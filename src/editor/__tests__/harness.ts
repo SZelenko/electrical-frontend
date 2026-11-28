@@ -1,4 +1,5 @@
 /** Mount helper for the editor component specs: a real store, the editor context and jsdom layout stubs. */
+import { vuetify } from '@/plugins/vuetify'
 import { defineComponent, h } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -71,13 +72,13 @@ export async function mountEditor(
         ])
     },
   })
-  const wrapper = mount(Harness, { global: { plugins: [pinia] }, attachTo: document.body })
+  const wrapper = mount(Harness, { global: { plugins: [pinia, vuetify] }, attachTo: document.body })
   return { wrapper, store, ctx, pinia }
 }
 
 /** Client coordinates of a drawing point (tenths of mm) for the current viewBox of the canvas. */
 export function clientOf(wrapper: VueWrapper, u: { x: number; y: number }) {
-  const [vx, vy, vw, vh] = (wrapper.get('svg').attributes('viewBox') as string)
+  const [vx, vy, vw, vh] = (wrapper.get('svg.canvas').attributes('viewBox') as string)
     .split(' ')
     .map(Number) as [number, number, number, number]
   const scale = Math.min(VIEW_W / vw, VIEW_H / vh)

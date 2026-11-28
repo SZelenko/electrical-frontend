@@ -18,6 +18,7 @@ import {
 } from '@/domain/__tests__/helpers'
 import { mountEditor, panelOf, pointer, stubLayout } from './harness'
 import { t } from '@/i18n'
+import { choose, selectIn } from '@/test/vuetifySelect'
 
 /** C1 (id2, id3); R1 id10 24 modules: E1 id20 [0,2) 2 poles, E2 id21 [4,5) 1 pole, B1 id40 [8,10) 2 terminals; R2 id11 empty. */
 const base: PanelContent = content({
@@ -52,7 +53,7 @@ describe('PanelCanvas: dragging devices', () => {
   it('commits exactly one history entry for a whole drag along the rail', async () => {
     const { wrapper, store } = await mountEditor(base)
     const from = centre(base, id(21))
-    const svg = wrapper.get('svg')
+    const svg = wrapper.get('svg.canvas')
     await wrapper
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
@@ -74,7 +75,7 @@ describe('PanelCanvas: dragging devices', () => {
     await wrapper
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, from))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, from))
     expect(store.selection).toEqual({ kind: 'element', id: id(21) })
     expect(store.canUndo).toBe(false)
   })
@@ -85,8 +86,12 @@ describe('PanelCanvas: dragging devices', () => {
     await wrapper
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: from.x + 20, y: from.y })) // 2 px
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x + 20, y: from.y }))
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointermove', pointer(wrapper, { x: from.x + 20, y: from.y })) // 2 px
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointerup', pointer(wrapper, { x: from.x + 20, y: from.y }))
     expect(store.canUndo).toBe(false)
   })
 
@@ -98,8 +103,8 @@ describe('PanelCanvas: dragging devices', () => {
     await wrapper
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, target))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, target))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, target))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, target))
     expect(store.content?.rails[0]?.elements.map((e) => e.id)).toEqual([id(20)])
     expect(store.content?.rails[1]?.elements.map((e) => e.id)).toEqual([id(21)])
     expect(historyLength(store)).toBe(1)
@@ -112,9 +117,9 @@ describe('PanelCanvas: dragging devices', () => {
     await wrapper
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, onE1))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, onE1))
     expect(wrapper.get('.hint').text()).toBe('Місце зайняте іншим елементом')
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, onE1))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, onE1))
     expect(store.content).toBe(store.savedContent)
     expect(store.canUndo).toBe(false)
     expect(ctx.notice.value).toEqual({
@@ -131,9 +136,9 @@ describe('PanelCanvas: dragging devices', () => {
     await wrapper
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, off))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, off))
     expect(wrapper.get('.hint').text()).toBe('Перетягніть на рейку')
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, off))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, off))
     expect(store.canUndo).toBe(false)
     expect(ctx.notice.value?.text).toContain('повернено на місце')
   })
@@ -145,8 +150,8 @@ describe('PanelCanvas: dragging devices', () => {
     await wrapper
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, past))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, past))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, past))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, past))
     expect(store.canUndo).toBe(false)
   })
 
@@ -158,9 +163,11 @@ describe('PanelCanvas: dragging devices', () => {
       .get(`[data-kind=block][data-id="${id(40)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointermove', pointer(wrapper, { x: from.x + 350, y: from.y }))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x + 350, y: from.y }))
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointerup', pointer(wrapper, { x: from.x + 350, y: from.y }))
     expect(store.content?.rails[0]?.terminalBlocks[0]?.offsetModules).toBe(10)
     expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити клемний блок')
   })
@@ -172,10 +179,12 @@ describe('PanelCanvas: dragging devices', () => {
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointermove', pointer(wrapper, { x: from.x + 350, y: from.y }))
-    await wrapper.get('svg').trigger('pointercancel', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x + 350, y: from.y }))
+    await wrapper.get('svg.canvas').trigger('pointercancel', pointer(wrapper, from))
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointerup', pointer(wrapper, { x: from.x + 350, y: from.y }))
     expect(store.canUndo).toBe(false)
   })
 
@@ -188,9 +197,11 @@ describe('PanelCanvas: dragging devices', () => {
       .get(`[data-testid=element][data-id="${id(21)}"]`)
       .trigger('pointerdown', pointer(wrapper, from))
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointermove', pointer(wrapper, { x: from.x + 350, y: from.y }))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: from.x + 350, y: from.y }))
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointerup', pointer(wrapper, { x: from.x + 350, y: from.y }))
     expect(store.dirty).toBe(false)
     expect(store.canUndo).toBe(false)
   })
@@ -250,7 +261,7 @@ describe('PanelCanvas: drawing a wire', () => {
     await wrapper
       .get(`[data-ep-kind=cableWire][data-ep-a="${id(2)}"]`)
       .trigger('pointerdown', { button: 0, pointerId: 1 })
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: 800, y: 900 }))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: 800, y: 900 }))
     expect(wrapper.find('polyline.rubber').exists()).toBe(true)
   })
 
@@ -328,10 +339,10 @@ describe('PanelCanvas: bend editing', () => {
       .get('[data-testid=bend][data-index="0"]')
       .trigger('pointerdown', pointer(wrapper, start))
     for (const y of [1000, 950, 900]) {
-      await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: 330, y }))
+      await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: 330, y }))
       expect(store.dirty).toBe(false)
     }
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: 330, y: 900 }))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: 330, y: 900 }))
     expect(store.content?.wires[0]?.bends).toEqual([
       { x: 300, y: 900 }, // x locked by the cable wire terminal
       { x: 288, y: 900 },
@@ -346,7 +357,7 @@ describe('PanelCanvas: bend editing', () => {
     await wrapper
       .get('[data-testid=bend][data-index="0"]')
       .trigger('pointerdown', pointer(wrapper, { x: 300, y: 1250 }))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: 300, y: 1250 }))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, { x: 300, y: 1250 }))
     expect(store.dirty).toBe(false)
   })
 
@@ -388,7 +399,7 @@ describe('PanelCanvas: bend editing', () => {
 
   it('a double-click on empty background does nothing', async () => {
     const { wrapper, store } = await mountEditor(wired)
-    await wrapper.get('svg').trigger('dblclick', pointer(wrapper, { x: 5000, y: 500 }))
+    await wrapper.get('svg.canvas').trigger('dblclick', pointer(wrapper, { x: 5000, y: 500 }))
     expect(store.dirty).toBe(false)
   })
 
@@ -456,7 +467,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     u: { x: number; y: number },
   ) {
     await wrapper.get('[data-kind=background]').trigger('pointerdown', pointer(wrapper, u))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, u))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, u))
   }
 
   it('each click off a contact adds a bend snapped to the closer axis; the end click adds one elbow', async () => {
@@ -494,20 +505,24 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     await start(wrapper)
     const at = { x: 800, y: 460 }
     await wrapper.get('[data-kind=background]').trigger('pointerdown', pointer(wrapper, at))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: at.x + 20, y: at.y })) // 2 px
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: at.x + 20, y: at.y }))
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointermove', pointer(wrapper, { x: at.x + 20, y: at.y })) // 2 px
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointerup', pointer(wrapper, { x: at.x + 20, y: at.y }))
     expect(ctx.drawing.value?.bends).toHaveLength(1)
 
-    const before = wrapper.get('svg').attributes('viewBox')
+    const before = wrapper.get('svg.canvas').attributes('viewBox')
     await wrapper.get('[data-kind=background]').trigger('pointerdown', pointer(wrapper, at))
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointermove', pointer(wrapper, { x: at.x + 200, y: at.y + 100 })) // 20 px
     await wrapper
-      .get('svg')
+      .get('svg.canvas')
       .trigger('pointerup', pointer(wrapper, { x: at.x + 200, y: at.y + 100 }))
     expect(ctx.drawing.value?.bends).toHaveLength(1) // no second bend
-    expect(wrapper.get('svg').attributes('viewBox')).not.toBe(before) // the view panned
+    expect(wrapper.get('svg.canvas').attributes('viewBox')).not.toBe(before) // the view panned
     expect(ctx.drawing.value).not.toBeNull() // drawing continues
   })
 
@@ -611,7 +626,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     const { wrapper } = await mountEditor(base)
     await start(wrapper)
     await clickAt(wrapper, { x: 300, y: 900 })
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: 700, y: 905 }))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: 700, y: 905 }))
     expect(wrapper.get('polyline.rubber').attributes('points')).toBe('300,450 300,900 700,900')
   })
 
@@ -798,7 +813,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
     it('a pointer move or a harmless selection change keeps it (control)', async () => {
       const { wrapper, ctx, store } = await mountEditor(base)
       await start(wrapper)
-      await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: 800, y: 900 }))
+      await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: 800, y: 900 }))
       store.select({ kind: 'rail', id: id(10) })
       await nextTick()
       expect(ctx.drawing.value).not.toBeNull()
@@ -971,7 +986,7 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
 
   describe('toolbar colour while drawing', () => {
     const colourSelect = (w: Awaited<ReturnType<typeof mountEditor>>['wrapper']) =>
-      w.get('label select')
+      selectIn(w, 'Колір проводу')
     const rubberStroke = (w: Awaited<ReturnType<typeof mountEditor>>['wrapper']) =>
       (w.get('polyline.rubber').element as SVGElement).style.stroke
 
@@ -979,8 +994,8 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
       const { wrapper, ctx, store } = await mountEditor(base, { toolbar: true })
       await start(wrapper)
       expect(ctx.drawing.value?.colour).toBe('brown')
-      await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: 800, y: 900 }))
-      await colourSelect(wrapper).setValue('red')
+      await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, { x: 800, y: 900 }))
+      await choose(colourSelect(wrapper), 'red')
       expect(ctx.drawing.value?.colour).toBe('red')
       await nextTick()
       expect(rubberStroke(wrapper)).toMatch(/#d32f2f|rgb\(211, 47, 47\)/i)
@@ -994,16 +1009,16 @@ describe('PanelCanvas: manual wire drawing (W1)', () => {
         inputCables: [inputCable(1, [2, 3], ['brown', 'blue'])],
       }
       const { wrapper, ctx } = await mountEditor(coloured, { toolbar: true })
-      await colourSelect(wrapper).setValue('red')
+      await choose(colourSelect(wrapper), 'red')
       await start(wrapper, id(3))
       expect(ctx.drawing.value?.colour).toBe('blue')
-      await colourSelect(wrapper).setValue('black')
+      await choose(colourSelect(wrapper), 'black')
       expect(ctx.drawing.value?.colour).toBe('black')
     })
 
     it('changing it when nothing is drawn only changes the toolbar default', async () => {
       const { wrapper, ctx } = await mountEditor(base, { toolbar: true })
-      await colourSelect(wrapper).setValue('red')
+      await choose(colourSelect(wrapper), 'red')
       expect(ctx.drawing.value).toBeNull()
       expect(ctx.wireColour.value).toBe('red')
       await wrapper

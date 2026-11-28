@@ -1,7 +1,24 @@
 {
   "app": {
     "title": "Electrical panel builder",
-    "localeNotSaved": "Could not save the language to your profile; it may revert after you sign in again."
+    "localeNotSaved": "Could not save the language to your profile; it may revert after you sign in again.",
+    "themeNotSaved": "Could not save the theme to your profile — the previous one may return after your next sign-in."
+  },
+  "appearance": {
+    "title": "Appearance",
+    "mode": "Mode",
+    "modes": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "palette": "Palette",
+    "palettes": {
+      "blue": "Blue",
+      "green": "Green",
+      "orange": "Orange",
+      "violet": "Violet"
+    }
   },
   "common": {
     "loading": "Loading…",
@@ -74,7 +91,9 @@
     "unsavedLost": "Unsaved changes will be lost.",
     "pagination": {
       "label": "Pages",
-      "page": "Page {page} of {pages}"
+      "page": "Page {page} of {pages}",
+      "goToPage": "Go to page {0}",
+      "currentPage": "Current page, page {0}"
     },
     "home": {
       "create": "Create panel",

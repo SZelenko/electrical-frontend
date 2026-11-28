@@ -1,5 +1,15 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { busbar, element, id, mockApi, panelContent, press, rail, server } from './support'
+import {
+  busbar,
+  element,
+  id,
+  mockApi,
+  panelContent,
+  pickOption,
+  press,
+  rail,
+  server,
+} from './support'
 
 async function open(page: Page, content = panelContent()) {
   const s = server(content)
@@ -70,7 +80,7 @@ test('adds three devices and an L+N busbar, wires the feeds and saves the busbar
   const barBox = (await bar.boundingBox())!
   await bar.click({ position: { x: barBox.width - 6, y: barBox.height / 2 } })
   const panelProps = page.getByRole('region', { name: 'Властивості шини' })
-  await panelProps.getByLabel('Колір').selectOption({ label: 'червоний' })
+  await pickOption(panelProps, 'Колір', 'червоний')
   await expect(page.getByRole('button', { name: /^Скасувати: Змінити колір шини/ })).toBeVisible()
 
   await button(page, 'Зберегти').click()
@@ -130,7 +140,7 @@ test('a short circuit through a busbar is highlighted and a property change to L
   await expect(page.getByText('КЗ не виявлено.')).toBeVisible()
   await page.getByTestId('busbar').click()
   const panel = page.getByRole('region', { name: 'Властивості шини' })
-  await panel.getByLabel('Тип').selectOption({ label: 'L' })
+  await pickOption(panel, 'Тип', 'L')
   await expect(page.getByTestId('wire')).toHaveCount(1)
   await expect(page.getByText(/Видалено 1 провід/)).toBeVisible()
   await page.getByRole('button', { name: /^Скасувати: Змінити тип шини/ }).click()

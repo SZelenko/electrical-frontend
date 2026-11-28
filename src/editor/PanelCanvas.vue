@@ -957,15 +957,25 @@ const dragHint = computed(() => {
       </g>
     </svg>
     <div class="zoom" role="group" :aria-label="t('editor.canvas.zoom')">
-      <button type="button" :aria-label="t('editor.canvas.zoomIn')" @click="zoomButton(0.8)">
+      <v-btn
+        type="button"
+        size="small"
+        :aria-label="t('editor.canvas.zoomIn')"
+        @click="zoomButton(0.8)"
+      >
         +
-      </button>
-      <button type="button" :aria-label="t('editor.canvas.zoomOut')" @click="zoomButton(1.25)">
+      </v-btn>
+      <v-btn
+        type="button"
+        size="small"
+        :aria-label="t('editor.canvas.zoomOut')"
+        @click="zoomButton(1.25)"
+      >
         −
-      </button>
-      <button type="button" :aria-label="t('editor.canvas.fitLabel')" @click="fitView">
+      </v-btn>
+      <v-btn type="button" size="small" :aria-label="t('editor.canvas.fitLabel')" @click="fitView">
         {{ t('editor.canvas.fit') }}
-      </button>
+      </v-btn>
     </div>
     <p v-if="drawingHint || dragHint" class="hint" role="status">{{ drawingHint ?? dragHint }}</p>
   </div>
@@ -974,14 +984,15 @@ const dragHint = computed(() => {
 <style scoped>
 .canvas-wrap {
   position: relative;
+  height: 100%;
 }
 .canvas {
   display: block;
   width: 100%;
-  height: 70vh;
+  height: 100%;
   min-height: 24rem;
-  background: #f4f6f9;
-  border: 1px solid #c3cad4;
+  background: var(--schematic-canvas);
+  border: 1px solid var(--schematic-border);
   touch-action: none;
   user-select: none;
 }
@@ -989,19 +1000,19 @@ const dragHint = computed(() => {
   cursor: crosshair;
 }
 .sheet {
-  fill: #fff;
-  stroke: #d3d9e2;
+  fill: var(--schematic-sheet);
+  stroke: var(--schematic-border);
   stroke-width: 4;
 }
 .ghost-invalid {
-  fill: rgb(176 0 32 / 0.15);
-  stroke: #b00020;
+  fill: color-mix(in srgb, var(--schematic-error) 15%, transparent);
+  stroke: var(--schematic-error);
   stroke-width: 10;
   stroke-dasharray: 30 15;
 }
 .ghost-copy {
-  fill: rgb(10 100 214 / 0.15);
-  stroke: #0a64d6;
+  fill: color-mix(in srgb, var(--schematic-selection) 15%, transparent);
+  stroke: var(--schematic-selection);
   stroke-width: 10;
   stroke-dasharray: 30 15;
 }
@@ -1013,22 +1024,22 @@ const dragHint = computed(() => {
   opacity: 0.35;
 }
 .row-band-rect {
-  fill: rgb(61 107 69 / 0.05);
-  stroke: #9db3a1;
+  fill: color-mix(in srgb, var(--schematic-frame) 5%, transparent);
+  stroke: var(--schematic-rail-edge);
   stroke-width: 4;
   stroke-dasharray: 20 12;
 }
 .row-band-label {
   font-size: 36px;
-  fill: #6b7a90;
+  fill: var(--schematic-muted);
 }
 .start-ring {
   fill: none;
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 8;
 }
 .rubber {
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 10;
   stroke-dasharray: 30 20;
 }
@@ -1039,17 +1050,14 @@ const dragHint = computed(() => {
   display: flex;
   gap: 0.25rem;
 }
-.zoom button {
-  padding: 0.25rem 0.6rem;
-}
 .hint {
   position: absolute;
   bottom: 0.5rem;
   left: 0.5rem;
   margin: 0;
   padding: 0.25rem 0.6rem;
-  background: #fff;
-  border: 1px solid #c3cad4;
+  background: var(--schematic-sheet);
+  border: 1px solid var(--schematic-border);
   border-radius: 4px;
 }
 </style>

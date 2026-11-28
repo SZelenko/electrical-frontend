@@ -1,74 +1,41 @@
 :root {
   font-family: system-ui, sans-serif;
   line-height: 1.5;
+  /* Vuetify reads its font from this variable: system stack, no webfont */
+  --v-font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+/* Schematic chrome follows the active theme (custom colours defined in plugins/vuetify.ts) */
+.v-application {
+  --schematic-canvas: rgb(var(--v-theme-schematic-canvas));
+  --schematic-sheet: rgb(var(--v-theme-schematic-sheet));
+  --schematic-border: rgb(var(--v-theme-schematic-border));
+  --schematic-rail: rgb(var(--v-theme-schematic-rail));
+  --schematic-rail-edge: rgb(var(--v-theme-schematic-rail-edge));
+  --schematic-device: rgb(var(--v-theme-schematic-device));
+  --schematic-device-alt: rgb(var(--v-theme-schematic-device-alt));
+  --schematic-part: rgb(var(--v-theme-schematic-part));
+  --schematic-part-edge: rgb(var(--v-theme-schematic-part-edge));
+  --schematic-part-strong: rgb(var(--v-theme-schematic-part-strong));
+  --schematic-frame: rgb(var(--v-theme-schematic-frame));
+  --schematic-caption: rgb(var(--v-theme-schematic-caption));
+  --schematic-muted: rgb(var(--v-theme-schematic-muted));
+  --schematic-bend: rgb(var(--v-theme-schematic-bend));
+  --schematic-selection: rgb(var(--v-theme-schematic-selection));
+  --schematic-hover: rgb(var(--v-theme-schematic-hover));
+  --schematic-error: rgb(var(--v-theme-schematic-error));
+  --schematic-casing: rgb(var(--v-theme-schematic-casing));
 }
 body {
   margin: 0;
+}
+a {
+  color: rgb(var(--v-theme-primary));
 }
 main {
   max-width: 28rem;
   margin: 2rem auto;
   padding: 0 1rem;
 }
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
-}
-.field input {
-  padding: 0.5rem;
-  font: inherit;
-}
-.field input[aria-invalid='true'] {
-  border-color: #b00020;
-}
-.field-error,
-.form-error {
-  margin: 0;
-  color: #b00020;
-}
-.form-error {
-  margin-bottom: 1rem;
-}
-.form-info {
-  color: #1b5e20;
-}
-button {
-  padding: 0.5rem 1rem;
-  font: inherit;
-  cursor: pointer;
-}
-button:disabled {
-  cursor: not-allowed;
-}
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
 main.wide {
   max-width: 48rem;
-}
-.panel-list {
-  padding: 0;
-  list-style: none;
-}
-.panel-list li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #ddd;
-}
-.inline-form {
-  margin: 1rem 0;
-}
-.pagination {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  margin-top: 1rem;
 }

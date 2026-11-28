@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed } from 'vue'
 import { setPoleTransit, updateElement } from '@/domain/commands'
 import { DEVICE_STYLE_DEFAULTS } from '@/domain/deviceStyles'
 import { DEVICE_STYLES, MAX_LABEL_LENGTH, MAX_MARKING_LENGTH } from '@/domain/limits'
-import type { DeviceStyle } from '@/domain/panelContent'
 import { t } from '@/i18n'
 import CommitField from './CommitField.vue'
+import SelectField from './SelectField.vue'
 import { useCommit } from './useCommit'
 
 const props = defineProps<{ id: string }>()
 const { ctx, store, num, commit } = useCommit()
-const styleId = useId()
+const styleItems = computed(() =>
+  DEVICE_STYLES.map((s) => ({
+    title: t(DEVICE_STYLE_DEFAULTS[s].titleKey),
+    value: s,
+  })),
+)
 const found = computed(() => {
   const f = store.index?.elements.get(props.id)
   return f && f.element.kind === 'device' ? { ...f, element: f.element } : undefined
@@ -19,26 +24,16 @@ const found = computed(() => {
 
 <template>
   <section v-if="found" :aria-label="t('props.element.ariaLabel')">
-    <h3>{{ t('props.element.title') }}</h3>
-    <div class="field">
-      <label :for="styleId">{{ t('props.element.style') }}</label>
-      <select
-        :id="styleId"
-        :value="found.element.style"
-        :disabled="store.readOnly"
-        @change="
-          (e) =>
-            ctx.run(
-              updateElement(id, { style: (e.target as HTMLSelectElement).value as DeviceStyle }),
-              'editor.history.changeElementStyle',
-            )
-        "
-      >
-        <option v-for="s in DEVICE_STYLES" :key="s" :value="s">
-          {{ t(DEVICE_STYLE_DEFAULTS[s].titleKey) }}
-        </option>
-      </select>
-    </div>
+    <h3 class="text-subtitle-1 mb-2">{{ t('props.element.title') }}</h3>
+    <SelectField
+      :label="t('props.element.style')"
+      :model-value="found.element.style"
+      :items="styleItems"
+      :disabled="store.readOnly"
+      @update:model-value="
+        (style) => ctx.run(updateElement(id, { style }), 'editor.history.changeElementStyle')
+      "
+    />
     <CommitField
       :label="t('props.name')"
       :maxlength="MAX_LABEL_LENGTH"
@@ -83,56 +78,50 @@ const found = computed(() => {
           )
       "
     />
-    <label class="check">
-      <input
-        type="checkbox"
-        :checked="found.element.on"
+    <v-checkbox
+      :label="t('props.element.on')"
+      :model-value="found.element.on"
+      :disabled="store.readOnly"
+      density="compact"
+      hide-details
+      @update:model-value="
+        (v) => ctx.run(updateElement(id, { on: !!v }), 'editor.history.toggleElement')
+      "
+    />
+    <v-checkbox
+      :label="t('props.element.swapped')"
+      :model-value="found.element.sidesSwapped"
+      :disabled="store.readOnly"
+      density="compact"
+      hide-details
+      @update:model-value="
+        (v) => ctx.run(updateElement(id, { sidesSwapped: !!v }), 'editor.history.swapSides')
+      "
+    />
+    <fieldset class="transit">
+      <legend class="text-body-2">{{ t('props.element.transit') }}</legend>
+      <v-checkbox
+        v-for="(pole, i) in found.element.poles"
+        :key="i"
+        :label="t('props.element.pole', { n: i + 1 })"
+        :model-value="pole.transit"
         :disabled="store.readOnly"
-        @change="
-          (e) =>
-            ctx.run(
-              updateElement(id, { on: (e.target as HTMLInputElement).checked }),
-              'editor.history.toggleElement',
-            )
+        density="compact"
+        hide-details
+        @update:model-value="
+          (v) => ctx.run(setPoleTransit(id, i, !!v), 'editor.history.transitPole')
         "
       />
-      {{ t('props.element.on') }}
-    </label>
-    <label class="check">
-      <input
-        type="checkbox"
-        :checked="found.element.sidesSwapped"
-        :disabled="store.readOnly"
-        @change="
-          (e) =>
-            ctx.run(
-              updateElement(id, { sidesSwapped: (e.target as HTMLInputElement).checked }),
-              'editor.history.swapSides',
-            )
-        "
-      />
-      {{ t('props.element.swapped') }}
-    </label>
-    <fieldset>
-      <legend>{{ t('props.element.transit') }}</legend>
-      <label v-for="(pole, i) in found.element.poles" :key="i" class="check">
-        <input
-          type="checkbox"
-          :checked="pole.transit"
-          :disabled="store.readOnly"
-          @change="
-            (e) =>
-              ctx.run(
-                setPoleTransit(id, i, (e.target as HTMLInputElement).checked),
-                'editor.history.transitPole',
-              )
-          "
-        />
-        {{ t('props.element.pole', { n: i + 1 }) }}
-      </label>
     </fieldset>
-    <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
+    <v-btn
+      type="button"
+      size="small"
+      color="error"
+      class="mt-2"
+      :disabled="store.readOnly"
+      @click="ctx.deleteSelected"
+    >
       {{ t('props.element.delete') }}
-    </button>
+    </v-btn>
   </section>
 </template>

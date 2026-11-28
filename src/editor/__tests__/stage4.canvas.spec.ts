@@ -20,6 +20,7 @@ import { newDevice } from '@/domain/deviceStyles'
 import { deviceShapes } from '../shapes/registry'
 import { mountEditor, pointer, stubLayout } from './harness'
 import { t } from '@/i18n'
+import { choose, selectDisabled, selectIn, selectValue } from '@/test/vuetifySelect'
 
 /** R1 id10: breaker id20 [0,1), RCD id21 [2,4), relay id22 [5,7) (pole 2 transit), ATS id23 [8,10); R2 id11 empty. */
 const base: PanelContent = content({
@@ -62,7 +63,7 @@ function historyLength(store: { undo: () => string | null }): number {
 async function clickToggle(w: Wrapper, n: number, mods: object = {}) {
   const at = centreOf(n)
   await toggle(w, n).trigger('pointerdown', pointer(w, at, mods))
-  await w.get('svg').trigger('pointerup', pointer(w, at, mods))
+  await w.get('svg.canvas').trigger('pointerup', pointer(w, at, mods))
 }
 
 describe('style registry and shapes', () => {
@@ -233,8 +234,12 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     const { wrapper, store } = await mountEditor(base)
     const at = centreOf(20)
     await toggle(wrapper, 20).trigger('pointerdown', pointer(wrapper, at))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, { x: at.x + 20, y: at.y })) // 2 px
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, { x: at.x + 20, y: at.y }))
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointermove', pointer(wrapper, { x: at.x + 20, y: at.y })) // 2 px
+    await wrapper
+      .get('svg.canvas')
+      .trigger('pointerup', pointer(wrapper, { x: at.x + 20, y: at.y }))
     expect(el(store.content, 20)).toMatchObject({ on: false })
     expect(historyLength(store)).toBe(1)
   })
@@ -244,8 +249,8 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     const from = centreOf(20)
     const to = { x: from.x + 12 * 175, y: from.y }
     await toggle(wrapper, 20).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, to))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, to))
     expect(el(store.content, 20)).toMatchObject({ on: true, offsetModules: 12 })
     expect(store.undoLabel && t(store.undoLabel)).toBe('Перемістити апарат')
     expect(historyLength(store)).toBe(1)
@@ -256,8 +261,8 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     const from = centreOf(23)
     const to = { x: from.x + 6 * 175, y: from.y }
     await toggle(wrapper, 23).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, to))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, to))
     expect(el(store.content, 23)).toMatchObject({ state: 'A', offsetModules: 14 })
   })
 
@@ -266,8 +271,8 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     const from = centreOf(20)
     const to = { x: from.x, y: layout.rails[1]!.cy }
     await toggle(wrapper, 20).trigger('pointerdown', pointer(wrapper, from))
-    await wrapper.get('svg').trigger('pointermove', pointer(wrapper, to, CTRL))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, to, CTRL))
+    await wrapper.get('svg.canvas').trigger('pointermove', pointer(wrapper, to, CTRL))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, to, CTRL))
     expect(el(store.content, 20)).toMatchObject({ on: true })
     const copy = store.content!.rails[1]!.elements[0]!
     expect(copy).toMatchObject({ style: 'breaker', on: true })
@@ -301,7 +306,7 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     const { wrapper, store } = await mountEditor(base)
     const at = centreOf(20)
     await body(wrapper, 20).trigger('pointerdown', pointer(wrapper, at))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, at))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, at))
     expect(store.selection).toEqual({ kind: 'element', id: id(20) })
     expect(el(store.content, 20)).toMatchObject({ on: true })
     expect(store.canUndo).toBe(false)
@@ -314,7 +319,7 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
       .trigger('pointerdown', { button: 0, pointerId: 1 })
     const at = centreOf(20)
     await toggle(wrapper, 20).trigger('pointerdown', pointer(wrapper, at))
-    await wrapper.get('svg').trigger('pointerup', pointer(wrapper, at))
+    await wrapper.get('svg.canvas').trigger('pointerup', pointer(wrapper, at))
     expect(ctx.drawing.value?.bends).toHaveLength(1)
     expect(el(store.content, 20)).toMatchObject({ on: true })
     expect(store.canUndo).toBe(false)
@@ -323,7 +328,7 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
   it('a pointercancel during the press toggles nothing', async () => {
     const { wrapper, store } = await mountEditor(base)
     await toggle(wrapper, 20).trigger('pointerdown', pointer(wrapper, centreOf(20)))
-    await wrapper.get('svg').trigger('pointercancel', pointer(wrapper, centreOf(20)))
+    await wrapper.get('svg.canvas').trigger('pointercancel', pointer(wrapper, centreOf(20)))
     expect(store.canUndo).toBe(false)
     expect(el(store.content, 20)).toMatchObject({ on: true })
   })
@@ -342,7 +347,7 @@ describe('click, drag and Ctrl+drag on the toggle zone', () => {
     const b = l.elements.get(id(20))!
     const at = { x: b.x + b.w / 2, y: b.y + b.h / 2 }
     await toggle(m.wrapper, 20).trigger('pointerdown', pointer(m.wrapper, at))
-    await m.wrapper.get('svg').trigger('pointerup', pointer(m.wrapper, at))
+    await m.wrapper.get('svg.canvas').trigger('pointerup', pointer(m.wrapper, at))
     await nextTick()
     expect(m.wrapper.findAll('path[stroke="#ff00ff"]')).toHaveLength(0)
   })
@@ -444,17 +449,17 @@ describe('style select in the properties panel', () => {
     await nextTick()
     return m
   }
-  const select = (w: Wrapper) =>
-    w.get(
-      'section[aria-label="Властивості апарата"] select#' +
-        w.get('section[aria-label="Властивості апарата"] label').attributes('for'),
-    )
+  const select = (w: Wrapper) => selectIn(w.get('section[aria-label="Властивості апарата"]'))
 
   it('lists the three styles with their titles and shows the current one', async () => {
     const { wrapper } = await open(21)
     const s = select(wrapper)
-    expect(s.findAll('option').map((o) => o.text())).toEqual(['Автомат', 'ПЗВ', 'Реле напруги'])
-    expect((s.element as HTMLSelectElement).value).toBe('rcd')
+    expect((s.props('items') as { title: string }[]).map((i) => i.title)).toEqual([
+      'Автомат',
+      'ПЗВ',
+      'Реле напруги',
+    ])
+    expect(selectValue(s)).toBe('rcd')
   })
 
   it.each([
@@ -462,7 +467,7 @@ describe('style select in the properties panel', () => {
     ['voltageRelay', 'Реле напруги'],
   ])('changing an RCD to %s keeps width, poles and state in one entry', async (style) => {
     const { wrapper, store } = await open(21)
-    await select(wrapper).setValue(style)
+    await choose(select(wrapper), style)
     expect(el(store.content, 21)).toMatchObject({
       style,
       widthModules: 2,
@@ -476,7 +481,7 @@ describe('style select in the properties panel', () => {
 
   it('is disabled on a read-only panel', async () => {
     const { wrapper } = await open(21, { panel: { deletedAt: '2026-02-01T00:00:00+00:00' } })
-    expect(select(wrapper).attributes('disabled')).toBeDefined()
+    expect(selectDisabled(select(wrapper))).toBe(true)
   })
 
   it('an ATS has no style select', async () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { mdiClose } from '@mdi/js'
 import { useLocale } from '@/composables/useLocale'
 import { isLocale, t } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -8,9 +9,16 @@ const { locale, locales, setLocale } = useLocale()
 const auth = useAuthStore()
 /** Set when the language could not be saved to the profile; it never blocks the UI. */
 const notSaved = ref(false)
+// a notice from a signed-in session must not outlive it
+watch(
+  () => auth.status,
+  (status) => {
+    if (status !== 'authenticated') notSaved.value = false
+  },
+)
+const items = computed(() => locales.map((l) => ({ title: t(`common.languages.${l}`), value: l })))
 
-async function onChange(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
+async function onChange(value: unknown) {
   if (!isLocale(value)) return
   const saved = await setLocale(value)
   // null: a newer choice replaced this one, its result decides
@@ -19,45 +27,32 @@ async function onChange(event: Event) {
 </script>
 
 <template>
-  <span class="language-switcher">
-    <label>
-      {{ t('common.language') }}
-      <select
-        :value="locale"
-        :disabled="auth.status === 'unknown'"
-        data-testid="language-switcher"
-        @change="onChange"
-      >
-        <option v-for="l in locales" :key="l" :value="l" :lang="l">
-          {{ t(`common.languages.${l}`) }}
-        </option>
-      </select>
-    </label>
-    <small v-if="notSaved" class="notice-line" role="status" data-testid="locale-not-saved">
-      <span class="form-error">{{ t('app.localeNotSaved') }}</span>
-      <button type="button" :aria-label="t('common.close')" @click="notSaved = false">×</button>
-    </small>
-  </span>
+  <v-select
+    :model-value="locale"
+    :items="items"
+    :label="t('common.language')"
+    :disabled="auth.status === 'unknown'"
+    class="locale-select"
+    data-testid="language-switcher"
+    @update:model-value="onChange"
+  />
+  <!-- at the top, under the app bar (the bar clips its own content): it never covers the canvas -->
+  <v-snackbar
+    v-model="notSaved"
+    :timeout="-1"
+    location="top"
+    color="error"
+    :content-props="{ 'data-testid': 'locale-not-saved' }"
+  >
+    {{ t('app.localeNotSaved') }}
+    <template #actions>
+      <v-btn :aria-label="t('common.close')" :icon="mdiClose" @click="notSaved = false" />
+    </template>
+  </v-snackbar>
 </template>
 
 <style scoped>
-.language-switcher {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.25rem;
-  max-width: 100%;
-  font-size: 0.9rem;
-}
-label {
-  display: inline-flex;
-  gap: 0.35rem;
-  align-items: center;
-}
-.notice-line {
-  display: inline-flex;
-  gap: 0.35rem;
-  align-items: flex-start;
-  background: #fff;
+.locale-select {
+  flex: 0 0 10.5rem;
 }
 </style>

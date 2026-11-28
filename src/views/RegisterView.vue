@@ -36,11 +36,13 @@ async function submit() {
         autocomplete="new-password"
         :errors="fieldErrors.password"
       />
-      <p v-if="message" class="form-error" role="alert">{{ message }}</p>
-      <div class="actions">
-        <button type="submit" :disabled="pending">
+      <v-alert v-if="message" type="error" variant="tonal" density="compact" class="mb-3">
+        {{ message }}
+      </v-alert>
+      <div class="d-flex flex-wrap ga-3 align-center">
+        <v-btn type="submit" color="primary" variant="flat" :disabled="pending">
           {{ t('auth.register.submit') }}
-        </button>
+        </v-btn>
         <RouterLink :to="{ name: 'login' }">{{ t('auth.register.haveAccount') }}</RouterLink>
       </div>
     </form>

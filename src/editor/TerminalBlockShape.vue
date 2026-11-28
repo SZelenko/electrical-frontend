@@ -92,16 +92,16 @@ const title = computed(() => {
 
 <style scoped>
 .body {
-  stroke: #3b4658;
+  stroke: var(--schematic-frame);
   stroke-width: 6;
   cursor: grab;
 }
 .body.selected {
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 14;
 }
 .body.violation {
-  stroke: #b00020;
+  stroke: var(--schematic-error);
   stroke-dasharray: 20 10;
   stroke-width: 14;
 }
@@ -112,13 +112,13 @@ const title = computed(() => {
   stroke-dasharray: 30 30;
 }
 .bar {
-  stroke: #3b4658;
+  stroke: var(--schematic-frame);
   stroke-width: 8;
 }
 .label {
   font-size: 36px;
-  fill: #1f2733;
-  stroke: #fff;
+  fill: var(--schematic-caption);
+  stroke: var(--schematic-sheet);
   stroke-width: 6px;
   paint-order: stroke;
   user-select: none;

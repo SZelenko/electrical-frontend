@@ -50,27 +50,27 @@ defineProps<{ rail: RailBox; selected: boolean; violation: boolean }>()
 
 <style scoped>
 .rail {
-  fill: #c9ced6;
-  stroke: #8a93a0;
+  fill: var(--schematic-rail);
+  stroke: var(--schematic-rail-edge);
   stroke-width: 4;
   cursor: pointer;
 }
 .rail.selected {
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 12;
 }
 .rail.violation {
-  stroke: #b00020;
+  stroke: var(--schematic-error);
   stroke-width: 12;
   stroke-dasharray: 20 10;
 }
 .groove {
-  stroke: #a3abb7;
+  stroke: var(--schematic-rail-edge);
   stroke-width: 6;
 }
 .rail-label {
   font-size: 40px;
-  fill: #55606f;
+  fill: var(--schematic-muted);
   user-select: none;
 }
 </style>

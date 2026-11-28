@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mountPlugins } from '@/test/mountWithPlugins'
 import { panelContentJson } from '@/test/http'
 import type { PanelContent } from '@/domain/panelContent'
 import { applyLocale } from '@/i18n'
@@ -7,7 +7,7 @@ import PanelSummary from '../PanelSummary.vue'
 
 const content = () => panelContentJson() as PanelContent
 const render = (c: PanelContent = content()) =>
-  mount(PanelSummary, { props: { content: c, shortCircuits: [] } })
+  mountPlugins(PanelSummary, { props: { content: c, shortCircuits: [] } })
 
 describe('PanelSummary elements', () => {
   it('describes an element on its own line with ", " separators', () => {

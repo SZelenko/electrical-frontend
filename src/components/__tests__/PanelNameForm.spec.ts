@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { mountPlugins } from '@/test/mountWithPlugins'
+import { flushPromises } from '@vue/test-utils'
 import { ApiError } from '@/api/problem'
 import PanelNameForm from '../PanelNameForm.vue'
+import { alertText } from '@/test/a11y'
 
 const mountForm = (action = vi.fn().mockResolvedValue(undefined), initial?: string) =>
-  mount(PanelNameForm, { props: { label: 'Назва', submitLabel: 'Ок', action, initial } })
+  mountPlugins(PanelNameForm, { props: { label: 'Назва', submitLabel: 'Ок', action, initial } })
 
 describe('PanelNameForm', () => {
   it('limits the name input to 100 characters', () => {
@@ -33,7 +35,7 @@ describe('PanelNameForm', () => {
     await wrapper.get('input').setValue('Dup')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('[role=alert]').text()).toContain('вже існує')
+    expect(alertText(wrapper)).toContain('вже існує')
     expect(wrapper.emitted('done')).toBeUndefined()
   })
 })

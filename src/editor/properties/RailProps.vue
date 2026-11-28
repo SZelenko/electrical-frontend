@@ -13,7 +13,7 @@ const found = computed(() => store.index?.rails.get(props.id))
 
 <template>
   <section v-if="found" :aria-label="t('props.rail.ariaLabel')">
-    <h3>{{ t('props.rail.title', { n: found.index + 1 }) }}</h3>
+    <h3 class="text-subtitle-1 mb-2">{{ t('props.rail.title', { n: found.index + 1 }) }}</h3>
     <RailWidthField />
     <CommitField
       :label="t('props.rail.spacing')"
@@ -31,9 +31,15 @@ const found = computed(() => store.index?.rails.get(props.id))
           )
       "
     />
-    <p class="hint">{{ t('props.rail.hint') }}</p>
-    <button type="button" :disabled="store.readOnly" @click="ctx.deleteSelected">
+    <p class="hint text-caption text-medium-emphasis">{{ t('props.rail.hint') }}</p>
+    <v-btn
+      type="button"
+      size="small"
+      color="error"
+      :disabled="store.readOnly"
+      @click="ctx.deleteSelected"
+    >
       {{ t('props.rail.delete') }}
-    </button>
+    </v-btn>
   </section>
 </template>

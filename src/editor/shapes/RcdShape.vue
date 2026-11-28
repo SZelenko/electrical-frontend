@@ -78,8 +78,8 @@ const buttonY = computed(() => props.box.y + 620)
 
 <style scoped>
 .slot {
-  fill: #cfd4dc;
-  stroke: #8d96a3;
+  fill: var(--schematic-part);
+  stroke: var(--schematic-part-edge);
   stroke-width: 4;
 }
 .lever {
@@ -105,10 +105,10 @@ const buttonY = computed(() => props.box.y + 620)
 .io {
   font-size: 30px;
   font-weight: 700;
-  fill: #aeb4bd;
+  fill: var(--schematic-part-strong);
   user-select: none;
 }
 .io.active {
-  fill: #1f2733;
+  fill: var(--schematic-caption);
 }
 </style>

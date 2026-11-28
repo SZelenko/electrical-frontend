@@ -41,11 +41,11 @@ defineProps<{
   cursor: pointer;
 }
 .toggle:hover {
-  fill: rgb(10 100 214 / 0.12);
+  fill: color-mix(in srgb, var(--schematic-selection) 12%, transparent);
 }
 .toggle:focus-visible {
   outline: none;
-  stroke: #0a64d6;
+  stroke: var(--schematic-selection);
   stroke-width: 8;
 }
 .toggle.read-only {

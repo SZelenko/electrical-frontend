@@ -29,7 +29,14 @@ export function routeFetch(routes: Record<string, Handler>) {
   return { mock, calls, count: (key: string) => calls.filter((c) => c.key === key).length }
 }
 
-export const ME = { id: 'u1', email: 'a@b.c', emailVerified: true, twoFactorEnabled: false }
+export const ME = {
+  id: 'u1',
+  email: 'a@b.c',
+  emailVerified: true,
+  twoFactorEnabled: false,
+  themeMode: null,
+  themePalette: null,
+}
 
 export function panelJson(overrides: Record<string, unknown> = {}) {
   return {

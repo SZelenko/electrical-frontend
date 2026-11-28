@@ -87,14 +87,14 @@ const btns = computed(() =>
   fill: #ff5a4d;
 }
 .led {
-  fill: #9aa3b0;
+  fill: var(--schematic-part-strong);
 }
 .led.on {
   fill: #2e9d3a;
 }
 .button {
-  fill: #f1f3f6;
-  stroke: #8d96a3;
+  fill: var(--schematic-device-alt);
+  stroke: var(--schematic-part-edge);
   stroke-width: 4;
 }
 </style>

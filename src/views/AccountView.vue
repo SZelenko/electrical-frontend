@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StatusNote from '@/components/StatusNote.vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FormField from '@/components/FormField.vue'
@@ -60,19 +61,23 @@ async function logout() {
           autocomplete="current-password"
           :errors="fieldErrors.password"
         />
-        <p v-if="message" class="form-error" role="alert">{{ message }}</p>
-        <p v-else-if="saved" class="form-info" role="status">{{ t('auth.account.saved') }}</p>
-        <button type="submit" :disabled="pending">
+        <v-alert v-if="message" type="error" variant="tonal" density="compact" class="mb-3">
+          {{ message }}
+        </v-alert>
+        <StatusNote v-else-if="saved" tone="success" class="mb-3">
+          {{ t('auth.account.saved') }}
+        </StatusNote>
+        <v-btn type="submit" color="primary" variant="flat" :disabled="pending">
           {{ auth.user?.twoFactorEnabled ? t('auth.account.disable') : t('auth.account.enable') }}
-        </button>
+        </v-btn>
       </form>
     </section>
 
-    <p class="actions">
+    <p class="d-flex flex-wrap ga-3 align-center">
       <RouterLink :to="{ name: 'home' }">{{ t('auth.account.toPanels') }}</RouterLink>
-      <button type="button" :disabled="loggingOut" @click="logout">
+      <v-btn type="button" :disabled="loggingOut" @click="logout">
         {{ t('auth.account.logout') }}
-      </button>
+      </v-btn>
     </p>
   </main>
 </template>

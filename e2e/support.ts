@@ -1,5 +1,5 @@
 /** Shared helpers for the editor e2e specs: a stateful mock of the panel API (page.route) and content builders. */
-import type { Page, Request } from '@playwright/test'
+import type { Locator, Page, Request } from '@playwright/test'
 
 export const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
 
@@ -185,8 +185,20 @@ export async function mockApi(page: Page, s: Server) {
     const json = (status: number, body: unknown) =>
       route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
     if (path === '/auth/refresh') return json(200, { token: 't' })
-    if (path === '/me')
-      return json(200, { id: 'u1', email: 'a@b.c', emailVerified: true, twoFactorEnabled: false })
+    const me = {
+      id: 'u1',
+      email: 'a@b.c',
+      emailVerified: true,
+      twoFactorEnabled: false,
+      locale: null,
+      themeMode: null,
+      themePalette: null,
+    }
+    if (path === '/me') return json(200, me)
+    if (path === '/me/theme' && req.method() === 'PUT') {
+      const body = req.postDataJSON() as { mode: string; palette: string }
+      return json(200, { ...me, themeMode: body.mode, themePalette: body.palette })
+    }
     if (path === '/panels' && req.method() === 'GET')
       return json(200, { member: [], totalItems: 0 })
     if (path === '/panels/p1' && req.method() === 'GET') {
@@ -211,3 +223,20 @@ export async function mockApi(page: Page, s: Server) {
 /** Dispatches the pointerdown the editor listens to on a terminal hit area (works under the svg scale). */
 export const press = (locator: import('@playwright/test').Locator) =>
   locator.dispatchEvent('pointerdown', { button: 0 })
+
+/**
+ * Picks an option of a Vuetify select: opens the field by its label, then clicks the `option` item
+ * in the open overlay (the menu is teleported to the body, so it is looked up on the page).
+ * `scope` is the page or a locator that contains exactly one field with that label.
+ */
+export async function pickOption(
+  scope: Page | Locator,
+  label: string | RegExp,
+  optionText: string,
+): Promise<void> {
+  const page = 'page' in scope && typeof scope.page === 'function' ? scope.page() : (scope as Page)
+  // the selected text sits above the readonly input and would intercept a plain click
+  await scope.getByRole('combobox', { name: label }).click({ force: true })
+  // only the open menu is exposed to the accessibility tree
+  await page.getByRole('listbox').getByRole('option', { name: optionText, exact: true }).click()
+}
